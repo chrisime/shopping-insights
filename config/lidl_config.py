@@ -7,6 +7,7 @@ class LidlConfig:
     # File paths
     RECEIPTS_JSON_FILE = "lidl_receipts.json"
     COOKIES_JSON_FILE = "lidl_cookies.json"
+    SKIPPED_RECEIPTS_REPORT_FILE = "lidl_skipped_receipts.json"
 
     # Country settings (can be changed via set_country)
     COUNTRY = "de"
@@ -17,7 +18,12 @@ class LidlConfig:
     PAGES_TO_CHECK = 3
 
     # Browser settings
-    SUPPORTED_BROWSERS = {"firefox": "Firefox", "chrome": "Chrome", "chromium": "Chromium"}
+    SUPPORTED_BROWSERS = {
+        "firefox": "Firefox",
+        "librewolf": "LibreWolf",
+        "chrome": "Chrome",
+        "chromium": "Chromium",
+    }
 
     # API settings
     DEFAULT_PAGE_SIZE = 10

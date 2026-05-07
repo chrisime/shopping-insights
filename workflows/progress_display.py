@@ -21,8 +21,19 @@ class ProgressState:
 class ReceiptProgressDisplay:
     """Render a fixed 3-line progress block in the terminal."""
 
-    def __init__(self, bar_width: int = 35) -> None:
+    def __init__(
+        self,
+        bar_width: int = 35,
+        added_label: str = "Neu",
+        skipped_label: str = "Übersprungen",
+        errors_label: str = "Fehler",
+        items_label: str = "Artikel",
+    ):
         self.bar_width = bar_width
+        self.added_label = added_label
+        self.skipped_label = skipped_label
+        self.errors_label = errors_label
+        self.items_label = items_label
         self._initialized = False
 
     def render(self, state: ProgressState) -> None:
@@ -40,8 +51,8 @@ class ReceiptProgressDisplay:
 
         line1 = f"[{bar}] {state.current}/{state.total} ({percentage:5.1f}%)"
         line2 = (
-            f"Neu: {state.added} | Uebersprungen: {state.skipped} "
-            f"| Fehler: {state.errors} | Artikel: {state.items}"
+            f"{self.added_label}: {state.added} | {self.skipped_label}: {state.skipped} "
+            f"| {self.errors_label}: {state.errors} | {self.items_label}: {state.items}"
         )
         line3 = f"Aktuell: {state.current_receipt}"
 

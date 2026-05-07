@@ -1,359 +1,143 @@
 # Shopping Analyzer
 
-A Python tool to automatically extract and manage Lidl receipt data from your online purchase history.
+Ein Tool zum Extrahieren, Prüfen und Verwalten von Kassenbons aus Online-Kaufhistorien von **LIDL** und **REWE**.
 
-Ein Python-Tool zum automatischen Extrahieren und Verwalten von Lidl-Kassenbondaten aus Ihrem Online-Kaufverlauf.
+> [!IMPORTANT]
+> Falls du das Projekt aus einem älteren Video oder einer älteren Anleitung kennst: Der Ablauf hat sich geändert. Bitte orientiere dich an den aktuellen CLI- und Menüpfaden in dieser Dokumentation.
 
----
+## Überblick
 
-> [!Important] 
-> **📹 YouTube Video Update Notice**
->
-> If you came here from a YouTube video, please note: The setup process has **changed** from the video instructions. This tool now uses an **API** instead of web scraping, making it more reliable and faster.
->
-> **Please follow the instructions in this README below** instead of the video tutorial, as the old web scraping method is no longer used.
+Das Projekt unterstützt aktuell zwei Händler:
 
----
+- **LIDL**: Abruf der digitalen Bons, Parsing, Validierung und Persistierung in `lidl_receipts.json`
+- **REWE**: Download der eBon-ZIP, PDF-Extraktion, Parsing, Validierung und Persistierung in `rewe_receipts.json`
 
-## 🇬🇧 English
+Zusätzlich gibt es für beide Händler einen Diagnosepfad für Cookie-/Request-Dateien:
 
-### Features
+```bash
+python get_data.py check --retailer lidl --cookies-file lidl_cookies.json
+python get_data.py check --retailer rewe --cookies-file rewe_cookies.json
+```
 
-- **Secure Login**: Prompts you to enter your Lidl credentials securely when running
-- **Receipt Extraction**: Downloads all receipt data including items, prices, and dates
-- **Smart Updates**: Only downloads new receipts during updates (no duplicates)
-- **Data Export**: Saves all data in JSON format for easy analysis
-- **Interactive Menu**: User-friendly interface for easy operation
+## Voraussetzungen
 
-### Prerequisites
+- Python 3.10 oder neuer
+- installierte Projekt-Abhängigkeiten aus `requirements.txt`
+- ein aktives LIDL- oder REWE-Konto
+- entweder ein unterstütztes Browserprofil oder eine exportierte Cookie-/Request-Datei
 
-- [Python 3.7 or higher](https://www.python.org/downloads/)
-- [Google Chrome browser](https://www.google.com/chrome/) or [Mozilla Firefox browser](https://www.mozilla.org/firefox/) installed
-- Lidl Plus account with online purchase history
+Installation:
 
-### Important Limitation
+```bash
+git clone <repository-url>
+cd shopping-analyzer
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
-⚠️ **Data Availability**: Receipt data on the Lidl website is only available from **February 2023 onwards**. The script will automatically stop when it encounters receipts older than February 2023, as this data is no longer accessible on the Lidl website.
+Unter Windows:
 
-### Installation
+```cmd
+venv\Scripts\activate
+```
 
-1. **Clone or download this repository**
+## Schnellstart
 
-   ```bash
-   git clone <repository-url>
-   cd shopping-analyzer
-   ```
-
-   Or download the ZIP file from GitHub and extract it.
-
-2. **Open the folder in a terminal**
-
-   Navigate to the project folder using your preferred terminal (e.g., Terminal on macOS, Command Prompt on Windows, or any terminal of your choice like Warp).
-
-3. **Create a virtual environment (recommended)**
-
-   This ensures that the packages we install only affect this project and don't clutter your entire system:
-
-   ```bash
-   python -m venv venv
-   ```
-
-4. **Activate the virtual environment**
-
-   **On Mac/Linux:**
-
-   ```bash
-   source venv/bin/activate
-   ```
-
-   **On Windows:**
-
-   ```cmd
-   venv\Scripts\activate
-   ```
-
-5. **Install dependencies**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-Now the project is successfully set up and you can start extracting data from your Lidl+ account!
-
-### Usage
-
-**Step 1: Choose your authentication method**
-
-> [!WARNING] 
-> **🔐 Security Notice**: This tool requires access to your Lidl Plus account cookies to function. Please be aware of the following security considerations:
->
-> - **Cookie files contain sensitive authentication data** that can grant access to your Lidl Plus account
-> - **Never share your `lidl_cookies.json` file** with others or commit it to version control (Git)
-> - **Store cookie files securely** and delete them when no longer needed
-> - The automatic browser extraction is generally more secure as cookies are extracted temporarily from memory
-
-You have two options for authentication:
-
-**Option A: Automatic Browser Cookie Extraction (Recommended)**
-
-- Login to Lidl Plus in Firefox or Chrome and keep the browser open
-- [Lidl Login](https://www.lidl.de/mla/)
-- ⚠️ **Note for macOS users**: Chrome may not work due to keychain access restrictions. If you encounter a "key for cookie decryption" error, please use Firefox instead, which works more reliably on macOS.
-
-**Option B: Manual Cookie File**
-
-> [!CAUTION] 
-> **⚠️ Security Risk**: Manually exporting and storing cookies in a file poses additional security risks:
->
-> - The `lidl_cookies.json` file will contain your authentication tokens in plain text
-> - Anyone with access to this file can access your Lidl Plus account
-> - Ensure the file has appropriate permissions and is stored in a secure location
-> - Delete the file immediately after use if possible
-> - **Never upload this file to cloud storage, GitHub, or share it with anyone**
-
-- Export cookies using a browser extension like [EditThisCookie](https://chromewebstore.google.com/detail/editthiscookie-v3/ojfebgpkimhlhcblbalbfjblapadhbol?hl=de&utm_source=ext_sidebar)
-- Save them to a file named `lidl_cookies.json`
-
-**Step 2: Run the data extraction script**
+### Interaktives Menü
 
 ```bash
 python get_data.py
 ```
 
-**Step 3: Choose your operation mode**
+Im Menü kannst du pro Händler zwischen folgenden Aktionen wählen:
 
-You'll see a menu with options:
+1. Initial Setup / Vollimport
+2. Update
+3. Cookie-Datei prüfen (Diagnose)
+4. Zurück
 
-1. Initial Setup - Extract all historical receipt data (choose this for first run)
-2. Update Data - Add only new receipts
-3. Exit
+### Direkte CLI-Aufrufe
 
-**Step 4: Choose your authentication method**
+```bash
+python get_data.py initial --retailer lidl --cookies-file lidl_cookies.json
+python get_data.py update --retailer lidl --cookies-file lidl_cookies.json
+python get_data.py check --retailer lidl --cookies-file lidl_cookies.json
 
-Choose how you want to authenticate:
+python get_data.py initial --retailer rewe --cookies-file rewe_cookies.json
+python get_data.py update --retailer rewe --output-dir tmp/rewe
+python get_data.py check --retailer rewe --cookies-file rewe_cookies.json
+```
 
-1. Firefox (automatic cookie extraction)
-2. Chrome (automatic cookie extraction)
-3. Cookie File (manual - using `lidl_cookies.json`)
+Optional kann das Write-Backend bereits explizit gewählt werden:
 
-If you chose option 3, make sure you have created a `lidl_cookies.json` file first.
+```bash
+python get_data.py initial --retailer lidl --write-backend json
+python get_data.py update --retailer rewe --output-dir tmp/rewe --write-backend json
+```
 
-**Step 5: Automated data extraction**
+Aktuell ist `json` das einzige verfügbare Backend. Der Schalter ist bereits als Vorbereitung für weitere Write-Backends vorgesehen.
 
-The program will automatically extract data from all your receipts (after 14.02.2022)
+## Händler-spezifische Anleitungen
 
-⚠️ **Important**: This process may take some time, so grab a coffee or take a short walk! If the process crashes for any reason, simply run it again - the program will resume from where it left off.
+- [`docs/LIDL_RECEIPTS.md`](./docs/LIDL_RECEIPTS.md) – LIDL-Workflow, Authentifizierung, Limitierungen und Ausgaben
+- [`docs/README_REWE_EBONS.md`](./docs/README_REWE_EBONS.md) – REWE-eBon-Workflow, `customerId`, ZIP/PDF-Import und Fehlersuche
+- [`docs/LIBREWOLF_SESSION_COOKIES.md`](./docs/LIBREWOLF_SESSION_COOKIES.md) – ergänzende Hinweise zur Cookie-Gewinnung aus LibreWolf
 
-**For future updates**: When you want to add new receipts later, run `python get_data.py` again and choose option 2 (Update Data). This will only extract new receipts that aren't already in your data.
+## Architektur und Beitragshinweise
 
-### Output
+Für neue Änderungen gelten explizite Paket- und Workflow-Regeln. Der empfohlene Einstieg ist:
 
-The script creates a `lidl_receipts.json` file containing all your receipt data, automatically sorted by date (newest first).
+1. [`docs/architecture/package-layer-rules.md`](./docs/architecture/package-layer-rules.md)
+2. [`docs/architecture/workflow-overview.md`](./docs/architecture/workflow-overview.md)
+3. [`docs/adr/README.md`](./docs/adr/README.md)
+4. [`docs/adr/0003-package-layer-rules-and-wrapper-removal.md`](./docs/adr/0003-package-layer-rules-and-wrapper-removal.md)
 
-### Data Analysis Dashboard
+Wichtige Kurzfassung:
 
-After collecting your receipt data, you can view and analyze it using the interactive dashboard:
+- `workflows/*` ist die einzige Orchestrierungsschicht
+- `workflows/pipeline_runner.py` arbeitet nur mit injizierten Funktionen/Ports, nicht mit konkreten Parsing- oder Storage-Adaptern
+- der Umschaltpunkt für Write-Backends liegt aktuell im CLI-Entry-Point (`--write-backend`) und wird in die Workflow-Einstiege durchgereicht
+- gemeinsame neutrale Bausteine liegen unter `shared/*` sowie in `result_types.py`
+- entfernte Wrapper- und Altpfade wie `receipt_schema`, `parsing.receipt_schema`, `parsing.receipt_parse_result` und `diagnostics.*` sollen nicht wieder eingeführt werden
+
+Kanonische Importpfade für neue Beiträge sind insbesondere:
+
+- `shared.receipt_schema`
+- `shared.addresses`
+- `shared.ports`
+- `result_types`
+
+## Ausgaben
+
+Je nach Händler entstehen insbesondere folgende Dateien:
+
+- `lidl_receipts.json`
+- `rewe_receipts.json`
+- `tmp/rewe/receipts.zip`
+- `tmp/rewe/pdfs/`
+
+## Dashboard
+
+Nach dem Import kannst du die gesammelten Daten im Dashboard ansehen:
 
 ```bash
 streamlit run dashboard.py
 ```
 
-This will start a web-based dashboard accessible at `http://localhost:8501` where you can analyse your shopping history.
+Danach ist das Dashboard typischerweise unter `http://localhost:8501` erreichbar.
 
----
+## Sicherheitshinweise
 
-## 🇩🇪 Deutsch
+Cookie- und Request-Dateien enthalten sensible Authentifizierungsdaten.
 
-### Funktionen
+- niemals committen
+- niemals weitergeben
+- lokal sicher speichern
+- nach Möglichkeit nach erfolgreicher Nutzung wieder löschen
 
-- **Sicherer Login**: Fordert Sie zur sicheren Eingabe Ihrer Lidl-Zugangsdaten beim Ausführen auf
-- **Kassenbon-Extraktion**: Lädt alle Kassenbondaten inklusive Artikel, Preise und Daten herunter
-- **Intelligente Updates**: Lädt nur neue Kassenbons bei Updates herunter (keine Duplikate)
-- **Datenexport**: Speichert alle Daten im JSON-Format für einfache Analyse
-- **Interaktives Menü**: Benutzerfreundliche Oberfläche für einfache Bedienung
+## Lizenz
 
-### Voraussetzungen
+Dieses Projekt steht unter der **GNU Affero General Public License v3.0 (AGPL-3.0)**.
 
-- [Python 3.7 oder höher](https://www.python.org/downloads/)
-- [Google Chrome browser](https://www.google.com/chrome/) oder [Mozilla Firefox Browser](https://www.mozilla.org/firefox/) installiert
-- Lidl Plus Konto mit Online-Kaufverlauf
-
-### Wichtige Einschränkung
-
-⚠️ **Datenverfügbarkeit**: Kassenbondaten sind auf der Lidl-Website nur ab **Februar 2023** verfügbar. Das Skript stoppt automatisch, wenn es auf ältere Kassenbons stößt, da diese Daten nicht mehr auf der Lidl-Website zugänglich sind.
-
-### Installation
-
-**Schritt-für-Schritt Anleitung:**
-
-1. **Repository herunterladen**
-
-   Laden Sie das Repository von GitHub herunter oder klonen Sie es mit git (falls Sie damit Erfahrung haben):
-
-   ```bash
-   git clone <repository-url>
-   cd shopping-analyzer
-   ```
-
-   Alternativ können Sie die ZIP-Datei herunterladen und entpacken.
-
-2. **Ordner im Terminal öffnen**
-
-   Öffnen Sie den Projektordner in einem Terminal Ihrer Wahl (z.B. "warp" unter macOS, aber jedes Terminal funktioniert).
-
-3. **Python Environment aufsetzen**
-
-   Dies sorgt dafür, dass die Packages nur dieses Projekt beeinflussen und nicht Ihren ganzen Computer:
-
-   ```bash
-   python -m venv venv
-   ```
-
-4. **Environment aktivieren**
-
-   **Unter Mac/Linux:**
-
-   ```bash
-   source venv/bin/activate
-   ```
-
-   **Unter Windows:**
-
-   ```cmd
-   venv\Scripts\activate
-   ```
-
-5. **Benötigte Packages installieren**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-Jetzt ist das Projekt erfolgreich aufgesetzt und Sie können anfangen, Ihre Daten aus Ihrem Lidl+ Account zu ziehen!
-
-### Verwendung
-
-**Schritt 1: Authentifizierungsmethode wählen**
-
-> [!WARNING] 
-> **🔐 Sicherheitshinweis**: Dieses Tool benötigt Zugriff auf Ihre Lidl Plus Account-Cookies, um zu funktionieren. Bitte beachten Sie folgende Sicherheitsaspekte:
->
-> - **Cookie-Dateien enthalten sensible Authentifizierungsdaten**, die Zugriff auf Ihr Lidl Plus Konto gewähren können
-> - **Teilen Sie Ihre `lidl_cookies.json` Datei niemals** mit anderen oder laden Sie sie in eine Versionsverwaltung (Git) hoch
-> - **Speichern Sie Cookie-Dateien sicher** und löschen Sie sie, wenn sie nicht mehr benötigt werden
-> - Die automatische Browser-Extraktion ist generell sicherer, da Cookies nur temporär aus dem Speicher extrahiert werden
-
-Sie haben zwei Möglichkeiten zur Authentifizierung:
-
-**Option A: Automatische Browser-Cookie-Extraktion (Empfohlen)**
-
-- Im Browser (Firefox oder Chrome) bei Lidl+Plus anmelden und den Browser geöffnet lassen
-- [Lidl Login](https://www.lidl.de/mla/)
-- ⚠️ **Hinweis für macOS-Nutzer**: Chrome funktioniert möglicherweise nicht aufgrund von Schlüsselbund-Zugriffsbeschränkungen. Falls ein "key for cookie decryption"-Fehler auftritt, verwenden Sie bitte Firefox, welcher auf macOS zuverlässiger funktioniert.
-
-**Option B: Manuelle Cookie-Datei (Alternative)**
-
-> [!CAUTION] 
-> **⚠️ Sicherheitsrisiko**: Das manuelle Exportieren und Speichern von Cookies in einer Datei birgt zusätzliche Sicherheitsrisiken:
->
-> - Die `lidl_cookies.json` Datei enthält Ihre Authentifizierungstokens im Klartext
-> - Jeder mit Zugriff auf diese Datei kann auf Ihr Lidl Plus Konto zugreifen
-> - Stellen Sie sicher, dass die Datei angemessene Berechtigungen hat und an einem sicheren Ort gespeichert wird
-> - Löschen Sie die Datei nach Möglichkeit sofort nach der Verwendung
-> - **Laden Sie diese Datei niemals in Cloud-Speicher, GitHub hoch oder teilen Sie sie mit anderen**
-
-- Exportieren Sie Cookies mit einer Browser-Erweiterung wie [EditThisCookie](https://chromewebstore.google.com/detail/editthiscookie-v3/ojfebgpkimhlhcblbalbfjblapadhbol?hl=de&utm_source=ext_sidebar)
-- Speichern Sie diese in einer Datei namens `lidl_cookies.json`
-
-**Schritt 2: Datenextraktions-Skript starten**
-
-```bash
-python get_data.py
-```
-
-**Schritt 3: Betriebsmodus wählen**
-
-Sie haben die Wahl zwischen:
-
-1. Initial Setup - Alle historischen Kassenbondaten extrahieren (für den ersten Durchlauf)
-2. Update Data - Nur neue Kassenbons hinzufügen
-3. Exit - Beenden
-
-Wählen Sie "1" für das Initial Setup und bestätigen Sie mit der Enter-Taste.
-
-**Schritt 4: Authentifizierungsmethode wählen**
-
-Wählen Sie aus, wie Sie sich authentifizieren möchten:
-
-1. Firefox (automatische Cookie-Extraktion)
-2. Chrome (automatische Cookie-Extraktion)
-3. Cookie-Datei (manuell - verwendet `lidl_cookies.json`)
-
-Wenn Sie Option 3 wählen, stellen Sie sicher, dass Sie zuerst eine `lidl_cookies.json` Datei erstellt haben.
-
-**Schritt 5: Automatische Datenextraktion**
-
-Nun wird das Programm automatisiert die Daten all Ihrer Kassenbons (nach dem 14.02.2022) extrahieren
-
-⚠️ **Wichtiger Hinweis**: Dieser Prozess kann etwas dauern - holen Sie sich einen Kaffee oder gehen Sie eine kleine Runde spazieren! Sollte der Prozess aus irgendeinem Grund abstürzen, ist das kein Problem. Wiederholen Sie das Ganze einfach - das Programm springt schnell wieder zu der Stelle, wo es aufgehört hat.
-
-**Für künftige Updates**: Wenn Sie Ihre Daten in Zukunft updaten möchten (weil neue Kassenbons hinzugekommen sind), führen Sie einfach wieder `python get_data.py` aus und wählen Sie Option 2. Hierbei werden nur die neuesten, noch nicht vorhandenen Kassenbons extrahiert und zu Ihren Daten hinzugefügt.
-
-### Ausgabe
-
-Nachdem der Prozess abgeschlossen ist, finden Sie alle extrahierten Daten in der `lidl_receipts.json` Datei. Diese Datei enthält alle Ihre Kassenbondaten, automatisch nach Datum sortiert (neueste zuerst), und ist gleichzeitig die Datenquelle für das Dashboard.
-
-### Datenanalyse-Dashboard
-
-Nach dem Sammeln Ihrer Kassenbondaten können Sie diese mit dem interaktiven Dashboard anzeigen und analysieren.
-
-**Dashboard starten:**
-
-```bash
-streamlit run dashboard.py
-```
-
-Anschließend können Sie über den Link auf Ihr Dashboard zugreifen. Dies startet ein webbasiertes Dashboard, das unter `http://localhost:8501` erreichbar ist.
-
----
-
-## 📄 License
-
-This project is licensed under the **GNU Affero General Public License v3.0** (AGPL-3.0).
-
-### Copyright Notice
-
-```text
-Shopping Analyzer - Tool to extract and manage Lidl receipt data
-Copyright (C) 2025 Lukas Weihrauch
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published
-by the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
-```
-
-### What this means for you:
-
-- **Freedom to use**: You can use this software for any purpose
-- **Freedom to study**: You can examine how the program works and adapt it to your needs
-- **Freedom to share**: You can redistribute copies to help others
-- **Freedom to improve**: You can distribute copies of your modified versions to benefit the community
-
-### Important AGPL-3.0 Requirements:
-
-- **Network use = Source sharing**: If you run a modified version of this software on a server that others can access over a network, you must make the source code of your modified version available to those users
-- **Share improvements**: Any modifications or derivative works must also be licensed under AGPL-3.0
-- **Attribution**: You must preserve all copyright notices and license information
-
-For the complete license terms, see the [`LICENCE.md`](./LICENCE.md) file in this repository.
-
----
+Die vollständigen Lizenzbedingungen stehen in [`LICENCE.md`](./LICENCE.md).

@@ -1,97 +1,55 @@
 """Session management and API connection testing."""
 
-import json
 from typing import Optional
+
 import requests
 
-from config import LidlConfig
-from cli.prompts import select_auth_method
-from .file_auth import load_cookies_from_file
-from .browser_auth import extract_browser_cookies
+from .lidl_file_auth import load_lidl_cookies_from_file
+from .lidl_browser_auth import LidlBrowserCookieExtractor
+from .rewe_browser_auth import ReweBrowserCookieExtractor
+from .rewe_file_auth import load_rewe_cookies_from_file
+
+RETAILER_BROWSER_EXTRACTORS = {
+    "lidl": LidlBrowserCookieExtractor,
+    "rewe": ReweBrowserCookieExtractor,
+}
+
+RETAILER_FILE_LOADERS = {
+    "lidl": load_lidl_cookies_from_file,
+    "rewe": load_rewe_cookies_from_file,
+}
 
 
-def setup_and_test_session(
+def setup_session(
+    retailer: str = "lidl",
     auth_method: Optional[str] = None,
     cookies_file: Optional[str] = None,
 ) -> Optional[requests.Session]:
-    """
-    Common setup logic for both initial_setup and update_data.
-    Handles browser selection, cookie extraction, and API testing.
-
-    Args:
-        auth_method: Authentication method - 'firefox', 'chrome', 'chromium', or 'file'.
-                     If None, prompts user interactively.
-        cookies_file: Path to cookies file (only used when auth_method is 'file').
-
-    Returns:
-        requests.Session: Authenticated session if successful, None otherwise
-    """
-    # Use provided auth_method or prompt user interactively
+    """Setup an authenticated retailer session without testing the API connection."""
+    normalized_retailer = retailer.lower()
     if auth_method is None:
-        auth_method = select_auth_method()
+        raise ValueError("auth_method must be provided to setup_session()")
 
-    # Extract cookies based on selected method
+    return _load_session_for_retailer(
+        retailer=normalized_retailer,
+        auth_method=auth_method,
+        cookies_file=cookies_file,
+    )
+
+
+def _load_session_for_retailer(
+    retailer: str,
+    auth_method: str,
+    cookies_file: Optional[str],
+) -> Optional[requests.Session]:
+    if retailer not in RETAILER_BROWSER_EXTRACTORS or retailer not in RETAILER_FILE_LOADERS:
+        raise ValueError(f"Unbekannter Händler für Authentifizierung: {retailer}")
+
+
     if auth_method == "file":
-        session = load_cookies_from_file(cookies_file)
-    else:
-        # auth_method is the browser name ('firefox', 'chrome', or 'chromium')
-        session = extract_browser_cookies(auth_method)
-    
-    if not session:
-        return None
+        return RETAILER_FILE_LOADERS[retailer](cookies_file)
 
-    # Test API connection
-    if not test_api_connection(session):
-        return None
-
-    return session
+    extractor_cls = RETAILER_BROWSER_EXTRACTORS[retailer]
+    return extractor_cls().extract(auth_method)
 
 
-def test_api_connection(session: requests.Session) -> bool:
-    """
-    Test if the API connection with extracted cookies works.
-
-    Args:
-        session: requests.Session with authentication cookies
-
-    Returns:
-        bool: True if connection works, False otherwise
-    """
-    print("Teste API-Verbindung...")
-
-    try:
-        # Test the tickets API endpoint
-        response = session.get(
-            f"{LidlConfig.get_tickets_url()}?country={LidlConfig.get_country_code()}&page=1",
-            timeout=LidlConfig.DEFAULT_TIMEOUT,
-        )
-        response.raise_for_status()
-
-        data = response.json()
-        if "items" in data and len(data["items"]) > 0:
-            print(
-                f"✓ API-Verbindung erfolgreich! {data['totalCount']} Kassenbons gefunden"
-            )
-            return True
-        else:
-            print("⚠ API-Antwort enthält keine Kassenbons")
-            return False
-
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 401:
-            print("✗ API-Verbindung fehlgeschlagen: Nicht autorisiert (401)")
-            print(
-                "Bitte stelle sicher, dass du in deinem Browser bei Lidl angemeldet bist."
-            )
-            print(
-                f"Öffne {LidlConfig.get_base_url()} im Browser und melde dich an, bevor du das Programm ausführst."
-            )
-        else:
-            print(f"✗ API-Verbindungsfehler ({e.response.status_code}): {e}")
-        return False
-    except requests.exceptions.RequestException as e:
-        print(f"✗ API-Verbindungsfehler: {e}")
-        return False
-    except json.JSONDecodeError as e:
-        print(f"✗ JSON-Decodierungsfehler: {e}")
-        return False

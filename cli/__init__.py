@@ -1,10 +1,11 @@
 """CLI module for command-line interface."""
 
-from .menu import main
-from .prompts import select_auth_method, select_browser
+def main():
+    from .menu import main as _main
+
+    return _main()
+
 
 __all__ = [
-    "main",
-    "select_auth_method",
-    "select_browser",
+    "main"
 ]
