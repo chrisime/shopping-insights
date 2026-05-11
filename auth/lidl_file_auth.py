@@ -106,6 +106,7 @@ def load_lidl_cookies_from_file(
 
         session, cookie_count = build_cookie_session(
             cookies_list,
+            user_agent=LidlConfig.DEFAULT_USER_AGENT,
             include_cookie=_is_valid_lidl_cookie_data,
         )
 
@@ -159,6 +160,7 @@ def diagnose_lidl_cookie_file(file_path: Optional[str] = None) -> bool:
 
     session, cookie_count = build_cookie_session(
         cookies_list,
+        user_agent=LidlConfig.DEFAULT_USER_AGENT,
         include_cookie=_is_valid_lidl_cookie_data,
     )
 

@@ -6,6 +6,15 @@ from workflows.pipeline_runner import parse_receipts, persist_valid_receipts, va
 from workflows.pipeline_types import ParsedReceiptRecord, RawReceiptRecord, ReceiptIssue, WorkflowResult
 
 
+class _FakeStore:
+    def persist_receipts(self, receipts, retailer, file_path=None):
+        return PersistResult(
+            created_count=2,
+            updated_count=1,
+            total_receipts=5,
+        )
+
+
 class PipelineRunnerTests(unittest.TestCase):
     def test_parse_receipts_uses_lidl_parser_for_lidl_records(self):
         raw_records = [RawReceiptRecord(source_id="receipt-1", payload={"ticket": True})]
@@ -68,17 +77,7 @@ class PipelineRunnerTests(unittest.TestCase):
         self.assertEqual(result.total_items, 2)
 
     def test_persist_valid_receipts_returns_store_result(self):
-        store = type(
-            "Store",
-            (),
-            {
-                "persist_receipts": lambda self, receipts, retailer, file_path=None: PersistResult(
-                    created_count=2,
-                    updated_count=1,
-                    total_receipts=5,
-                )
-            },
-        )()
+        store = _FakeStore()
 
         result = persist_valid_receipts(
             [{"id": "1", "items": []}],

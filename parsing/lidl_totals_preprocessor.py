@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from bs4 import BeautifulSoup
 
@@ -13,7 +13,6 @@ from bs4 import BeautifulSoup
 class LidlTotalsInput:
     """Normalized Lidl totals inputs prepared before final aggregation."""
 
-    total_no_saving: float
     amount_saved: Optional[float]
     lidlplus_amount_saved: Optional[float]
     sticker_discount_amount: Optional[float]
@@ -23,32 +22,17 @@ class LidlTotalsInput:
 
 def extract_lidl_totals_input(
     soup: BeautifulSoup,
-    items: List[Dict[str, Any]],
     amount_saved: Optional[Any] = None,
     lidlplus_amount_saved: Optional[Any] = None,
     sticker_discount_amount: Optional[Any] = None,
 ) -> LidlTotalsInput:
     """Prepare all Lidl totals inputs before they are passed to the totals extractor."""
     return LidlTotalsInput(
-        total_no_saving=_sum_item_totals(items),
         amount_saved=_coerce_optional_float(amount_saved),
         lidlplus_amount_saved=_coerce_optional_float(lidlplus_amount_saved),
         sticker_discount_amount=_coerce_optional_float(sticker_discount_amount),
         saved_deposit=_extract_pfand_savings_from_html(soup),
     )
-
-
-
-def _sum_item_totals(items: List[Dict[str, Any]]) -> float:
-    total_from_items = 0.0
-    for item in items or []:
-        try:
-            item_price = float(item.get("price", 0) or 0)
-            item_qty = float(item.get("quantity", 1) or 1)
-            total_from_items += item_price * item_qty
-        except (ValueError, TypeError, AttributeError):
-            continue
-    return total_from_items
 
 
 
@@ -90,4 +74,3 @@ def _extract_pfand_savings_from_html(soup: BeautifulSoup) -> float:
             continue
 
     return pfand_savings
-

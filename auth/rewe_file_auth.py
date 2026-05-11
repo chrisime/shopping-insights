@@ -24,9 +24,7 @@ from .shared_file_auth import (
 )
 
 
-DEFAULT_REWE_COOKIE_DOMAIN = ".rewe.de"
-RECOMMENDED_WAF_COOKIE_NAMES = RECOMMENDED_REWE_WAF_COOKIE_NAMES
-
+DEFAULT_REWE_COOKIE_DOMAIN = f".{ReweConfig.get_cookie_domain()}" #".rewe.de"
 
 def _rewe_diagnostic_profile() -> CookieDiagnosticProfile:
     """Return the REWE-specific diagnostic profile."""
@@ -49,7 +47,7 @@ def _rewe_diagnostic_profile() -> CookieDiagnosticProfile:
 def _rewe_extra_diagnostics_factory(raw_cookie_text: str):
     """Return a callback that prints REWE-specific extra diagnostics."""
     def _extra(cookie_names: Set[str]) -> None:
-        missing_waf = sorted(RECOMMENDED_WAF_COOKIE_NAMES - cookie_names)
+        missing_waf = sorted(RECOMMENDED_REWE_WAF_COOKIE_NAMES - cookie_names)
         if missing_waf:
             print(
                 f"ℹ Optionale WAF-/Cloudflare-Cookies fehlen: {', '.join(missing_waf)}"
@@ -71,7 +69,7 @@ def _rewe_extra_steps_factory(raw_cookie_text: str):
     def _steps(status: str, cookie_names: Set[str]) -> List[str]:
         steps: List[str] = []
         if status == "GELB":
-            missing_waf = sorted(RECOMMENDED_WAF_COOKIE_NAMES - cookie_names)
+            missing_waf = sorted(RECOMMENDED_REWE_WAF_COOKIE_NAMES - cookie_names)
             if missing_waf:
                 steps.append(
                     f"Optionale WAF-/Cloudflare-Cookies ({', '.join(missing_waf)}) fehlen zwar, sind aber nach aktueller Erfahrung nicht der Hauptfaktor."
@@ -290,13 +288,7 @@ def _build_rewe_cookie_session_from_text(
     cookies_list = _parse_cookie_file(raw_cookie_text)
     if not cookies_list:
         return None
-    return _build_rewe_cookie_session(cookies_list)
 
-
-def _build_rewe_cookie_session(
-    cookies_list: List[dict],
-) -> tuple[requests.Session, int]:
-    """Create a REWE-authenticated requests session from parsed cookie dicts."""
     return build_cookie_session(
         cookies_list,
         user_agent=ReweConfig.DEFAULT_USER_AGENT,

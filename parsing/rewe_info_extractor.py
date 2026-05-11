@@ -6,6 +6,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from shared.addresses import empty_address
+from shared.payment_methods import normalize_payment_method_entry
 
 from .address_extractor import extract_address_from_lines
 from .rewe_parser_common import to_rewe_float
@@ -83,6 +84,7 @@ def extract_rewe_receipt_info(text: str, lines: List[str]) -> Dict[str, Optional
     total_price = to_rewe_float(total_match.group("amount")) if total_match else None
 
     purchase_date = _normalize_rewe_purchase_date(date_value)
+    store = _extract_store(lines)
 
     receipt_id_parts = ["rewe"]
     for part in (market, register, date_value, time_value, bon_number):
@@ -93,11 +95,11 @@ def extract_rewe_receipt_info(text: str, lines: List[str]) -> Dict[str, Optional
         "id": "-".join(receipt_id_parts) if len(receipt_id_parts) > 1 else None,
         "purchase_date": purchase_date,
         "total_price": total_price,
-        "address": _extract_header_address(lines),
+        "address": _extract_store_address(lines, store),
         "market": market,
         "register": register,
         "cashier": cashier,
-        "store": _extract_store(lines),
+        "store": store,
     }
 
 
@@ -113,12 +115,14 @@ def extract_payment_methods_from_lines(lines: List[str]) -> Tuple[List[Dict[str,
         method = payment_match.group("method").strip()
         amount = payment_match.group("amount")
         numeric_amount = to_rewe_float(amount)
-        payment_methods.append(
+        normalized_method = normalize_payment_method_entry(
             {
                 "method": method,
                 "amount": numeric_amount,
             }
         )
+        if normalized_method:
+            payment_methods.append(normalized_method)
         if _is_rewe_bonus_payment_method(method):
             rewe_bonus_saved_amount += numeric_amount
     return payment_methods, rewe_bonus_saved_amount
@@ -130,29 +134,47 @@ def _extract_store(lines: List[str]) -> str:
     if footer_store:
         return footer_store
 
-    header_lines: List[str] = []
-    for line in lines:
-        if line == "EUR" or line.startswith("UID Nr"):
-            break
-        header_lines.append(line)
+    header_lines = _extract_header_lines(lines)
 
     for line in header_lines:
         company = _extract_company_from_line(line)
         if company:
             return company
 
-    return header_lines[0] if header_lines else "REWE"
+    if header_lines and not _looks_like_address_line(header_lines[0]):
+        return header_lines[0]
+
+    return "REWE"
 
 
-def _extract_header_address(lines: List[str]) -> dict:
-    """Extract the structured store address from the receipt header block."""
+def _extract_store_address(lines: List[str], store: Optional[str]) -> dict:
+    """Extract the structured store address from header, footer or a store fallback line."""
+    for candidate_lines in (
+        _extract_header_lines(lines),
+        _extract_footer_lines(lines),
+        [store] if store else [],
+    ):
+        parsed_address = extract_address_from_lines(candidate_lines)
+        if parsed_address:
+            return parsed_address
+
+    return empty_address()
+
+
+def _extract_header_lines(lines: List[str]) -> List[str]:
     header_lines: List[str] = []
     for line in lines:
         if line == "EUR" or line.startswith("UID Nr"):
             break
         header_lines.append(line)
+    return header_lines
 
-    return extract_address_from_lines(header_lines) or empty_address()
+
+def _extract_footer_lines(lines: List[str]) -> List[str]:
+    for index, line in enumerate(lines):
+        if line.startswith("UID Nr"):
+            return lines[index + 1 :]
+    return []
 
 
 def _extract_footer_store(lines: List[str]) -> Optional[str]:
@@ -175,6 +197,10 @@ def _extract_company_from_line(line: str) -> Optional[str]:
         return None
 
     return match.group("company").strip()
+
+
+def _looks_like_address_line(line: str) -> bool:
+    return extract_address_from_lines([line]) is not None
 
 
 

@@ -80,7 +80,7 @@ class ReceiptStoreTests(unittest.TestCase):
                             "city": "Fürth",
                         },
                         "total_price": "1,00",
-                        "payment_methods": [{"method": "VISA", "amount": "1,00"}],
+                        "payment_methods": [{"method": "Karte", "network": "VISA", "amount": "1,00"}],
                         "items": [{"name": "Banane", "price": "1,00", "quantity": "1", "unit": "stk"}],
                     }
                 ],

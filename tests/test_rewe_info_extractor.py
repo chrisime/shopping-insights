@@ -94,6 +94,59 @@ Markt:5802 Kasse:4 Bed.:4646
         )
         self.assertEqual(metadata["market"], "5802")
 
+    def test_extract_rewe_receipt_info_parses_address_from_store_like_header_line(self):
+        text = """
+König-Ludwig-Str. 2, 87645 Schwangau
+EUR
+MANDEL VEGAN 3,99 A
+SUMME EUR 10,48
+Geg. VISA EUR 10,48
+12.10.2025 14:39 Bon-Nr.:9216
+""".strip()
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+        metadata = extract_rewe_receipt_info(text, lines)
+
+        self.assertEqual(metadata["store"], "REWE")
+        self.assertEqual(
+            metadata["address"],
+            {
+                "street": "König-Ludwig-Str.",
+                "street_no": "2",
+                "zip": 87645,
+                "city": "Schwangau",
+            },
+        )
+        self.assertEqual(metadata["purchase_date"], "2025.10.12")
+        self.assertEqual(metadata["id"], "rewe-12102025-1439-9216")
+
+    def test_extract_rewe_receipt_info_parses_footer_only_address_when_header_has_none(self):
+        text = """
+REWE
+EUR
+MANDEL VEGAN 3,99 A
+SUMME EUR 10,48
+Geg. VISA EUR 10,48
+12.10.2025 14:39 Bon-Nr.:9216
+UID Nr.: DE987654321
+König-Ludwig-Str. 2
+87645 Schwangau
+""".strip()
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+        metadata = extract_rewe_receipt_info(text, lines)
+
+        self.assertEqual(metadata["store"], "REWE")
+        self.assertEqual(
+            metadata["address"],
+            {
+                "street": "König-Ludwig-Str.",
+                "street_no": "2",
+                "zip": 87645,
+                "city": "Schwangau",
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

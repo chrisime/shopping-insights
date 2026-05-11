@@ -13,10 +13,6 @@ class ReweArchitectureTests(unittest.TestCase):
 			"reporting.rewe_workflow_reporting",
 		)
 
-	def test_rewe_reporting_modules_no_longer_exist_under_diagnostics(self):
-		self.assertIsNone(find_spec("diagnostics.rewe_api_reporting"))
-		self.assertIsNone(find_spec("diagnostics.rewe_workflow_reporting"))
-
 
 if __name__ == "__main__":
 	unittest.main()

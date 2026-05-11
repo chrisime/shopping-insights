@@ -56,7 +56,6 @@ def parse_rewe_receipt_pdf(
 	if not receipt_data.get("id") or not receipt_data.get("purchase_date"):
 		raise ValueError("Bon konnte nicht eindeutig identifiziert werden")
 
-
 	return receipt_data
 
 
@@ -69,9 +68,8 @@ def _build_receipt_data(path: Path, text: str, lines: List[str]) -> Dict[str, An
 	items = items_result.items
 	totals_result = extract_rewe_totals(
 		raw_total_price=metadata.get("total_price"),
-		total_no_saving=items_result.total_no_saving,
 		saved_amount=items_result.saved_amount,
-		saved_pfand=items_result.saved_pfand,
+		saved_deposit=items_result.saved_deposit,
 		rewe_bonus_saved_amount=rewe_bonus_saved_amount,
 	)
 	resolved_rewe_bonus_saved_amount = totals_result.additional_savings.get(
@@ -86,7 +84,6 @@ def _build_receipt_data(path: Path, text: str, lines: List[str]) -> Dict[str, An
 		store=metadata.get("store"),
 		address=metadata.get("address"),
 		total_price=totals_result.total_price,
-		total_price_no_saving=totals_result.total_price_no_saving,
 		amount_saved=totals_result.amount_saved,
 		saved_deposit=totals_result.saved_deposit,
 		rewe_bonus_amount=rewe_bonus_amount,

@@ -6,28 +6,22 @@ from config import LidlConfig
 
 from .browser_auth_base import BrowserCookieExtractor
 from .cookie_policies import (
-    LIDL_IDENTITY_COOKIE_NAMES as NAMED_LIDL_IDENTITY_COOKIE_NAMES,
-    REQUIRED_LIDL_COOKIE_NAMES as NAMED_REQUIRED_LIDL_COOKIE_NAMES,
-    RECOMMENDED_LIDL_COOKIE_NAMES as NAMED_RECOMMENDED_LIDL_COOKIE_NAMES,
+    LIDL_IDENTITY_COOKIE_NAMES,
+    REQUIRED_LIDL_COOKIE_NAMES,
+    RECOMMENDED_LIDL_COOKIE_NAMES,
 )
-
-
-REQUIRED_LIDL_COOKIE_NAMES = NAMED_REQUIRED_LIDL_COOKIE_NAMES
-RECOMMENDED_LIDL_COOKIE_NAMES = NAMED_RECOMMENDED_LIDL_COOKIE_NAMES
-LIDL_IDENTITY_COOKIE_NAMES = NAMED_LIDL_IDENTITY_COOKIE_NAMES
 
 
 class LidlBrowserCookieExtractor(BrowserCookieExtractor):
     """Extract LIDL session cookies from a local browser profile."""
 
     retailer_name = "Lidl"
-    # ``cookie_domain`` is country dependent and resolved at runtime.
     supported_browsers = LidlConfig.SUPPORTED_BROWSERS
     required_cookies = REQUIRED_LIDL_COOKIE_NAMES
     recommended_cookies = RECOMMENDED_LIDL_COOKIE_NAMES
 
     @property  # type: ignore[override]
-    def cookie_domain(self) -> str:  # noqa: D401
+    def cookie_domain(self) -> str:
         return LidlConfig.get_cookie_domain()
 
     def _on_load_error(self, browser_label: str, exc: Exception) -> None:

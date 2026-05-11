@@ -25,15 +25,13 @@ class ReweItemsExtractionResult:
     """Structured result for parsed REWE items and savings aggregates."""
 
     items: List[Dict[str, Any]]
-    total_no_saving: float
     saved_amount: float
-    saved_pfand: float
+    saved_deposit: float
 
 
 def extract_rewe_receipt_items(lines: List[str]) -> ReweItemsExtractionResult:
     """Extract normalized items and aggregate discount/deposit amounts."""
     items: List[Dict[str, Any]] = []
-    total_no_saving = 0.0
     saved_amount = 0.0
     saved_pfand = 0.0
 
@@ -78,14 +76,12 @@ def extract_rewe_receipt_items(lines: List[str]) -> ReweItemsExtractionResult:
                 unit=unit,
             )
         )
-        total_no_saving += total_amount
         index += 1
 
     return ReweItemsExtractionResult(
         items=items,
-        total_no_saving=total_no_saving,
         saved_amount=saved_amount,
-        saved_pfand=saved_pfand,
+        saved_deposit=saved_pfand,
     )
 
 def _extract_receipt_body_lines(lines: List[str]) -> List[str]:

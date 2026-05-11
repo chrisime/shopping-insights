@@ -8,8 +8,6 @@ from typing import Iterable, Optional
 from shared.addresses import normalize_address
 
 
-ADDRESS_FIELDS = ("street", "street_no", "zip", "city")
-
 ADDRESS_ONE_LINE_RE = re.compile(
     r"^(?P<street>.+?)\s+(?P<street_no>\d+[A-Za-z]?(?:[-/]\d+[A-Za-z]?)?)\s*,\s*(?P<zip>\d{5})\s+(?P<city>.+)$"
 )
@@ -59,6 +57,3 @@ def _parse_two_line_address(street_line: str, zip_city_line: str) -> Optional[di
 
 def _normalize_line(line: object) -> str:
     return re.sub(r"\s+", " ", str(line or "")).strip().strip(",")
-
-
-

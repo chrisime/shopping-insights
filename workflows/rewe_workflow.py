@@ -234,18 +234,8 @@ def _run_rewe_pdf_import_pipeline(
         RawReceiptRecord(source_id=pdf_path.name, payload=pdf_path)
         for pdf_path in active_pdf_paths
     ]
-    parse_result = parse_receipts(
-        raw_pdf_records,
-        parse_record=lambda raw_record: parse_rewe_receipt_pdf(raw_record.payload),
-        detail_key="file",
-        unexpected_error_formatter=_format_rewe_pdf_parse_error,
-    )
-    validation_result = validate_receipts(
-        parse_result.records,
-        validate_receipt=validate_rewe_receipt_data,
-        validation_error_types=(ReweReceiptValidationError,),
-        detail_key="file",
-    )
+    parse_result = _parse_rewe_pdf_records(raw_pdf_records)
+    validation_result = _validate_rewe_receipts(parse_result.records)
     persist_result = persist_valid_receipts(
         validation_result.records,
         retailer=retailer,
@@ -268,6 +258,26 @@ def _run_rewe_pdf_import_pipeline(
         ),
         skipped_issues=skipped_issues,
         skipped_report_path=skip_report_path,
+    )
+
+
+def _parse_rewe_pdf_records(raw_records: Sequence[RawReceiptRecord]):
+    """Parse raw REWE PDF records via the shared parse stage."""
+    return parse_receipts(
+        raw_records,
+        parse_record=_parse_rewe_raw_record,
+        detail_key="file",
+        unexpected_error_formatter=_format_rewe_pdf_parse_error,
+    )
+
+
+def _validate_rewe_receipts(parsed_records):
+    """Validate parsed REWE receipts via the shared validation stage."""
+    return validate_receipts(
+        parsed_records,
+        validate_receipt=validate_rewe_receipt_data,
+        validation_error_types=(ReweReceiptValidationError,),
+        detail_key="file",
     )
 
 
@@ -463,6 +473,11 @@ def _parse_rewe_receipt_pdf_with_result(pdf_path) -> ReceiptParseResult:
         return build_exception_skip_result(exc)
     except Exception as exc:  # pragma: no cover - filesystem/pdfplumber dependent
         return build_exception_skip_result(exc, reason_formatter=_format_rewe_pdf_parse_error)
+
+
+def _parse_rewe_raw_record(raw_record: RawReceiptRecord) -> dict:
+    """Parse a fetched REWE raw record into the normalized receipt schema."""
+    return parse_rewe_receipt_pdf(raw_record.payload)
 
 
 # ---------------------------------------------------------------------------

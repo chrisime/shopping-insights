@@ -37,11 +37,19 @@ if data:
 
     # --- Data Cleaning and Transformation ---
 
+    def has_non_empty_items(items):
+        return isinstance(items, list) and len(items) > 0
+
     # Function to convert comma-decimal strings to floats
     def to_float(x):
         if x is None or x == '' or str(x).strip() == '':
             return 0.0
         return float(str(x).replace(',', '.'))
+
+    def format_total_quantity(row):
+        if row['unit'] == 'kg':
+            return f"{row['quantity']:.3f} {row['unit']}"
+        return f"{int(row['quantity'])} {row['unit']}"
 
     # Apply conversions
     purchase_dates = pd.to_datetime(df['purchase_date'], format='%Y.%m.%d', errors='coerce')
@@ -52,7 +60,6 @@ if data:
         pd.to_datetime(df['purchase_date'], format='%d.%m.%Y', errors='coerce')
     )
     df['purchase_date'] = purchase_dates
-    df['total_price_no_saving'] = df['total_price_no_saving'].apply(to_float)
     df['total_price'] = df['total_price'].apply(to_float)
     df["amount_saved"] = df['amount_saved'].apply(to_float)
     # df['lidlplus_amount_saved'] = df['lidlplus_amount_saved'].apply(to_float) if 'lidlplus_amount_saved' in df.columns else 0.0
@@ -71,7 +78,7 @@ if data:
 
     # Remove entries where items array is empty or null
     df = df[df['items'].notna()]  # Remove null items
-    df = df[df['items'].apply(lambda x: isinstance(x, list) and len(x) > 0)]  # Remove empty arrays
+    df = df[df['items'].apply(has_non_empty_items)]  # Remove empty arrays
 
     filtered_count = len(df)
     filtered_out = initial_count - filtered_count
@@ -122,7 +129,6 @@ if data:
     # Calculate metrics from the filtered data
     total_receipts = len(filtered_df)
     total_spent = filtered_df['total_price'].sum()
-    total_price_no_saving = filtered_df['total_price_no_saving'].sum()
     total_saved = filtered_df['amount_saved'].sum()
     saved_deposit = filtered_df['saved_deposit'].sum() if 'saved_deposit' in filtered_df.columns else 0.0
     # Sticker discounts (separate from regular 'amount_saved')
@@ -138,11 +144,9 @@ if data:
 
     # First row: Basic metrics
     st.markdown("##### Grunddaten")
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     col1.metric("Ausgaben gesamt", f"€{total_spent:,.2f}")
-    col2.metric("Ausgaben gesamt ohne Rabatt", f"€{total_price_no_saving:,.2f}")
-
-    col3.metric("Kassenbons gesamt", f"{total_receipts}")
+    col2.metric("Kassenbons gesamt", f"{total_receipts}")
 
     # Second row: Lidl Plus savings
     # st.markdown("##### Lidl Plus Ersparnisse")
@@ -259,9 +263,7 @@ if data:
                 grouped = grouped.sort_values('quantity', ascending=False).head(10)
 
                 # Format quantities nicely and add units
-                grouped['Gesamtmenge'] = grouped.apply(lambda row:
-                    f"{row['quantity']:.3f} {row['unit']}" if row['unit'] == 'kg'
-                    else f"{int(row['quantity'])} {row['unit']}", axis=1)
+                grouped['Gesamtmenge'] = grouped.apply(format_total_quantity, axis=1)
 
                 # Select only the columns we want to display
                 display_df = grouped[['name', 'Gesamtmenge']].copy()

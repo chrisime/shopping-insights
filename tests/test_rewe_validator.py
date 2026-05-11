@@ -24,7 +24,7 @@ class ReweValidatorTests(unittest.TestCase):
             "market": "0605",
             "register": "8",
             "cashier": "432108",
-            "payment_methods": [{"method": "VISA", "amount": 1.0}],
+            "payment_methods": [{"method": "Karte", "network": "VISA", "amount": 1.0}],
             "items": [{"name": "ROTWEINGLAS X2", "price": 22.95, "quantity": 1, "unit": "stk"}],
         }
 
@@ -69,7 +69,7 @@ class ReweValidatorTests(unittest.TestCase):
             "market": "0605",
             "register": "14",
             "cashier": "432108",
-            "payment_methods": [{"method": "VISA", "amount": 1.0}],
+            "payment_methods": [{"method": "Karte", "network": "VISA", "amount": 1.0}],
             "items": [{"name": "ROTWEINGLAS X2", "price": 22.95, "quantity": 1, "unit": "stk"}],
         }
 
@@ -199,13 +199,12 @@ Aktuelles Bonus-Guthaben: 0,14 EUR
 
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt["total_price"], 5.97)
-        self.assertEqual(receipt["total_price_no_saving"], 10.97)
         self.assertEqual(receipt["rewe_bonus_amount_saved"], 5.0)
         self.assertEqual(
             receipt["payment_methods"],
             [
                 {"method": "Bonus-Guthaben", "amount": 5.0},
-                {"method": "VISA", "amount": 5.97},
+                {"method": "Karte", "network": "VISA", "amount": 5.97},
             ],
         )
 
@@ -347,6 +346,8 @@ Einfach beim nächsten Einkauf einlösen!
             },
         )
         self.assertEqual(normalized["total_price"], 1.0)
+        self.assertEqual(normalized["payment_methods"][0]["method"], "Karte")
+        self.assertEqual(normalized["payment_methods"][0]["network"], "VISA")
         self.assertEqual(normalized["payment_methods"][0]["amount"], 1.0)
         self.assertEqual(normalized["items"][0]["price"], 22.95)
         self.assertEqual(normalized["items"][0]["quantity"], 1)

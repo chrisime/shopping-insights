@@ -4,11 +4,11 @@ import re
 from typing import Any, Dict, List, Optional
 
 from shared.addresses import empty_address, normalize_address
+from shared.payment_methods import normalize_payment_method_entry
 
 
 MONEY_FIELDS = {
     "total_price",
-    "total_price_no_saving",
     "amount_saved",
     "sticker_discount_amount",
     "saved_deposit",
@@ -21,7 +21,6 @@ MONEY_FIELDS = {
 
 DEFAULT_RECEIPT_FIELDS = {
     "total_price": None,
-    "total_price_no_saving": None,
     "amount_saved": None,
     "sticker_discount_amount": None,
     "sticker_discount_pct": [],
@@ -101,6 +100,7 @@ def normalize_receipt_schema(
         normalized.get("purchase_date"),
         resolved_retailer,
     )
+    normalized.pop("total_price_no_saving", None)
     if normalized.get("payment_methods") is None:
         normalized["payment_methods"] = []
     if normalized.get("items") is None:
@@ -138,9 +138,9 @@ def _normalize_payment_methods(payment_methods: Any) -> List[Dict[str, Any]]:
     for payment_method in payment_methods or []:
         if not isinstance(payment_method, dict):
             continue
-        normalized_method = dict(payment_method)
-        normalized_method["amount"] = _normalize_money_value(normalized_method.get("amount"))
-        normalized_methods.append(normalized_method)
+        normalized_method = normalize_payment_method_entry(payment_method)
+        if normalized_method:
+            normalized_methods.append(normalized_method)
     return normalized_methods
 
 

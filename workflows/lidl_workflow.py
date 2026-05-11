@@ -409,15 +409,8 @@ def _run_lidl_receipt_pipeline(
 ) -> WorkflowResult:
     """Run the shared LIDL fetch/parse/validate/persist pipeline and return a normalized result."""
     fetched_tickets, fetch_issues = _fetch_lidl_tickets(session, receipt_ids)
-    parse_result = parse_receipts(
-        fetched_tickets,
-        parse_record=lambda raw_record: parse_lidl_ticket(raw_record.payload, raw_record.source_id),
-    )
-    validation_result = validate_receipts(
-        parse_result.records,
-        validate_receipt=validate_lidl_receipt_data,
-        validation_error_types=(LidlReceiptValidationError,),
-    )
+    parse_result = _parse_lidl_receipts(fetched_tickets)
+    validation_result = _validate_lidl_receipts(parse_result.records)
     persist_result = persist_valid_receipts(
         validation_result.records,
         retailer="lidl",
@@ -447,6 +440,28 @@ def _run_lidl_receipt_pipeline(
         skipped_issues=skipped_issues,
         skipped_report_path=report_path,
     )
+
+
+def _parse_lidl_receipts(raw_records: Sequence[RawReceiptRecord]):
+    """Parse fetched LIDL raw records via the shared parse stage."""
+    return parse_receipts(
+        raw_records,
+        parse_record=_parse_lidl_raw_record,
+    )
+
+
+def _validate_lidl_receipts(parsed_records):
+    """Validate parsed LIDL receipts via the shared validation stage."""
+    return validate_receipts(
+        parsed_records,
+        validate_receipt=validate_lidl_receipt_data,
+        validation_error_types=(LidlReceiptValidationError,),
+    )
+
+
+def _parse_lidl_raw_record(raw_record: RawReceiptRecord) -> dict:
+    """Parse a fetched LIDL raw record into the normalized receipt schema."""
+    return parse_lidl_ticket(raw_record.payload, raw_record.source_id)
 
 
 def _fetch_lidl_receipt_parse_result(

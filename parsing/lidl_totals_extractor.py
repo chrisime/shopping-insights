@@ -2,42 +2,46 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
-from .receipt_totals import ReceiptTotalsExtractionResult
+from bs4 import BeautifulSoup
+
+from .lidl_totals_preprocessor import extract_lidl_totals_input
+from .receipt_totals_result import ReceiptTotalsResult
 
 
 def extract_lidl_totals(
-    total_no_saving: float,
+    soup: BeautifulSoup,
+    amount_saved: Optional[Any] = None,
+    lidlplus_amount_saved: Optional[Any] = None,
+    sticker_discount_amount: Optional[Any] = None,
+) -> ReceiptTotalsResult:
+    """Calculate Lidl totals directly from receipt soup and optional savings fields."""
+    totals_input = extract_lidl_totals_input(
+        soup,
+        amount_saved=amount_saved,
+        lidlplus_amount_saved=lidlplus_amount_saved,
+        sticker_discount_amount=sticker_discount_amount,
+    )
+    return _calculate_lidl_totals(
+        amount_saved=totals_input.amount_saved,
+        lidlplus_amount_saved=totals_input.lidlplus_amount_saved,
+        sticker_discount_amount=totals_input.sticker_discount_amount,
+        saved_deposit=totals_input.saved_deposit,
+    )
+
+
+def _calculate_lidl_totals(
     amount_saved: Optional[float] = None,
     lidlplus_amount_saved: Optional[float] = None,
     sticker_discount_amount: Optional[float] = None,
     saved_deposit: float = 0.0,
-) -> ReceiptTotalsExtractionResult:
+) -> ReceiptTotalsResult:
     """Calculate Lidl totals from already normalized aggregate inputs."""
     regular_saved_amount = _round_optional(amount_saved)
     lidlplus_saved_amount = _round_optional(lidlplus_amount_saved)
     sticker_saved_amount = _round_optional(sticker_discount_amount)
     saved_deposit = round(saved_deposit, 2) if saved_deposit > 0 else None
-
-    total_savings = sum(
-        value
-        for value in (
-            regular_saved_amount,
-            lidlplus_saved_amount,
-            sticker_saved_amount,
-            saved_deposit,
-        )
-        if value is not None
-    )
-
-    total_price_no_saving = round(total_no_saving, 2) if total_no_saving > 0 else None
-
-    total_price = None
-    if total_no_saving > 0:
-        final_paid = total_no_saving - total_savings
-        if final_paid > 0:
-            total_price = round(final_paid, 2)
 
     additional_savings = {}
     if lidlplus_saved_amount:
@@ -45,12 +49,10 @@ def extract_lidl_totals(
     if sticker_saved_amount:
         additional_savings["sticker_discount_amount"] = sticker_saved_amount
 
-    return ReceiptTotalsExtractionResult(
-        total_price_no_saving=total_price_no_saving,
+    return ReceiptTotalsResult(
         amount_saved=regular_saved_amount,
         saved_deposit=saved_deposit,
-        total_price=total_price,
-        total_savings=round(total_savings, 2),
+        total_price=None,
         additional_savings=additional_savings,
     )
 

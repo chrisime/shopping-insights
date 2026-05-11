@@ -22,13 +22,17 @@ class _FakeValidationError(Exception):
         self.issues = issues
 
 
+def _format_boom_reason(exc: Exception) -> str:
+    return f"Boom: {exc}"
+
+
 class WorkflowErrorMappingTests(unittest.TestCase):
     def test_build_exception_issue_uses_custom_reason_formatter(self):
         issue = build_exception_issue(
             source_id="receipt-1",
             exc=ValueError("kaputt"),
             detail_key="file",
-            reason_formatter=lambda exc: f"Boom: {exc}",
+            reason_formatter=_format_boom_reason,
         )
 
         self.assertEqual(issue.source_id, "receipt-1")

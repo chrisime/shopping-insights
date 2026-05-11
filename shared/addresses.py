@@ -6,9 +6,6 @@ import re
 from typing import Optional
 
 
-ADDRESS_FIELDS = ("street", "street_no", "zip", "city")
-
-
 def empty_address() -> dict:
     """Return the canonical empty address object used in receipt JSON."""
     return {

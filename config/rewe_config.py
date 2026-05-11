@@ -8,7 +8,6 @@ class ReweConfig:
     RECEIPTS_ZIP_ENDPOINT = "/api/receipts/zip"
     COUPON_WALLET_ENDPOINT = "/shop/mydata/couponwallet"
     MYDATA_RECEIPTS_PATH = "/shop/mydata/meine-einkaeufe/im-markt"
-    COOKIE_DOMAIN = "rewe.de"
 
     SUPPORTED_BROWSERS = {"firefox": "Firefox", "librewolf": "LibreWolf", "chrome": "Chrome", "chromium": "Chromium"}
 
@@ -41,3 +40,7 @@ class ReweConfig:
         """Return absolute URL for the REWE in-store receipts page."""
         return f"{cls.BASE_URL}{cls.MYDATA_RECEIPTS_PATH}"
 
+    @classmethod
+    def get_cookie_domain(cls) -> str:
+        """Get the domain for cookie extraction"""
+        return "rewe.de"

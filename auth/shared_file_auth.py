@@ -13,6 +13,15 @@ import requests
 CookiePredicate = Callable[[dict], bool]
 
 
+def _default_cookie_sort_key(cookie: dict) -> tuple[str, str, str]:
+    """Return the canonical sort key for normalized cookie dictionaries."""
+    return (
+        cookie.get("domain", ""),
+        cookie.get("path", "/"),
+        cookie.get("name", ""),
+    )
+
+
 @dataclass(frozen=True)
 class CookieValidationResult:
     """Result of validating observed cookie names against a policy."""
@@ -277,13 +286,7 @@ def add_cookie_dicts_to_session(
     if sort_key is not None:
         normalized_cookies.sort(key=sort_key)
     else:
-        normalized_cookies.sort(
-            key=lambda cookie: (
-                cookie.get("domain", ""),
-                cookie.get("path", "/"),
-                cookie.get("name", ""),
-            )
-        )
+        normalized_cookies.sort(key=_default_cookie_sort_key)
 
     for cookie_data in normalized_cookies:
         session.cookies.set_cookie(

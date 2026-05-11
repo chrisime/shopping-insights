@@ -16,13 +16,16 @@ class ReweBrowserCookieExtractor(BrowserCookieExtractor):
     """Extract REWE session cookies from a local browser profile."""
 
     retailer_name = "REWE"
-    cookie_domain = ReweConfig.COOKIE_DOMAIN
     supported_browsers = ReweConfig.SUPPORTED_BROWSERS
     default_user_agent = ReweConfig.DEFAULT_USER_AGENT
     required_cookies = REQUIRED_REWE_COOKIE_NAMES
     recommended_cookies = RECOMMENDED_REWE_WAF_COOKIE_NAMES
     include_expires = True
     filter_by_domain_suffix = True
+
+    @property  # type: ignore[override]
+    def cookie_domain(self) -> str:
+        return ReweConfig.get_cookie_domain()
 
     def _on_no_cookies(self, browser_label: str) -> None:
         super()._on_no_cookies(browser_label)

@@ -119,11 +119,9 @@ class LidlInfoExtractorTests(unittest.TestCase):
             normalized,
             [
                 {
-                    "method": "Kreditkarte",
+                    "method": "Karte",
                     "amount": 19.23,
                     "network": "VISA",
-                    "card_masked": "############5265 00",
-                    "details": "Visa kontaktlos Chip Online",
                 }
             ],
         )
@@ -149,6 +147,48 @@ class LidlInfoExtractorTests(unittest.TestCase):
         self.assertEqual(receipt_data["sticker_discount_amount"], 0.4)
         self.assertIsNone(receipt_data.get("amount_saved"))
 
+    def test_extract_basic_receipt_info_treats_preisvorteil_as_regular_saved_amount(self):
+        html = """
+        <html><body>
+            <span class="purchase_list">
+                Preisvorteil -0,40
+            </span>
+        </body></html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+
+        receipt_data = extract_lidl_receipt_info(
+            soup,
+            "23004426420240828113520",
+            "2024.08.28",
+            "Fürth-Südstadt",
+        )
+
+        self.assertEqual(receipt_data["amount_saved"], 0.4)
+        self.assertIsNone(receipt_data.get("sticker_discount_amount"))
+        self.assertEqual(receipt_data.get("sticker_discount_pct"), [])
+
+    def test_extract_basic_receipt_info_ignores_rabatt_amount_without_percent_for_sticker_field(self):
+        html = """
+        <html><body>
+            <span class="purchase_list">
+                Rabatt -0,80
+            </span>
+        </body></html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+
+        receipt_data = extract_lidl_receipt_info(
+            soup,
+            "23004426420240828113520",
+            "2024.08.28",
+            "Fürth-Südstadt",
+        )
+
+        self.assertIsNone(receipt_data.get("sticker_discount_amount"))
+        self.assertEqual(receipt_data.get("sticker_discount_pct"), [])
+        self.assertIsNone(receipt_data.get("amount_saved"))
+
     def test_extract_basic_receipt_info_defaults_lidlplus_saved_amount_to_zero(self):
         soup = BeautifulSoup("<html><body></body></html>", "html.parser")
 
@@ -160,6 +200,26 @@ class LidlInfoExtractorTests(unittest.TestCase):
         )
 
         self.assertEqual(receipt_data["lidlplus_amount_saved"], 0.0)
+
+    def test_extract_basic_receipt_info_applies_total_price_from_zu_zahlen_summary(self):
+        html = """
+        <html><body>
+            <div>
+                <span id="purchase_summary_1">zu zahlen</span>
+                <span class="css_bold">33,70</span>
+            </div>
+        </body></html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+
+        receipt_data = extract_lidl_receipt_info(
+            soup,
+            "23004426420240828113520",
+            "2024.08.28",
+            "Fürth-Südstadt",
+        )
+
+        self.assertEqual(receipt_data["total_price"], 33.7)
 
     def test_normalize_receipt_schema_defaults_lidlplus_saved_amount_to_zero_and_converts_strings(self):
         normalized = normalize_receipt_schema(

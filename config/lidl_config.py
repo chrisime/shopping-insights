@@ -12,36 +12,35 @@ class LidlConfig:
     # Country settings (can be changed via set_country)
     COUNTRY = "de"
 
+    BASE_URL = f"https://www.lidl.{COUNTRY}"
+
+    TICKETS_ENDPOINT = "/mre/api/v1/tickets"
+
     # Request settings
     DEFAULT_TIMEOUT = 15
     REQUEST_DELAY = 0.5
     PAGES_TO_CHECK = 3
 
     # Browser settings
-    SUPPORTED_BROWSERS = {
-        "firefox": "Firefox",
-        "librewolf": "LibreWolf",
-        "chrome": "Chrome",
-        "chromium": "Chromium",
-    }
+    SUPPORTED_BROWSERS = {"firefox": "Firefox", "librewolf": "LibreWolf", "chrome": "Chrome", "chromium": "Chromium"}
+
+    DEFAULT_USER_AGENT = (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:148.0) "
+        "Gecko/20100101 Firefox/148.0"
+    )
 
     # API settings
     DEFAULT_PAGE_SIZE = 10
 
     @classmethod
-    def get_base_url(cls) -> str:
-        """Get the base URL for the current country."""
-        return f"https://www.lidl.{cls.COUNTRY}"
-
-    @classmethod
     def get_tickets_url(cls) -> str:
         """Get the tickets API URL."""
-        return f"{cls.get_base_url()}/mre/api/v1/tickets"
+        return f"{cls.BASE_URL}{cls.TICKETS_ENDPOINT}"
 
     @classmethod
     def get_receipt_url(cls, receipt_id: str) -> str:
         """Get the receipt API URL for a specific receipt."""
-        return f"{cls.get_base_url()}/mre/api/v1/tickets/{receipt_id}"
+        return f"{cls.BASE_URL}{cls.TICKETS_ENDPOINT}/{receipt_id}"
 
     @classmethod
     def get_country_code(cls) -> str:

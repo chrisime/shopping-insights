@@ -15,20 +15,14 @@ class LidlReceiptParserTests(unittest.TestCase):
             <span class="purchase_list">Pfandrückgabe -0,25</span>
         </body></html>
         """.strip()
-        items = [
-            {"name": "Tomaten", "price": 3.99, "quantity": 0.696},
-            {"name": "Wasser", "price": 2.78, "quantity": 1},
-        ]
 
         totals_input = extract_lidl_totals_input(
             soup=BeautifulSoup(html, "html.parser"),
-            items=items,
             amount_saved=0.5,
             lidlplus_amount_saved=0.25,
             sticker_discount_amount=0.1,
         )
 
-        self.assertEqual(totals_input.total_no_saving, 5.55704)
         self.assertEqual(totals_input.amount_saved, 0.5)
         self.assertEqual(totals_input.lidlplus_amount_saved, 0.25)
         self.assertEqual(totals_input.sticker_discount_amount, 0.1)
@@ -96,7 +90,7 @@ class LidlReceiptParserTests(unittest.TestCase):
         self.assertEqual(receipt_data["market"], "5882")
         self.assertEqual(receipt_data["register"], "10")
         self.assertEqual(receipt_data["cashier"], "725516")
-        self.assertEqual(receipt_data["total_price_no_saving"], 2.78)
+        self.assertEqual(receipt_data["total_price"], 2.78)
 
     def test_parse_lidl_ticket_maps_store_address_in_parsing_layer(self):
         ticket_data = {
