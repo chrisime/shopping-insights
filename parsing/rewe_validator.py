@@ -241,7 +241,7 @@ def _parse_amount_to_cents(value: Optional[Any]) -> Optional[int]:
 	normalized = str(value).strip()
 	if not normalized:
 		return None
-	match = re.search(r"(\d+)(?:[\.,](\d{1,2}))?", normalized)
+	match = re.search(r"(\d+)(?:[.,](\d{1,2}))?", normalized)
 	if not match:
 		return None
 	euros = int(match.group(1))

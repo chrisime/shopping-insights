@@ -9,7 +9,7 @@ from .lidl_items_extractor import extract_lidl_receipt_items
 from .lidl_totals_extractor import extract_lidl_totals
 
 
-def parse_lidl_ticket(ticket_data: Dict[str, Any], receipt_id: str,) -> Dict[str, Any]:
+def parse_lidl_ticket(ticket_data: Dict[str, Any], receipt_id: str) -> Dict[str, Any]:
     """Parse a raw Lidl ticket payload into the normalized receipt structure."""
     receipt_date = ticket_data["date"][:10].replace("-", ".")
 

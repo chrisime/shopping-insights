@@ -1,4 +1,4 @@
-import json
+import simplejson
 import tempfile
 import unittest
 from pathlib import Path
@@ -65,7 +65,7 @@ class AuthSessionManagerTests(unittest.TestCase):
             ]
             with tempfile.TemporaryDirectory() as tmp_dir:
                 cookie_file = Path(tmp_dir) / "cookies.json"
-                cookie_file.write_text(json.dumps(cookies_payload), encoding="utf-8")
+                cookie_file.write_text(simplejson.dumps(cookies_payload), encoding="utf-8")
 
                 session = load_lidl_cookies_from_file(str(cookie_file))
 

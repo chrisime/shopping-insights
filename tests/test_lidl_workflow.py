@@ -1,14 +1,17 @@
 import io
-import json
 import tempfile
 import unittest
 from pathlib import Path
+from typing import cast
 from unittest.mock import Mock, patch
 
+import requests
+import simplejson
+
 import workflows.lidl_workflow as lidl_workflow
-from result_types import PersistResult, ReceiptStoreSnapshot
+from result_types import PersistResult
 from reporting.lidl_reporting import write_lidl_skipped_receipts_report
-from workflows.lidl_workflow import _fetch_lidl_tickets, run_lidl_check, run_lidl_initial
+from workflows.lidl_workflow import _fetch_lidl_tickets, run_lidl_initial
 from workflows.pipeline_types import ReceiptIssue, StageResult
 
 
@@ -17,10 +20,8 @@ class LidlWorkflowTests(unittest.TestCase):
         self.assertEqual(
             lidl_workflow.__all__,
             [
-                "run_lidl_check",
                 "run_lidl_initial",
                 "run_lidl_update",
-                "fetch_lidl_receipt_parse_result",
             ],
         )
 
@@ -32,7 +33,7 @@ class LidlWorkflowTests(unittest.TestCase):
             "workflows.lidl_workflow.get_lidl_ticket",
             return_value={"htmlPrintedReceipt": ticket_html},
         ), patch("workflows.lidl_workflow.LidlConfig.REQUEST_DELAY", 0):
-            records, issues = _fetch_lidl_tickets(object(), ["receipt-1"])
+            records, issues = _fetch_lidl_tickets(cast(requests.Session, object()), ["receipt-1"])
 
         self.assertEqual(len(records), 1)
         self.assertEqual(issues, [])
@@ -43,15 +44,30 @@ class LidlWorkflowTests(unittest.TestCase):
         final_state = progress_display.return_value.render.call_args_list[-1].args[0]
         self.assertEqual(final_state.items, 1)
 
-    def test_run_lidl_check_delegates_to_cookie_diagnostics(self):
-        with patch(
-            "workflows.lidl_workflow.diagnose_lidl_cookie_file",
-            return_value=True,
-        ) as diagnose:
-            success = run_lidl_check("lidl_cookies.json")
+    def test_fetch_lidl_tickets_maps_http_error_as_fetch_issue(self):
+        response = Mock(status_code=401)
+        http_error = requests.exceptions.HTTPError("boom")
+        http_error.response = response
 
-        self.assertTrue(success)
-        diagnose.assert_called_once_with("lidl_cookies.json")
+        with patch("workflows.lidl_workflow.ReceiptProgressDisplay"), patch(
+            "workflows.lidl_workflow.get_lidl_ticket",
+            side_effect=http_error,
+        ), patch("workflows.lidl_workflow.LidlConfig.REQUEST_DELAY", 0):
+            records, issues = _fetch_lidl_tickets(cast(requests.Session, object()), ["receipt-1"])
+
+        self.assertEqual(records, [])
+        self.assertEqual([issue.reason for issue in issues], ["Nicht autorisiert (401)"])
+
+    def test_fetch_lidl_tickets_maps_value_error_without_fetch_reason_kind(self):
+        with patch("workflows.lidl_workflow.ReceiptProgressDisplay"), patch(
+            "workflows.lidl_workflow.get_lidl_ticket",
+            side_effect=ValueError("kaputt"),
+        ), patch("workflows.lidl_workflow.LidlConfig.REQUEST_DELAY", 0):
+            records, issues = _fetch_lidl_tickets(cast(requests.Session, object()), ["receipt-1"])
+
+        self.assertEqual(records, [])
+        self.assertEqual([issue.reason for issue in issues], ["kaputt"])
+
 
     def test_write_lidl_skipped_receipts_report_writes_json_payload(self):
         skipped_details = [
@@ -67,7 +83,7 @@ class LidlWorkflowTests(unittest.TestCase):
                 skipped_details,
                 report_path=report_path,
             )
-            report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+            report_payload = simplejson.loads(report_path.read_text(encoding="utf-8"))
 
         self.assertEqual(written_path, report_path)
         self.assertEqual(report_payload["count"], 1)
@@ -76,11 +92,7 @@ class LidlWorkflowTests(unittest.TestCase):
     def test_run_lidl_initial_prints_skipped_receipts_and_report_path(self):
         stdout = io.StringIO()
         store = Mock()
-        store.load_receipts_snapshot.return_value = ReceiptStoreSnapshot(
-            existing_ids=set(),
-            receipts=[],
-            receipts_file="lidl_receipts.json",
-        )
+        store.find_existing_ids.return_value = set()
         with patch("workflows.lidl_workflow._setup_lidl_session", return_value=object()), patch(
             "workflows.lidl_workflow.test_lidl_session",
             return_value=True,
@@ -110,7 +122,8 @@ class LidlWorkflowTests(unittest.TestCase):
 
         output = stdout.getvalue()
         self.assertTrue(success)
-        self.assertEqual(store.load_receipts_snapshot.call_args.kwargs["retailer"], "lidl")
+        self.assertEqual(store.find_existing_ids.call_args.kwargs["retailer"], "lidl")
+        self.assertEqual(store.find_existing_ids.call_args.kwargs["file_path"], "lidl_receipts.json")
         self.assertIn("ℹ Übersprungene LIDL-Bons:", output)
         self.assertIn("✓ LIDL-Kassenbons importiert:", output)
         self.assertIn("23000987220230201728424", output)
@@ -119,11 +132,7 @@ class LidlWorkflowTests(unittest.TestCase):
 
     def test_run_lidl_initial_passes_selected_write_backend_to_store_factory(self):
         store = Mock()
-        store.load_receipts_snapshot.return_value = ReceiptStoreSnapshot(
-            existing_ids=set(),
-            receipts=[],
-            receipts_file="lidl_receipts.json",
-        )
+        store.find_existing_ids.return_value = set()
 
         with patch("workflows.lidl_workflow._setup_lidl_session", return_value=object()), patch(
             "workflows.lidl_workflow.test_lidl_session",
@@ -154,6 +163,43 @@ class LidlWorkflowTests(unittest.TestCase):
 
         self.assertTrue(success)
         create_store.assert_called_once_with("json")
+
+    def test_run_lidl_update_checks_recent_pages_and_reports_checked_pages(self):
+        stdout = io.StringIO()
+        store = Mock()
+        store.find_existing_ids.return_value = {"known-receipt"}
+        session = object()
+
+        with patch("workflows.lidl_workflow._setup_lidl_session", return_value=session), patch(
+            "workflows.lidl_workflow.test_lidl_session",
+            return_value=True,
+        ), patch(
+            "workflows.lidl_workflow._collect_lidl_receipt_ids",
+            return_value=(["known-receipt", "new-receipt"], 3),
+        ) as collect_receipt_ids, patch(
+            "workflows.lidl_workflow.create_receipt_store",
+            return_value=store,
+        ), patch(
+            "workflows.lidl_workflow._fetch_lidl_tickets",
+            return_value=([], []),
+        ), patch(
+            "workflows.lidl_workflow.parse_receipts",
+            return_value=StageResult(records=[], issues=[]),
+        ), patch(
+            "workflows.lidl_workflow.validate_receipts",
+            return_value=StageResult(records=[], issues=[], total_items=0),
+        ), patch(
+            "workflows.lidl_workflow.persist_valid_receipts",
+            return_value=PersistResult(created_count=1, updated_count=0, total_receipts=38),
+        ), patch(
+            "workflows.lidl_workflow.write_lidl_skipped_receipts_report",
+            return_value=Path("tmp/skipped_receipts.json"),
+        ), patch("sys.stdout", new=stdout):
+            success = lidl_workflow.run_lidl_update(cookies_file="dummy.json")
+
+        self.assertTrue(success)
+        collect_receipt_ids.assert_called_once_with(session, lidl_workflow.LidlConfig.PAGES_TO_CHECK)
+        self.assertIn("Geprüfte Seiten: 3", stdout.getvalue())
 
     def test_run_lidl_initial_stops_when_api_test_fails(self):
         stdout = io.StringIO()

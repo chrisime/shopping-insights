@@ -1,6 +1,6 @@
 """Lidl API client for fetching receipt data."""
 
-import json
+import simplejson
 from typing import Optional, Dict, Any
 import requests
 
@@ -48,7 +48,7 @@ def get_tickets_page(
         return None
     except requests.exceptions.RequestException as e:
         return None
-    except json.JSONDecodeError as e:
+    except simplejson.JSONDecodeError as e:
         return None
 
 
@@ -94,7 +94,7 @@ def test_lidl_session(session: requests.Session) -> bool:
         return False
     except requests.exceptions.RequestException:
         return False
-    except json.JSONDecodeError:
+    except simplejson.JSONDecodeError:
         return False
 
 

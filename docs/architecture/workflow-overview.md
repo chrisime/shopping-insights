@@ -74,7 +74,6 @@ Die dafür genutzten Helper liegen in `workflows/error_mapping.py` und kapseln b
 Persistenz und bestehende Receipt-Snapshots laufen jetzt über denselben Store-Port:
 
 - `shared.ports.ReceiptStore`
-- `result_types.ReceiptStoreSnapshot`
 
 Der konkrete Store wird derzeit über eine kleine Factory in `storage/__init__.py` aufgelöst; das JSON-Backend liegt in `storage/json_receipt_store.py`.
 Der aktuelle Umschaltpunkt liegt im CLI-Entry-Point `get_data.py` über `--write-backend` und wird in die öffentlichen Workflow-Einstiege weitergereicht.
@@ -152,17 +151,16 @@ Wichtige Helfer:
 ### `run_rewe_update(...)`
 Ablauf:
 1. vorhandene lokale PDFs lesen
-2. bekannte Receipt-IDs über den konfigurierten Store laden
-3. Delta-Scan über PDF-Metadaten
-4. nur neue PDFs in die Importpipeline geben
-5. Summary ausgeben
+2. gemeinsame PDF-Importpipeline für alle gefundenen PDFs ausführen
+3. Persistenz per Upsert dem konfigurierten Store überlassen
+4. Summary ausgeben
 
 ### `_run_rewe_pdf_import_pipeline(...)`
 Verantwortung:
 - gemeinsame REWE-PDF-Importorchestrierung
 - unterscheidet drei Fälle:
   1. keine PDFs vorhanden
-  2. nur bekannte/abgelehnte PDFs nach Prefilter
+  2. nur bereits vorab gelieferte Issues ohne verbleibende PDFs
   3. echter Parse-/Validate-/Persist-Import
 
 Hilfsfunktionen dafür:
@@ -173,15 +171,7 @@ Hilfsfunktionen dafür:
 Verantwortung:
 - Workflow-seitiges Parse-/Validate-Ergebnis für einen einzelnen REWE-PDF-Bon
 - geeignet für Diagnostik-nahe Einzelprüfungen ohne separates Diagnostics-Paket
-- die öffentliche Funktion delegiert bewusst nur auf eine private Implementierung, damit die Public API am Dateianfang sichtbar bleibt
-
-### `_filter_new_rewe_pdf_paths(...)`
-Verantwortung:
-- leichter lokaler Delta-Scan über PDF-Metadaten
-- Fortschrittsanzeige für neu / bekannt / fehlerhaft / erkannt
-
-Hilfsfunktion:
-- `_build_rewe_delta_scan_state(...)`
+- kapselt Parse- und Validierungsfehler direkt in ein `ReceiptParseResult`
 
 ## Warum die Workflows trotzdem noch komplex wirken
 

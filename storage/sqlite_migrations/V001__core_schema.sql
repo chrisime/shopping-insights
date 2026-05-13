@@ -1,0 +1,89 @@
+create table if not exists retailer
+(
+    code    text primary key,
+    name    text not null,
+    country text not null
+);
+
+create table if not exists store
+(
+    id            integer primary key autoincrement,
+    retailer_code varchar not null,
+    name          varchar not null,
+    street        varchar not null,
+    street_no     varchar not null,
+    zip           varchar not null,
+    city          varchar not null,
+    hash          varchar not null,
+
+    constraint fk_store__retailer
+        foreign key (retailer_code) references retailer (code) on delete cascade,
+
+    constraint uq_store__retailer_hash
+        unique (hash)
+);
+
+create table if not exists purchase
+(
+    id            varchar primary key,
+    store_id      integer,
+    purchase_date varchar not null,
+    market        varchar,
+    register_id   varchar,
+    cashier       varchar,
+    total_price   real,
+    amount_saved  real    not null default 0,
+    saved_deposit real    not null default 0,
+    currency      varchar not null default 'EUR',
+    source_file   varchar,
+    hash          varchar not null,
+
+    constraint fk_purchase__store
+        foreign key (store_id) references store (id) on delete cascade,
+
+    constraint uq_purchase__hash
+        unique (hash)
+);
+
+create table if not exists purchase_item
+(
+    id          integer primary key autoincrement,
+    purchase_id varchar not null,
+    position    integer not null,
+    name        varchar not null,
+    quantity    real    not null default 1,
+    unit        varchar not null default 'stk',
+    price       real    not null,
+
+    constraint fk_purchase_item__purchase
+        foreign key (purchase_id) references purchase (id) on delete cascade
+);
+
+create table if not exists payment_method
+(
+    id          integer primary key autoincrement,
+    purchase_id varchar not null,
+    position    integer not null,
+    method      varchar not null,
+    network     varchar,
+    amount      real,
+
+
+    constraint fk_payment_method__purchase
+        foreign key (purchase_id) references purchase (id) on delete cascade
+);
+
+create index if not exists idx_store__retailer_code
+    on store (retailer_code);
+
+create index if not exists idx_purchase__purchase_date
+    on purchase (purchase_date desc);
+
+create index if not exists idx_purchase__store_id
+    on purchase (store_id);
+
+create unique index if not exists uq_purchase_item__purchase_position
+    on purchase_item (purchase_id, position);
+
+create unique index if not exists uq_payment_method__purchase_position
+    on payment_method (purchase_id, position);

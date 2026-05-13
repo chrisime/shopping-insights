@@ -1,4 +1,4 @@
-"""Neutral result/data types shared across workflow-adjacent modules."""
+"""Neutral public result/data types shared across workflow-adjacent modules."""
 
 from __future__ import annotations
 
@@ -18,14 +18,6 @@ class PersistResult:
     def processed_count(self) -> int:
         return self.created_count + self.updated_count
 
-
-@dataclass(frozen=True)
-class ReceiptStoreSnapshot:
-    """Read snapshot returned by a receipt store before workflow decisions."""
-
-    existing_ids: set[str]
-    receipts: list[Dict[str, Any]]
-    receipts_file: str
 
 
 @dataclass(frozen=True)

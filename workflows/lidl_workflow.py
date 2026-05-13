@@ -1,6 +1,6 @@
 """Central LIDL workflows for initial import and incremental updates."""
 
-import json
+import simplejson
 import time
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -8,12 +8,9 @@ import requests
 from bs4 import BeautifulSoup
 
 from api.lidl_client import get_lidl_ticket, get_tickets_page, test_lidl_session
-from auth.lidl_file_auth import diagnose_lidl_cookie_file
 from auth.session_manager import setup_session
 from config import LidlConfig
 from parsing.lidl_items_extractor import extract_lidl_receipt_items
-from parsing.lidl_receipt_parser import parse_lidl_ticket
-from parsing.lidl_validator import LidlReceiptValidationError, validate_lidl_receipt_data
 from reporting.lidl_api_reporting import (
     print_lidl_session_test_request_error,
     print_lidl_session_test_start,
@@ -33,38 +30,24 @@ from reporting.lidl_reporting import (
     print_lidl_workflow_header,
     write_lidl_skipped_receipts_report,
 )
-from result_types import ReceiptParseResult, WorkflowSummary
-from shared.ports import ReceiptStore
-from storage import create_receipt_store
+from result_types import WorkflowSummary
+from shared.receipt_store import ReceiptStore
+from storage import create_receipt_store, resolve_receipt_store_target
 
 from .error_mapping import (
-    build_exception_issue,
-    build_exception_skip_result,
-    build_validation_skip_result,
+    render_exception_reason,
 )
 from .progress_display import ProgressState, ReceiptProgressDisplay
 from .pipeline_runner import parse_receipts, persist_valid_receipts, validate_receipts
 from .pipeline_types import RawReceiptRecord, ReceiptIssue, WorkflowResult
+from .workflow_constants import RETAILER_LIDL, REASON_KIND_LIDL_FETCH
 
-
-TicketDict = Dict[str, object]
 
 __all__ = [
-    "run_lidl_check",
     "run_lidl_initial",
     "run_lidl_update",
-    "fetch_lidl_receipt_parse_result",
 ]
 
-
-# ---------------------------------------------------------------------------
-# Public use cases
-# ---------------------------------------------------------------------------
-
-
-def run_lidl_check(cookies_file: Optional[str] = None) -> bool:
-    """Validate a LIDL cookie file."""
-    return diagnose_lidl_cookie_file(cookies_file)
 
 
 def run_lidl_initial(
@@ -74,33 +57,14 @@ def run_lidl_initial(
     write_backend: str = "json",
 ) -> bool:
     """Run the full historical LIDL import workflow."""
-    print_lidl_workflow_header("=== INITIAL SETUP: Extrahiere alle LIDL-Kassenbons ===")
-    session = _prepare_lidl_session(browser, cookies_file, country)
-    if not session:
-        return False
-    store = create_receipt_store(write_backend)
-
-    all_receipt_ids, total_pages = _collect_lidl_receipt_ids(session)
-    snapshot = store.load_receipts_snapshot(retailer="lidl")
-
-    print_lidl_existing_receipts_count(len(snapshot.receipts))
-    new_receipt_ids = _filter_new_receipt_ids(all_receipt_ids, snapshot.existing_ids)
-    print_lidl_new_receipts_count(len(new_receipt_ids))
-
-    workflow_result = _run_lidl_receipt_pipeline(
-        session=session,
-        receipt_ids=new_receipt_ids,
-        processed_pages=total_pages,
-        store=store,
-        receipts_file=snapshot.receipts_file,
+    return _run_lidl_import_workflow(
+        browser=browser,
+        cookies_file=cookies_file,
+        country=country,
+        write_backend=write_backend,
+        start_title="=== INITIAL SETUP: Extrahiere alle LIDL-Kassenbons ===",
+        completion_title="\n=== INITIAL SETUP ABGESCHLOSSEN ===",
     )
-    _print_lidl_pipeline_result(workflow_result)
-    _print_lidl_completion(
-        title="\n=== INITIAL SETUP ABGESCHLOSSEN ===",
-        total_items=workflow_result.summary.total_items,
-        processed_pages=total_pages,
-    )
-    return workflow_result.success
 
 
 def run_lidl_update(
@@ -110,61 +74,63 @@ def run_lidl_update(
     write_backend: str = "json",
 ) -> bool:
     """Run the incremental LIDL update workflow."""
-    print_lidl_workflow_header("=== UPDATE: Füge neue LIDL-Kassenbons hinzu ===")
+    return _run_lidl_import_workflow(
+        browser=browser,
+        cookies_file=cookies_file,
+        country=country,
+        write_backend=write_backend,
+        start_title="=== UPDATE: Füge neue LIDL-Kassenbons hinzu ===",
+        completion_title="\n=== UPDATE ABGESCHLOSSEN ===",
+        max_pages=LidlConfig.PAGES_TO_CHECK,
+    )
+
+
+def _run_lidl_import_workflow(
+    browser: Optional[str],
+    cookies_file: Optional[str],
+    country: Optional[str],
+    write_backend: str,
+    start_title: str,
+    completion_title: str,
+    max_pages: Optional[int] = None,
+) -> bool:
+    """Run the shared LIDL import flow for full-history and update modes."""
+    print_lidl_workflow_header(start_title)
     session = _prepare_lidl_session(browser, cookies_file, country)
     if not session:
         return False
+
     store = create_receipt_store(write_backend)
+    receipts_file = resolve_receipt_store_target(write_backend, retailer=RETAILER_LIDL)
+    receipt_ids, page_count = _collect_lidl_receipt_ids(session, max_pages)
+    existing_receipt_ids = store.find_existing_ids(retailer=RETAILER_LIDL, file_path=receipts_file)
 
-    recent_receipt_ids, checked_pages = _collect_lidl_receipt_ids(
-        session,
-        max_pages=LidlConfig.PAGES_TO_CHECK,
-    )
-    snapshot = store.load_receipts_snapshot(retailer="lidl")
-
-    print_lidl_existing_receipts_count(len(snapshot.receipts))
-    new_receipt_ids = _filter_new_receipt_ids(recent_receipt_ids, snapshot.existing_ids)
-    print_lidl_checked_pages(checked_pages)
+    print_lidl_existing_receipts_count(len(existing_receipt_ids))
+    new_receipt_ids = _filter_new_receipt_ids(receipt_ids, existing_receipt_ids)
+    if max_pages is not None:
+        print_lidl_checked_pages(page_count)
     print_lidl_new_receipts_count(len(new_receipt_ids))
 
     workflow_result = _run_lidl_receipt_pipeline(
         session=session,
         receipt_ids=new_receipt_ids,
-        checked_pages=checked_pages,
+        checked_pages=page_count if max_pages is not None else None,
+        processed_pages=page_count if max_pages is None else None,
         store=store,
-        receipts_file=snapshot.receipts_file,
+        receipts_file=receipts_file,
     )
     _print_lidl_pipeline_result(workflow_result)
     _print_lidl_completion(
-        title="\n=== UPDATE ABGESCHLOSSEN ===",
+        title=completion_title,
         total_items=workflow_result.summary.total_items,
-        checked_pages=checked_pages,
+        checked_pages=page_count if max_pages is not None else None,
+        processed_pages=page_count if max_pages is None else None,
     )
     return workflow_result.success
 
 
-# ---------------------------------------------------------------------------
-# Public diagnostics helpers
-# ---------------------------------------------------------------------------
 
-
-def fetch_lidl_receipt_parse_result(
-    session: requests.Session,
-    receipt_id: str,
-) -> ReceiptParseResult:
-    """Fetch, parse and validate a single LIDL receipt inside the workflow layer."""
-    return _fetch_lidl_receipt_parse_result(session, receipt_id)
-
-
-# ---------------------------------------------------------------------------
-# Receipt selection helpers
-# ---------------------------------------------------------------------------
-
-
-def _collect_lidl_receipt_ids(
-    session: requests.Session,
-    max_pages: Optional[int] = None,
-) -> Tuple[List[str], int]:
+def _collect_lidl_receipt_ids(session: requests.Session, max_pages: Optional[int] = None) -> Tuple[List[str], int]:
     """Collect LIDL receipt IDs from all pages or only a limited number."""
     all_receipt_ids: List[str] = []
     page = 1
@@ -202,10 +168,6 @@ def _collect_lidl_receipt_ids(
     return all_receipt_ids, processed_pages
 
 
-# ---------------------------------------------------------------------------
-# Session / setup helpers
-# ---------------------------------------------------------------------------
-
 
 def _setup_lidl_session(
     browser: Optional[str],
@@ -225,7 +187,7 @@ def _setup_lidl_session(
         return None
 
     return setup_session(
-        retailer="lidl",
+        retailer=RETAILER_LIDL,
         auth_method=auth_method,
         cookies_file=cookies_file,
     )
@@ -257,10 +219,8 @@ def _test_lidl_workflow_session(session: requests.Session) -> bool:
 
 def _print_lidl_pipeline_result(workflow_result: WorkflowResult) -> None:
     """Print skipped receipt details and the compact import summary."""
-    print_lidl_skipped_receipts(
-        workflow_result.skipped_details(),
-        workflow_result.skipped_report_path,
-    )
+    skipped_details = [issue.as_detail() for issue in workflow_result.skipped_issues]
+    print_lidl_skipped_receipts(skipped_details, workflow_result.skipped_report_path)
     print_lidl_import_summary(workflow_result.summary)
 
 
@@ -298,13 +258,15 @@ def _fetch_lidl_tickets(
     )
 
     for index, receipt_id in enumerate(receipt_ids, 1):
+        current = index - 1
         progress.render(
-            _build_lidl_fetch_state(
-                current=index - 1,
+            ProgressState(
+                current=current,
                 total=total_receipts,
-                fetched_tickets=fetched_tickets,
-                issues=issues,
-                total_items=total_items,
+                added=len(fetched_tickets),
+                skipped=len(issues),
+                errors=len(issues),
+                items=total_items,
                 current_receipt=receipt_id,
             )
         )
@@ -312,48 +274,21 @@ def _fetch_lidl_tickets(
             ticket_data = get_lidl_ticket(session, receipt_id)
             fetched_tickets.append(RawReceiptRecord(source_id=receipt_id, payload=ticket_data))
             total_items += _count_lidl_ticket_items(ticket_data)
-        except requests.exceptions.HTTPError as exc:
-            issues.append(
-                build_exception_issue(
-                    source_id=receipt_id,
-                    exc=exc,
-                    reason_formatter=_format_lidl_fetch_error,
-                )
-            )
-        except requests.exceptions.RequestException as exc:
-            issues.append(
-                build_exception_issue(
-                    source_id=receipt_id,
-                    exc=exc,
-                    reason_formatter=_format_lidl_fetch_error,
-                )
-            )
-        except json.JSONDecodeError as exc:
-            issues.append(
-                build_exception_issue(
-                    source_id=receipt_id,
-                    exc=exc,
-                    reason_formatter=_format_lidl_fetch_error,
-                )
-            )
+        except (requests.exceptions.HTTPError, requests.exceptions.RequestException, simplejson.JSONDecodeError) as exc:
+            issues.append(_build_lidl_fetch_issue(receipt_id, exc, fetch_related=True))
         except (KeyError, TypeError, ValueError) as exc:
-            issues.append(build_exception_issue(source_id=receipt_id, exc=exc))
+            issues.append(_build_lidl_fetch_issue(receipt_id, exc))
         except Exception as exc:  # pragma: no cover - defensive fallback
-            issues.append(
-                build_exception_issue(
-                    source_id=receipt_id,
-                    exc=exc,
-                    reason_formatter=_format_lidl_fetch_error,
-                )
-            )
+            issues.append(_build_lidl_fetch_issue(receipt_id, exc, fetch_related=True))
 
         progress.render(
-            _build_lidl_fetch_state(
+            ProgressState(
                 current=index,
                 total=total_receipts,
-                fetched_tickets=fetched_tickets,
-                issues=issues,
-                total_items=total_items,
+                added=len(fetched_tickets),
+                skipped=len(issues),
+                errors=len(issues),
+                items=total_items,
                 current_receipt=receipt_id,
             )
         )
@@ -362,6 +297,12 @@ def _fetch_lidl_tickets(
 
     progress.close()
     return fetched_tickets, issues
+
+
+def _build_lidl_fetch_issue(receipt_id: str, exc: Exception, fetch_related: bool = False) -> ReceiptIssue:
+    """Build a normalized workflow issue for LIDL ticket fetch failures."""
+    reason_kind = REASON_KIND_LIDL_FETCH if fetch_related else None
+    return ReceiptIssue(source_id=receipt_id, reason=render_exception_reason(exc, reason_kind))
 
 
 def _count_lidl_ticket_items(ticket_data: Dict[str, object]) -> int:
@@ -374,30 +315,6 @@ def _count_lidl_ticket_items(ticket_data: Dict[str, object]) -> int:
     return len(extract_lidl_receipt_items(soup))
 
 
-def _build_lidl_fetch_state(
-    current: int,
-    total: int,
-    fetched_tickets: Sequence[RawReceiptRecord],
-    issues: Sequence[ReceiptIssue],
-    total_items: int,
-    current_receipt: str,
-) -> ProgressState:
-    """Create a consistent progress snapshot for the LIDL fetch stage."""
-    return ProgressState(
-        current=current,
-        total=total,
-        added=len(fetched_tickets),
-        skipped=len(issues),
-        errors=len(issues),
-        items=total_items,
-        current_receipt=current_receipt,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Pipeline assembly helpers
-# ---------------------------------------------------------------------------
-
 
 def _run_lidl_receipt_pipeline(
     session: requests.Session,
@@ -409,11 +326,11 @@ def _run_lidl_receipt_pipeline(
 ) -> WorkflowResult:
     """Run the shared LIDL fetch/parse/validate/persist pipeline and return a normalized result."""
     fetched_tickets, fetch_issues = _fetch_lidl_tickets(session, receipt_ids)
-    parse_result = _parse_lidl_receipts(fetched_tickets)
-    validation_result = _validate_lidl_receipts(parse_result.records)
+    parse_result = parse_receipts(fetched_tickets, retailer=RETAILER_LIDL)
+    validation_result = validate_receipts(parse_result.records, retailer=RETAILER_LIDL)
     persist_result = persist_valid_receipts(
         validation_result.records,
-        retailer="lidl",
+        retailer=RETAILER_LIDL,
         store=store,
     )
 
@@ -428,7 +345,7 @@ def _run_lidl_receipt_pipeline(
     return WorkflowResult(
         success=True,
         summary=WorkflowSummary(
-            retailer="lidl",
+            retailer=RETAILER_LIDL,
             processed_count=persist_result.processed_count,
             skipped_count=len(skipped_issues),
             total_receipts=persist_result.total_receipts,
@@ -442,62 +359,8 @@ def _run_lidl_receipt_pipeline(
     )
 
 
-def _parse_lidl_receipts(raw_records: Sequence[RawReceiptRecord]):
-    """Parse fetched LIDL raw records via the shared parse stage."""
-    return parse_receipts(
-        raw_records,
-        parse_record=_parse_lidl_raw_record,
-    )
 
-
-def _validate_lidl_receipts(parsed_records):
-    """Validate parsed LIDL receipts via the shared validation stage."""
-    return validate_receipts(
-        parsed_records,
-        validate_receipt=validate_lidl_receipt_data,
-        validation_error_types=(LidlReceiptValidationError,),
-    )
-
-
-def _parse_lidl_raw_record(raw_record: RawReceiptRecord) -> dict:
-    """Parse a fetched LIDL raw record into the normalized receipt schema."""
-    return parse_lidl_ticket(raw_record.payload, raw_record.source_id)
-
-
-def _fetch_lidl_receipt_parse_result(
-    session: requests.Session,
-    receipt_id: str,
-) -> ReceiptParseResult:
-    """Fetch, parse and validate a single LIDL receipt inside the workflow layer."""
-    try:
-        ticket_data = get_lidl_ticket(session, receipt_id)
-    except requests.exceptions.HTTPError as exc:
-        return build_exception_skip_result(exc, reason_formatter=_format_lidl_fetch_error)
-    except requests.exceptions.RequestException as exc:
-        return build_exception_skip_result(exc, reason_formatter=_format_lidl_fetch_error)
-    except json.JSONDecodeError as exc:
-        return build_exception_skip_result(exc, reason_formatter=_format_lidl_fetch_error)
-    except (KeyError, TypeError, ValueError) as exc:
-        return build_exception_skip_result(exc)
-    except Exception as exc:  # pragma: no cover - defensive fallback
-        return build_exception_skip_result(exc, reason_formatter=_format_lidl_fetch_error)
-
-    try:
-        receipt_data = parse_lidl_ticket(ticket_data, receipt_id)
-        validate_lidl_receipt_data(receipt_data)
-        return ReceiptParseResult(receipt_data=receipt_data)
-    except LidlReceiptValidationError as exc:
-        return build_validation_skip_result(exc)
-    except (KeyError, TypeError, ValueError) as exc:
-        return build_exception_skip_result(exc)
-
-
-# ---------------------------------------------------------------------------
-# Single-receipt helpers / selection utilities
-# ---------------------------------------------------------------------------
-
-
-def _extract_receipt_ids_from_tickets(tickets: List[TicketDict]) -> List[str]:
+def _extract_receipt_ids_from_tickets(tickets: List[Dict[str, object]]) -> List[str]:
     """Extract receipt IDs for tickets that have HTML receipts."""
     receipt_ids = []
     for ticket in tickets:
@@ -506,6 +369,8 @@ def _extract_receipt_ids_from_tickets(tickets: List[TicketDict]) -> List[str]:
 
         if "ticket" in ticket:
             ticket_data = ticket["ticket"]
+            if not isinstance(ticket_data, dict):
+                continue
             receipt_id = ticket_data.get("id", "")
             has_html = ticket_data.get("isHtml", False)
         else:
@@ -518,25 +383,7 @@ def _extract_receipt_ids_from_tickets(tickets: List[TicketDict]) -> List[str]:
     return receipt_ids
 
 
-def _filter_new_receipt_ids(
-    receipt_ids: Sequence[str],
-    existing_ids: Iterable[str],
-) -> List[str]:
+def _filter_new_receipt_ids(receipt_ids: Sequence[str], existing_ids: Iterable[str],) -> List[str]:
     """Return only receipt IDs that are not already stored."""
     existing_id_set = set(existing_ids)
     return [receipt_id for receipt_id in receipt_ids if receipt_id not in existing_id_set]
-
-
-def _format_lidl_fetch_error(exc: Exception) -> str:
-    """Render LIDL fetch-related exceptions into stable workflow reason strings."""
-    if isinstance(exc, requests.exceptions.HTTPError):
-        if exc.response is not None and exc.response.status_code == 401:
-            return "Nicht autorisiert (401)"
-        return f"HTTP-Fehler beim Abrufen: {exc}"
-    if isinstance(exc, requests.exceptions.RequestException):
-        return f"Fehler beim Abrufen: {exc}"
-    if isinstance(exc, json.JSONDecodeError):
-        return f"JSON-Decodierungsfehler: {exc}"
-    return f"Unerwarteter Fehler: {exc}"
-
-

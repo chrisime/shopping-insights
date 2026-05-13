@@ -1,12 +1,15 @@
 """Interactive menu for LIDL workflows."""
 
+from auth.lidl_file_auth import diagnose_lidl_cookie_file
+
 from .auth_prompts import prompt_auth_source, prompt_cookies_file
 from .common_prompts import (
     print_cancelled,
     print_invalid_choice,
     prompt_optional_value,
+    prompt_write_backend,
 )
-from workflows.lidl_workflow import run_lidl_check, run_lidl_initial, run_lidl_update
+from workflows.lidl_workflow import run_lidl_initial, run_lidl_update
 
 
 def _prompt_lidl_country() -> str | None:
@@ -16,11 +19,12 @@ def _prompt_lidl_country() -> str | None:
 
 def _run_lidl_initial() -> None:
     """Interactive wrapper around the central LIDL initial workflow."""
+    write_backend = prompt_write_backend()
     auth_kwargs = prompt_auth_source("LIDL", "Cookie-Datei", "lidl_cookies.json")
     country = _prompt_lidl_country()
 
     print("\nStarte LIDL Initial Setup...")
-    success = run_lidl_initial(country=country, **auth_kwargs)
+    success = run_lidl_initial(country=country, write_backend=write_backend, **auth_kwargs)
     if success:
         print("✓ Initial Setup erfolgreich abgeschlossen!")
     else:
@@ -29,11 +33,12 @@ def _run_lidl_initial() -> None:
 
 def _run_lidl_update() -> None:
     """Interactive wrapper around the central LIDL update workflow."""
+    write_backend = prompt_write_backend()
     auth_kwargs = prompt_auth_source("LIDL", "Cookie-Datei", "lidl_cookies.json")
     country = _prompt_lidl_country()
 
     print("\nStarte LIDL Update...")
-    success = run_lidl_update(country=country, **auth_kwargs)
+    success = run_lidl_update(country=country, write_backend=write_backend, **auth_kwargs)
     if success:
         print("✓ Update erfolgreich abgeschlossen!")
     else:
@@ -43,7 +48,7 @@ def _run_lidl_update() -> None:
 def _run_lidl_check() -> None:
     """Diagnose a LIDL cookie file."""
     path = _prompt_lidl_cookies_file()
-    success = run_lidl_check(path)
+    success = diagnose_lidl_cookie_file(path)
     if success:
         print("✓ LIDL-Cookie-Datei sieht grundsätzlich brauchbar aus!")
     else:

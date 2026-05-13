@@ -15,6 +15,7 @@ from .cookie_policies import (
 )
 from .rewe_customer_id import extract_rewe_customer_id_from_text
 from .shared_file_auth import (
+    CookieDiagnosticExtras,
     CookieDiagnosticProfile,
     assess_cookie_quality,
     build_cookie_session,
@@ -24,7 +25,7 @@ from .shared_file_auth import (
 )
 
 
-DEFAULT_REWE_COOKIE_DOMAIN = f".{ReweConfig.get_cookie_domain()}" #".rewe.de"
+DEFAULT_REWE_COOKIE_DOMAIN = f".{ReweConfig.get_cookie_domain()}"
 
 def _rewe_diagnostic_profile() -> CookieDiagnosticProfile:
     """Return the REWE-specific diagnostic profile."""
@@ -42,53 +43,74 @@ def _rewe_diagnostic_profile() -> CookieDiagnosticProfile:
         gruen_step="Die Datei wirkt ausreichend. Du kannst den REWE-Abruf voraussichtlich direkt mit --cookies-file starten.",
         missing_required_hint="Ohne rstp ist der ZIP-Abruf meist nicht erfolgreich. Exportiere die Cookies möglichst direkt nach einem funktionierenden REWE-Aufruf erneut.",
     )
+def _build_rewe_diagnostic_extras_for_cookies(
+    raw_cookie_text: str,
+    cookie_names: Set[str],
+    status: str,
+) -> CookieDiagnosticExtras:
+    """Build REWE-specific diagnostic lines and next steps for the current cookie set."""
+    customer_id = extract_rewe_customer_id_from_text(raw_cookie_text)
+    missing_waf: List[str] = sorted(
+        str(name) for name in (RECOMMENDED_REWE_WAF_COOKIE_NAMES - cookie_names)
+    )
+
+    lines: List[str] = []
+    if missing_waf:
+        lines.append(f"ℹ Optionale WAF-/Cloudflare-Cookies fehlen: {', '.join(missing_waf)}")
+        lines.append("  Das ist nach aktueller Praxiserfahrung nicht zwingend problematisch.")
+
+    if customer_id:
+        lines.append(f"✓ customerId in der Datei erkannt: {customer_id}")
+    else:
+        lines.append(
+            "ℹ Keine customerId direkt in der Datei erkannt. Das ist bei reinen Cookie-Dateien normal."
+        )
+
+    steps: List[str] = []
+    if status == "GELB" and missing_waf:
+        steps.append(
+            f"Optionale WAF-/Cloudflare-Cookies ({', '.join(missing_waf)}) fehlen zwar, sind aber nach aktueller Erfahrung nicht der Hauptfaktor."
+        )
+    if not customer_id:
+        steps.append(
+            "Fehlende customerId in einer reinen Cookie-Datei ist normal. Zuerst Session-/couponwallet-Aufloesung probieren; nur bei Bedarf spaeter --customer-id manuell setzen."
+        )
+
+    return CookieDiagnosticExtras(lines=lines, steps=steps)
 
 
-def _rewe_extra_diagnostics_factory(raw_cookie_text: str):
-    """Return a callback that prints REWE-specific extra diagnostics."""
-    def _extra(cookie_names: Set[str]) -> None:
-        missing_waf = sorted(RECOMMENDED_REWE_WAF_COOKIE_NAMES - cookie_names)
-        if missing_waf:
-            print(
-                f"ℹ Optionale WAF-/Cloudflare-Cookies fehlen: {', '.join(missing_waf)}"
-            )
-            print("  Das ist nach aktueller Praxiserfahrung nicht zwingend problematisch.")
-
-        customer_id = extract_rewe_customer_id_from_text(raw_cookie_text)
-        if customer_id:
-            print(f"✓ customerId in der Datei erkannt: {customer_id}")
-        else:
-            print(
-                "ℹ Keine customerId direkt in der Datei erkannt. Das ist bei reinen Cookie-Dateien normal."
-            )
-    return _extra
+def _print_rewe_cookie_diagnostics(cookies, raw_cookie_text: str) -> None:
+    """Print REWE-specific cookie diagnostics for an already parsed cookie jar."""
+    profile = _rewe_diagnostic_profile()
+    cookie_names = {cookie.name for cookie in cookies}
+    status, _, _ = assess_cookie_quality(cookie_names, profile)
+    print_cookie_diagnostics(
+        cookies,
+        profile,
+        extras=_build_rewe_diagnostic_extras_for_cookies(
+            raw_cookie_text,
+            cookie_names,
+            status,
+        ),
+    )
 
 
-def _rewe_extra_steps_factory(raw_cookie_text: str):
-    """Return a callback that provides REWE-specific next-step texts."""
-    def _steps(status: str, cookie_names: Set[str]) -> List[str]:
-        steps: List[str] = []
-        if status == "GELB":
-            missing_waf = sorted(RECOMMENDED_REWE_WAF_COOKIE_NAMES - cookie_names)
-            if missing_waf:
-                steps.append(
-                    f"Optionale WAF-/Cloudflare-Cookies ({', '.join(missing_waf)}) fehlen zwar, sind aber nach aktueller Erfahrung nicht der Hauptfaktor."
-                )
-        customer_id = extract_rewe_customer_id_from_text(raw_cookie_text)
-        if not customer_id:
-            steps.append(
-                "Fehlende customerId in einer reinen Cookie-Datei ist normal. Zuerst Session-/couponwallet-Aufloesung probieren; nur bei Bedarf spaeter --customer-id manuell setzen."
-            )
-        return steps
-    return _steps
+def _parse_rewe_cookie_session_payload(
+    raw_cookie_text: str,
+    invalid_format_message: str,
+) -> Optional[tuple[requests.Session, int]]:
+    """Parse raw REWE cookie text and print consistent user-facing errors."""
+    session_payload = _build_rewe_cookie_session_from_text(raw_cookie_text)
+    if session_payload is None:
+        print(invalid_format_message)
+        return None
 
+    session, cookie_count = session_payload
+    if cookie_count == 0:
+        print("✗ Keine REWE-Cookies für rewe.de in der Datei gefunden.")
+        return None
 
-def _looks_like_rewe_domain(domain: str) -> bool:
-    """Return True when a cookie domain belongs to REWE."""
-    if not domain:
-        return False
-    normalized = domain.lower().lstrip(".")
-    return normalized.endswith("rewe.de")
+    return session, cookie_count
 
 
 def load_rewe_cookies_from_file(
@@ -118,27 +140,17 @@ def load_rewe_cookies_from_file(
 
         raw_cookie_text = read_utf8_text_file(file_path)
 
-        session_payload = _build_rewe_cookie_session_from_text(raw_cookie_text)
+        session_payload = _parse_rewe_cookie_session_payload(
+            raw_cookie_text,
+            "✗ Ungültiges Cookie-Dateiformat. Unterstützt werden JSON, Netscape-Cookie-Dateien, rohe Cookie-Header und komplette Request-Header mit Cookie-Zeile.",
+        )
         if session_payload is None:
-            print(
-                "✗ Ungültiges Cookie-Dateiformat. Unterstützt werden JSON, Netscape-Cookie-Dateien, rohe Cookie-Header und komplette Request-Header mit Cookie-Zeile."
-            )
             return None
 
         session, cookie_count = session_payload
 
-        if cookie_count == 0:
-            print("✗ Keine Cookies für rewe.de in der Datei gefunden.")
-            return None
-
         print(f"✓ Erfolgreich {cookie_count} REWE-Cookies geladen")
-        profile = _rewe_diagnostic_profile()
-        print_cookie_diagnostics(
-            session.cookies,
-            profile,
-            extra_diagnostics=_rewe_extra_diagnostics_factory(raw_cookie_text),
-            extra_steps=_rewe_extra_steps_factory(raw_cookie_text),
-        )
+        _print_rewe_cookie_diagnostics(session.cookies, raw_cookie_text)
         return session
 
     except Exception as exc:  # pragma: no cover - defensive fallback
@@ -163,27 +175,18 @@ def diagnose_rewe_cookie_file(file_path: Optional[str] = None) -> bool:
         print(f"✗ Datei konnte nicht gelesen werden: {exc}")
         return False
 
-    session_payload = _build_rewe_cookie_session_from_text(raw_cookie_text)
+    session_payload = _parse_rewe_cookie_session_payload(
+        raw_cookie_text,
+        "✗ Datei konnte nicht als REWE-Cookie-/Request-Datei erkannt werden. Unterstützt werden JSON, Netscape, rohe Cookie-Header und komplette Request-Header.",
+    )
     if session_payload is None:
-        print(
-            "✗ Datei konnte nicht als REWE-Cookie-/Request-Datei erkannt werden. Unterstützt werden JSON, Netscape, rohe Cookie-Header und komplette Request-Header."
-        )
         return False
 
     session, cookie_count = session_payload
 
-    if cookie_count == 0:
-        print("✗ Keine REWE-Cookies für rewe.de in der Datei gefunden.")
-        return False
-
     print(f"✓ Datei ist lesbar, {cookie_count} REWE-Cookies erkannt")
+    _print_rewe_cookie_diagnostics(session.cookies, raw_cookie_text)
     profile = _rewe_diagnostic_profile()
-    print_cookie_diagnostics(
-        session.cookies,
-        profile,
-        extra_diagnostics=_rewe_extra_diagnostics_factory(raw_cookie_text),
-        extra_steps=_rewe_extra_steps_factory(raw_cookie_text),
-    )
     status, _, _ = assess_cookie_quality(
         {cookie.name for cookie in session.cookies}, profile,
     )
@@ -274,13 +277,6 @@ def _parse_cookie_header_or_pairs(raw_cookie_text: str) -> List[dict]:
     return cookies
 
 
-def _is_valid_rewe_cookie_data(cookie_data: dict) -> bool:
-    """Return True for cookie dicts that belong to REWE and have a name."""
-    domain = str(cookie_data.get("domain", "") or "")
-    name = str(cookie_data.get("name", "") or "")
-    return _looks_like_rewe_domain(domain) and bool(name)
-
-
 def _build_rewe_cookie_session_from_text(
     raw_cookie_text: str,
 ) -> Optional[tuple[requests.Session, int]]:
@@ -292,6 +288,5 @@ def _build_rewe_cookie_session_from_text(
     return build_cookie_session(
         cookies_list,
         user_agent=ReweConfig.DEFAULT_USER_AGENT,
-        include_cookie=_is_valid_rewe_cookie_data,
+        domain_suffix="rewe.de",
     )
-

@@ -4,6 +4,8 @@
 class ReweConfig:
     """Central REWE configuration for API access and runtime behavior."""
 
+    COUNTRY = "de"
+
     BASE_URL = "https://www.rewe.de"
     RECEIPTS_ZIP_ENDPOINT = "/api/receipts/zip"
     COUPON_WALLET_ENDPOINT = "/shop/mydata/couponwallet"
@@ -44,3 +46,9 @@ class ReweConfig:
     def get_cookie_domain(cls) -> str:
         """Get the domain for cookie extraction"""
         return "rewe.de"
+
+    @classmethod
+    def get_country_code(cls) -> str:
+        """Return the configured REWE country code in uppercase."""
+        return cls.COUNTRY.upper()
+

@@ -6,7 +6,7 @@ import cli.lidl_menu as lidl_menu
 import cli.menu as main_menu
 import cli.rewe_menu as rewe_menu
 from cli.auth_prompts import prompt_auth_source, prompt_cookies_file
-from cli.common_prompts import prompt_optional_value, prompt_with_default
+from cli.common_prompts import prompt_optional_value, prompt_with_default, prompt_write_backend
 from cli.lidl_menu import show_lidl_menu
 from cli.rewe_menu import show_rewe_menu
 
@@ -29,6 +29,18 @@ class AuthPromptsTests(unittest.TestCase):
             result = prompt_optional_value("Optionaler Wert")
 
         self.assertIsNone(result)
+
+    def test_prompt_write_backend_uses_default_when_empty(self):
+        with patch("builtins.input", return_value=""):
+            result = prompt_write_backend()
+
+        self.assertEqual(result, "json")
+
+    def test_prompt_write_backend_accepts_numbered_sqlite_choice(self):
+        with patch("builtins.input", return_value="2"):
+            result = prompt_write_backend()
+
+        self.assertEqual(result, "sqlite")
 
     def test_prompt_auth_source_returns_browser_selection(self):
         with patch("builtins.input", side_effect=["2"]):
@@ -77,6 +89,9 @@ class CliMenuTests(unittest.TestCase):
     def test_show_lidl_menu_runs_initial_with_prompted_auth(self):
         stdout = io.StringIO()
         with patch("builtins.input", side_effect=["1", ""]), patch(
+            "cli.lidl_menu.prompt_write_backend",
+            return_value="sqlite",
+        ), patch(
             "cli.lidl_menu.prompt_auth_source",
             return_value={"browser": "firefox"},
         ), patch("cli.lidl_menu.run_lidl_initial", return_value=True) as run_initial, patch(
@@ -84,7 +99,7 @@ class CliMenuTests(unittest.TestCase):
         ):
             show_lidl_menu()
 
-        run_initial.assert_called_once_with(browser="firefox", country=None)
+        run_initial.assert_called_once_with(browser="firefox", country=None, write_backend="sqlite")
         self.assertIn("✓ Initial Setup erfolgreich abgeschlossen!", stdout.getvalue())
 
     def test_show_lidl_menu_runs_check_with_prompted_cookie_file(self):
@@ -92,12 +107,12 @@ class CliMenuTests(unittest.TestCase):
         with patch("builtins.input", side_effect=["3"]), patch(
             "cli.lidl_menu.prompt_cookies_file",
             return_value="lidl_cookies.json",
-        ), patch("cli.lidl_menu.run_lidl_check", return_value=True) as run_check, patch(
+        ), patch("cli.lidl_menu.diagnose_lidl_cookie_file", return_value=True) as diagnose_lidl_cookie_file, patch(
             "sys.stdout", new=stdout
         ):
             show_lidl_menu()
 
-        run_check.assert_called_once_with("lidl_cookies.json")
+        diagnose_lidl_cookie_file.assert_called_once_with("lidl_cookies.json")
         self.assertIn(
             "✓ LIDL-Cookie-Datei sieht grundsätzlich brauchbar aus!",
             stdout.getvalue(),
@@ -106,6 +121,9 @@ class CliMenuTests(unittest.TestCase):
     def test_show_rewe_menu_runs_initial_with_prompted_auth(self):
         stdout = io.StringIO()
         with patch("builtins.input", side_effect=["1", "tmp/rewe", ""]), patch(
+            "cli.rewe_menu.prompt_write_backend",
+            return_value="sqlite",
+        ), patch(
             "cli.rewe_menu.prompt_auth_source",
             return_value={"cookies_file": "rewe_cookies.json"},
         ), patch("cli.rewe_menu.run_rewe_initial", return_value=True) as run_initial, patch(
@@ -117,19 +135,23 @@ class CliMenuTests(unittest.TestCase):
             customer_id=None,
             output_dir="tmp/rewe",
             cookies_file="rewe_cookies.json",
+            write_backend="sqlite",
         )
         self.assertIn("✓ REWE-Import erfolgreich abgeschlossen!", stdout.getvalue())
 
     def test_show_rewe_menu_runs_update_with_prompted_auth(self):
         stdout = io.StringIO()
         with patch("builtins.input", side_effect=["2", "tmp/rewe"]), patch(
+            "cli.rewe_menu.prompt_write_backend",
+            return_value="sqlite",
+        ), patch(
             "cli.rewe_menu.run_rewe_update", return_value=True
         ) as run_update, patch(
             "sys.stdout", new=stdout
         ):
             show_rewe_menu()
 
-        run_update.assert_called_once_with(output_dir="tmp/rewe")
+        run_update.assert_called_once_with(output_dir="tmp/rewe", write_backend="sqlite")
         self.assertIn("✓ REWE-Update erfolgreich abgeschlossen!", stdout.getvalue())
 
     def test_show_rewe_menu_prints_normalized_invalid_choice_message(self):

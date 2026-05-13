@@ -3,13 +3,34 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from config import get_receipt_schema_profile
+from parsing.rewe_pdf_parser import parse_rewe_receipt_pdf
 from parsing.rewe_validator import (
     ReweReceiptValidationError,
     ReweValidationIssue,
     validate_rewe_receipt_data,
 )
+from result_types import ReceiptParseResult
 from shared.receipt_schema import normalize_receipt_schema
-from workflows.rewe_workflow import parse_rewe_receipt_pdf_with_result
+from workflows.error_mapping import render_exception_reason, render_validation_reason
+from workflows.workflow_constants import REASON_KIND_REWE_PDF_PARSE
+
+
+def _parse_rewe_receipt_pdf_with_result(pdf_path: Path) -> ReceiptParseResult:
+    path = Path(pdf_path)
+    try:
+        receipt_data = parse_rewe_receipt_pdf(path)
+        validate_rewe_receipt_data(receipt_data)
+        return ReceiptParseResult(receipt_data=receipt_data)
+    except ReweReceiptValidationError as exc:
+        return ReceiptParseResult(receipt_data=None, skip_reason=render_validation_reason(exc))
+    except ValueError as exc:
+        return ReceiptParseResult(receipt_data=None, skip_reason=render_exception_reason(exc))
+    except Exception as exc:  # pragma: no cover - filesystem/pdfplumber dependent
+        return ReceiptParseResult(
+            receipt_data=None,
+            skip_reason=render_exception_reason(exc, REASON_KIND_REWE_PDF_PARSE),
+        )
 
 
 class ReweValidatorTests(unittest.TestCase):
@@ -108,7 +129,7 @@ Bon-Nr.:1845
             pdf_path = Path(tmp_dir) / "invalid-rewe.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
             with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=invalid_text):
-                receipt = parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
+                receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNone(receipt)
 
@@ -129,11 +150,13 @@ Bon-Nr.:1845
             pdf_path = Path(tmp_dir) / "invalid-rewe.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
             with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=invalid_text):
-                parse_result = parse_rewe_receipt_pdf_with_result(pdf_path)
+                parse_result = _parse_rewe_receipt_pdf_with_result(pdf_path)
 
         self.assertIsNone(parse_result.receipt_data)
-        self.assertIn("Validatorfehler:", parse_result.skip_reason)
-        self.assertIn("payment_methods: fehlen trotz positivem Gesamtbetrag", parse_result.skip_reason)
+        self.assertIsNotNone(parse_result.skip_reason)
+        skip_reason = str(parse_result.skip_reason)
+        self.assertIn("Validatorfehler:", skip_reason)
+        self.assertIn("payment_methods: fehlen trotz positivem Gesamtbetrag", skip_reason)
 
     def test_parse_rewe_receipt_pdf_extracts_bonus_amounts(self):
         valid_text = """
@@ -157,7 +180,7 @@ Einfach beim nächsten Einkauf einlösen!
             pdf_path = Path(tmp_dir) / "valid-rewe.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
             with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
-                receipt = parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
+                receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
         self.assertEqual(
@@ -195,7 +218,7 @@ Aktuelles Bonus-Guthaben: 0,14 EUR
             pdf_path = Path(tmp_dir) / "rewe-bonus-redeemed.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
             with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
-                receipt = parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
+                receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt["total_price"], 5.97)
@@ -203,7 +226,7 @@ Aktuelles Bonus-Guthaben: 0,14 EUR
         self.assertEqual(
             receipt["payment_methods"],
             [
-                {"method": "Bonus-Guthaben", "amount": 5.0},
+                {"method": "Bonus-Guthaben", "network": "REWE", "amount": 5.0},
                 {"method": "Karte", "network": "VISA", "amount": 5.97},
             ],
         )
@@ -227,7 +250,7 @@ Markt:0605 Kasse:8 Bed.:432108
             pdf_path = Path(tmp_dir) / "rewe-quantity.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
             with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
-                receipt = parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
+                receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt["items"][0]["quantity"], 0.696)
@@ -252,7 +275,7 @@ Markt:5802 Kasse:4 Bed.: 4646
             pdf_path = Path(tmp_dir) / "rewe-12102025.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
             with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
-                receipt = parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
+                receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt["id"], "rewe-5802-4-12102025-1439-9216")
@@ -278,7 +301,7 @@ Markt : 5802   Kasse : 4   Bed. : 4646
             pdf_path = Path(tmp_dir) / "rewe-12102025-spaces.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
             with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
-                receipt = parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
+                receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt["id"], "rewe-5802-4-12102025-1439-9216")
@@ -305,14 +328,14 @@ Einfach beim nächsten Einkauf einlösen!
             pdf_path = Path(tmp_dir) / "valid-rewe-no-bonus-earned.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
             with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
-                receipt = parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
+                receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt["rewe_bonus_amount"], 0.0)
         self.assertEqual(receipt["rewe_bonus_amount_saved"], 0.0)
         self.assertEqual(receipt["rewe_bonus_total_amount"], 15.93)
 
-    def test_normalize_receipt_schema_defaults_rewe_bonus_fields_to_zero_and_converts_strings(self):
+    def test_normalize_receipt_schema_keeps_rewe_bonus_fields_neutral_and_converts_strings(self):
         normalized = normalize_receipt_schema(
             {
                 "id": "rewe-0605-8-01042026-1908-7714",
@@ -334,8 +357,12 @@ Einfach beim nächsten Einkauf einlösen!
             }
         )
 
-        self.assertEqual(normalized["rewe_bonus_amount"], 0.0)
-        self.assertEqual(normalized["rewe_bonus_amount_saved"], 0.0)
+        self.assertNotIn("rewe_bonus_amount", normalized)
+        self.assertNotIn("rewe_bonus_amount_saved", normalized)
+        self.assertNotIn("rewe_bonus_total_amount", normalized)
+        self.assertNotIn("lidlplus_amount_saved", normalized)
+        self.assertNotIn("sticker_discount_amount", normalized)
+        self.assertNotIn("sticker_discount_pct", normalized)
         self.assertEqual(
             normalized["address"],
             {
@@ -352,6 +379,72 @@ Einfach beim nächsten Einkauf einlösen!
         self.assertEqual(normalized["items"][0]["price"], 22.95)
         self.assertEqual(normalized["items"][0]["quantity"], 1)
         self.assertEqual(normalized["items"][1]["quantity"], 0.696)
+
+    def test_normalize_receipt_schema_accepts_rewe_schema_profile_from_caller(self):
+        normalized = normalize_receipt_schema(
+            {
+                "id": "rewe-0605-8-01042026-1908-7714",
+                "retailer": "rewe",
+                "purchase_date": "2026.04.01",
+                "rewe_bonus_amount": "1,25",
+            },
+            profile=get_receipt_schema_profile("rewe"),
+        )
+
+        self.assertEqual(normalized["rewe_bonus_amount"], 1.25)
+        self.assertIsNone(normalized["rewe_bonus_amount_saved"])
+        self.assertIsNone(normalized["rewe_bonus_total_amount"])
+
+    def test_normalize_receipt_schema_assigns_rewe_network_to_bonus_guthaben(self):
+        normalized = normalize_receipt_schema(
+            {
+                "id": "rewe-0605-13-10032026-1903-4479",
+                "retailer": "rewe",
+                "purchase_date": "2026.03.10",
+                "payment_methods": [{"method": "Bonus-Guthaben", "amount": "5,00"}],
+            }
+        )
+
+        self.assertEqual(
+            normalized["payment_methods"],
+            [{"method": "Bonus-Guthaben", "network": "REWE", "amount": 5.0}],
+        )
+
+    def test_normalize_receipt_schema_maps_unknown_rewe_payment_method_to_rewe_network(self):
+        normalized = normalize_receipt_schema(
+            {
+                "id": "rewe-0605-13-10032026-1903-4479",
+                "retailer": "rewe",
+                "purchase_date": "2026.03.10",
+                "payment_methods": [{"method": "Inflationsprämie", "amount": "5,00"}],
+            }
+        )
+
+        self.assertEqual(
+            normalized["payment_methods"],
+            [{"method": "Inflationsprämie", "network": "REWE", "amount": 5.0}],
+        )
+
+    def test_normalize_receipt_schema_keeps_existing_rewe_purchase_date_format(self):
+        normalized = normalize_receipt_schema(
+            {
+                "id": "rewe-0605-8-01042026-1908-7714",
+                "retailer": "rewe",
+                "purchase_date": " 01.04.2026 19:08 ",
+                "store": "REWE-Markt GmbH",
+            }
+        )
+
+        self.assertEqual(normalized["purchase_date"], "01.04.2026 19:08")
+
+    def test_normalize_receipt_schema_requires_explicit_or_embedded_retailer(self):
+        with self.assertRaisesRegex(ValueError, "Receipt retailer fehlt"):
+            normalize_receipt_schema(
+                {
+                    "id": "rewe-0605-8-01042026-1908-7714",
+                    "purchase_date": "2026.04.01",
+                }
+            )
 
 
 if __name__ == "__main__":

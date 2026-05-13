@@ -1,25 +1,27 @@
 import io
 import unittest
+from http.cookiejar import Cookie
+from typing import cast
 
 import requests
 from unittest.mock import patch
 
 from auth.lidl_browser_auth import LidlBrowserCookieExtractor
-from auth.shared_file_auth import build_cookie_session, validate_cookie_names
+from auth.shared_file_auth import analyze_cookie_names, build_cookie_session
 
 
 class AuthCookieValidationTests(unittest.TestCase):
-    def test_validate_cookie_names_reports_missing_required_and_present_recommended(self):
-        validation = validate_cookie_names(
+    def test_analyze_cookie_names_reports_missing_required_and_present_recommended(self):
+        analysis = analyze_cookie_names(
             {"authToken", "XSRF-TOKEN"},
             required_cookies={"authToken", "ldi-customertoken"},
             recommended_cookies={"XSRF-TOKEN", "ldi-user-context"},
         )
 
-        self.assertEqual(validation.missing_required, ("ldi-customertoken",))
-        self.assertEqual(validation.present_recommended, ("XSRF-TOKEN",))
-        self.assertEqual(validation.missing_recommended, ("ldi-user-context",))
-        self.assertTrue(validation.has_any_recommended)
+        self.assertEqual(analysis.missing_required, ("ldi-customertoken",))
+        self.assertEqual(analysis.present_recommended, ("XSRF-TOKEN",))
+        self.assertEqual(analysis.missing_recommended, ("ldi-user-context",))
+        self.assertTrue(analysis.has_any_recommended)
 
     def test_build_cookie_session_deduplicates_and_normalizes_cookie_shape(self):
         session, cookie_count = build_cookie_session(
@@ -41,12 +43,11 @@ class AuthCookieValidationTests(unittest.TestCase):
             ],
         )
 
-        cookies = list(session.cookies)
         self.assertEqual(cookie_count, 1)
-        self.assertEqual(len(cookies), 1)
-        self.assertEqual(cookies[0].value, "new")
-        self.assertTrue(cookies[0].secure)
-        self.assertEqual(cookies[0].path, "/")
+        cookie = cast(Cookie, next(iter(session.cookies)))
+        self.assertEqual(cookie.value, "new")
+        self.assertTrue(cookie.secure)
+        self.assertEqual(cookie.path, "/")
 
     def test_lidl_browser_validation_reports_missing_required_auth_cookie(self):
         extractor = LidlBrowserCookieExtractor()

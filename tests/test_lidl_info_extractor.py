@@ -2,6 +2,7 @@ import unittest
 
 from bs4 import BeautifulSoup
 
+from config import get_receipt_schema_profile
 from parsing.lidl_info_extractor import (
     extract_lidl_receipt_info,
     infer_lidl_pos_metadata_from_receipt_id,
@@ -97,6 +98,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
             [
                 {
                     "method": "Lidl Pay",
+                    "network": "LIDL",
                     "amount": 6.76,
                 }
             ],
@@ -122,6 +124,27 @@ class LidlInfoExtractorTests(unittest.TestCase):
                     "method": "Karte",
                     "amount": 19.23,
                     "network": "VISA",
+                }
+            ],
+        )
+
+    def test_normalize_lidl_payment_methods_maps_unknown_method_to_lidl_network(self):
+        payment_methods = [
+            {
+                "method": "Geldger├ñte",
+                "amount": "4,20",
+            }
+        ]
+
+        normalized = normalize_lidl_payment_methods(payment_methods)
+
+        self.assertEqual(
+            normalized,
+            [
+                {
+                    "method": "Geldger├ñte",
+                    "network": "LIDL",
+                    "amount": 4.2,
                 }
             ],
         )
@@ -221,7 +244,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
 
         self.assertEqual(receipt_data["total_price"], 33.7)
 
-    def test_normalize_receipt_schema_defaults_lidlplus_saved_amount_to_zero_and_converts_strings(self):
+    def test_normalize_receipt_schema_keeps_lidl_fields_neutral_and_converts_strings(self):
         normalized = normalize_receipt_schema(
             {
                 "id": "23004426420240828113520",
@@ -243,8 +266,13 @@ class LidlInfoExtractorTests(unittest.TestCase):
             }
         )
 
-        self.assertEqual(normalized["lidlplus_amount_saved"], 0.0)
-        self.assertEqual(normalized["store"], "lidl")
+        self.assertNotIn("lidlplus_amount_saved", normalized)
+        self.assertNotIn("sticker_discount_amount", normalized)
+        self.assertNotIn("sticker_discount_pct", normalized)
+        self.assertEqual(normalized["store"], "Fürth-Südstadt")
+        self.assertNotIn("rewe_bonus_amount", normalized)
+        self.assertNotIn("rewe_bonus_amount_saved", normalized)
+        self.assertNotIn("rewe_bonus_total_amount", normalized)
         self.assertEqual(
             normalized["address"],
             {
@@ -254,12 +282,26 @@ class LidlInfoExtractorTests(unittest.TestCase):
                 "city": "Fürth",
             },
         )
-        self.assertEqual(normalized["total_price"], 2.78)
-        self.assertEqual(normalized["payment_methods"][0]["amount"], 2.78)
-        self.assertEqual(normalized["items"][0]["price"], 2.78)
-        self.assertEqual(normalized["items"][0]["quantity"], 1)
-        self.assertEqual(normalized["items"][1]["price"], 3.99)
-        self.assertEqual(normalized["items"][1]["quantity"], 0.696)
+        self.assertEqual(
+            normalized["payment_methods"],
+            [{"method": "Lidl Pay", "network": "LIDL", "amount": 2.78}],
+        )
+
+    def test_normalize_receipt_schema_accepts_lidl_schema_profile_from_caller(self):
+        normalized = normalize_receipt_schema(
+            {
+                "id": "23004426420240828113520",
+                "retailer": "lidl",
+                "purchase_date": "2024.08.28",
+                "store": "Fürth-Südstadt",
+                "lidlplus_amount_saved": "2,78",
+            },
+            profile=get_receipt_schema_profile("lidl"),
+        )
+
+        self.assertEqual(normalized["lidlplus_amount_saved"], 2.78)
+        self.assertEqual(normalized["sticker_discount_pct"], [])
+        self.assertIsNone(normalized["sticker_discount_amount"])
 
 
 if __name__ == "__main__":

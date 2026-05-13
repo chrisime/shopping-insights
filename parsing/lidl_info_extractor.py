@@ -4,6 +4,7 @@ import re
 from typing import Any, Dict, Optional
 from bs4 import BeautifulSoup
 
+from config import get_receipt_schema_profile
 from shared.receipt_schema import build_receipt_schema
 from shared.addresses import normalize_address
 from shared.payment_methods import normalize_payment_method_entry
@@ -32,6 +33,7 @@ def extract_lidl_receipt_info(
         retailer="lidl",
         purchase_date=receipt_date,
         store=LIDL_STORE_NAME,
+        profile=get_receipt_schema_profile("lidl"),
         address=_extract_lidl_address(soup, address),
     )
 
@@ -130,7 +132,7 @@ def _apply_lidl_discount_fields(receipt_data: Dict[str, Any], soup: BeautifulSou
         sticker_percentages: list[int] = []
 
         for line in purchase_list.get_text().split("\n"):
-            parsed_line = _parse_lidl_discount_line(line)
+            parsed_line = _parse_lidl_discount_line(line.strip())
             if not parsed_line:
                 continue
 
@@ -152,14 +154,13 @@ def _apply_lidl_discount_fields(receipt_data: Dict[str, Any], soup: BeautifulSou
         pass
 
 
-def _parse_lidl_discount_line(line: object) -> Optional[Dict[str, Any]]:
+def _parse_lidl_discount_line(line: str) -> Optional[Dict[str, Any]]:
     """Classify a Lidl discount line into a known discount kind with parsed values."""
-    line_text = str(line or "").strip()
-    if not line_text:
+    if not line:
         return None
 
-    line_lower = line_text.lower()
-    amount_match = re.search(r"-?\s*(\d+[\.,]\d{2})", line_text)
+    line_lower = line.lower()
+    amount_match = re.search(r"-?\s*(\d+[.,]\d{2})", line)
     amount = float(amount_match.group(1).replace(",", ".")) if amount_match else None
 
     if "preisvorteil" in line_lower and "gesamter" not in line_lower and amount is not None:
@@ -222,6 +223,7 @@ def normalize_lidl_payment_methods(payment_methods: list[dict]) -> list[dict]:
             {
                 "method": payment_method.get("method"),
                 "network": payment_method.get("network"),
+                "retailer": "lidl",
                 "amount": _extract_numeric_payment_amount(payment_method.get("amount")),
             }
         )
@@ -248,7 +250,12 @@ def _normalize_payment_value(value: object) -> Optional[str]:
     """Normalize free-text payment metadata and discard empty placeholders."""
     if value is None:
         return None
-    normalized = re.sub(r"\s+", " ", str(value)).strip()
+
+    if isinstance(value, (int, float)):
+        normalized = str(value).strip()
+    else:
+        normalized = re.sub(r"\s+", " ", str(value)).strip()
+
     if not normalized or normalized == ":":
         return None
     return normalized
@@ -260,11 +267,11 @@ def _extract_numeric_payment_amount(value: object) -> Optional[float]:
     if not normalized:
         return None
 
-    match = re.search(r"(\d+[\.,]\d{1,2})", normalized)
+    match = re.search(r"(\d+[.,]\d{1,2})", normalized)
     if not match:
         return None
 
-    integer, decimals = re.split(r"[\.,]", match.group(1), maxsplit=1)
+    integer, decimals = re.split(r"[.,]", match.group(1), maxsplit=1)
     return float(f"{integer}.{decimals.ljust(2, '0')}")
 
 
@@ -355,9 +362,9 @@ def _extract_money_from_repeated_id(soup: BeautifulSoup, element_id: str) -> Opt
     return _parse_lidl_money_value(text)
 
 
-def _parse_lidl_money_value(text: object) -> Optional[float]:
+def _parse_lidl_money_value(text: str) -> Optional[float]:
     """Parse the first Lidl-style decimal money value from arbitrary text."""
-    match = re.search(r"(\d+,\d{2})", str(text or ""))
+    match = re.search(r"(\d+,\d{2})", text or "")
     if not match:
         return None
     return float(match.group(1).replace(",", "."))

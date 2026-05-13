@@ -8,10 +8,11 @@ information into a dict compatible with the existing JSON storage.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 import pdfplumber
 
+from config import get_receipt_schema_profile
 from shared.receipt_schema import build_receipt_schema
 from .rewe_info_extractor import (
 	extract_rewe_receipt_info,
@@ -28,9 +29,7 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
 		return "\n".join((page.extract_text() or "") for page in pdf.pages)
 
 
-def extract_rewe_receipt_metadata_from_pdf(
-	pdf_path: Union[str, Path]
-	) -> Dict[str, Any]:
+def extract_rewe_receipt_metadata_from_pdf(pdf_path: str | Path) -> Dict[str, Any]:
 	"""Extract only the lightweight REWE receipt metadata required for update filtering."""
 	path = Path(pdf_path)
 	text = extract_text_from_pdf(path)
@@ -41,9 +40,7 @@ def extract_rewe_receipt_metadata_from_pdf(
 
 	return extract_rewe_receipt_info(text, lines)
 
-def parse_rewe_receipt_pdf(
-	pdf_path: Union[str, Path]
-	) -> Dict[str, Any]:
+def parse_rewe_receipt_pdf(pdf_path: str | Path) -> Dict[str, Any]:
 	"""Parse a REWE eBon PDF into the normalized receipt structure."""
 	path = Path(pdf_path)
 	text = extract_text_from_pdf(path)
@@ -52,15 +49,16 @@ def parse_rewe_receipt_pdf(
 	if not lines:
 		raise ValueError("PDF enthält keinen lesbaren Text")
 
-	receipt_data = _build_receipt_data(path, text, lines)
-	if not receipt_data.get("id") or not receipt_data.get("purchase_date"):
-		raise ValueError("Bon konnte nicht eindeutig identifiziert werden")
-
-	return receipt_data
+	return _build_receipt_data(path, text, lines)
 
 
 def _build_receipt_data(path: Path, text: str, lines: List[str]) -> Dict[str, Any]:
 	metadata = extract_rewe_receipt_info(text, lines)
+	receipt_id = metadata.get("id")
+	purchase_date = metadata.get("purchase_date")
+	if not isinstance(receipt_id, str) or not isinstance(purchase_date, str):
+		raise ValueError("Bon konnte nicht eindeutig identifiziert werden")
+
 	items_result = extract_rewe_receipt_items(lines)
 	rewe_bonus_amount, rewe_total_bonus_amount = extract_bonus_amounts_from_text(text)
 	payment_methods, rewe_bonus_saved_amount = extract_payment_methods_from_lines(lines)
@@ -78,10 +76,11 @@ def _build_receipt_data(path: Path, text: str, lines: List[str]) -> Dict[str, An
 	)
 
 	return build_receipt_schema(
-		receipt_id=metadata["id"],
+		receipt_id=receipt_id,
 		retailer="rewe",
-		purchase_date=metadata.get("purchase_date"),
+		purchase_date=purchase_date,
 		store=metadata.get("store"),
+		profile=get_receipt_schema_profile("rewe"),
 		address=metadata.get("address"),
 		total_price=totals_result.total_price,
 		amount_saved=totals_result.amount_saved,

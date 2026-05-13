@@ -40,6 +40,7 @@ REWE_COMPANY_RE = re.compile(
     r"(?P<company>\bREWE(?:[-\s][^,]+?)?\s+(?:oHG|GmbH|KG|AG|eG|e\.K\.?)\b)",
     re.IGNORECASE,
 )
+FOOTER_START_RE = re.compile(r"^(?:UID\s*Nr\.?|UID-Nr\.?|USt-IdNr\.?|USt\.?-IdNr\.?)", re.IGNORECASE)
 
 
 def extract_bonus_amounts_from_text(text: str) -> Tuple[float, Optional[float]]:
@@ -118,6 +119,7 @@ def extract_payment_methods_from_lines(lines: List[str]) -> Tuple[List[Dict[str,
         normalized_method = normalize_payment_method_entry(
             {
                 "method": method,
+                "retailer": "rewe",
                 "amount": numeric_amount,
             }
         )
@@ -130,7 +132,8 @@ def extract_payment_methods_from_lines(lines: List[str]) -> Tuple[List[Dict[str,
 
 
 def _extract_store(lines: List[str]) -> str:
-    footer_store = _extract_footer_store(lines)
+    footer_lines = _extract_footer_lines(lines)
+    footer_store = _extract_footer_store(footer_lines)
     if footer_store:
         return footer_store
 
@@ -141,22 +144,29 @@ def _extract_store(lines: List[str]) -> str:
         if company:
             return company
 
-    if header_lines and not _looks_like_address_line(header_lines[0]):
+    if header_lines and extract_address_from_lines([header_lines[0]]) is None:
         return header_lines[0]
 
     return "REWE"
 
 
 def _extract_store_address(lines: List[str], store: Optional[str]) -> dict:
-    """Extract the structured store address from header, footer or a store fallback line."""
-    for candidate_lines in (
-        _extract_header_lines(lines),
-        _extract_footer_lines(lines),
-        [store] if store else [],
-    ):
-        parsed_address = extract_address_from_lines(candidate_lines)
-        if parsed_address:
-            return parsed_address
+    """Extract the first valid structured store address from header, footer or fallback lines."""
+    header_lines = _extract_header_lines(lines)
+    footer_lines = _extract_footer_lines(lines)
+
+    header_address = _find_first_valid_address(header_lines)
+    if header_address:
+        return header_address
+
+    footer_address = _find_first_valid_address(footer_lines)
+    if footer_address:
+        return footer_address
+
+    if store:
+        fallback_address = _find_first_valid_address([store])
+        if fallback_address:
+            return fallback_address
 
     return empty_address()
 
@@ -164,7 +174,7 @@ def _extract_store_address(lines: List[str], store: Optional[str]) -> dict:
 def _extract_header_lines(lines: List[str]) -> List[str]:
     header_lines: List[str] = []
     for line in lines:
-        if line == "EUR" or line.startswith("UID Nr"):
+        if line == "EUR" or _is_footer_start_line(line):
             break
         header_lines.append(line)
     return header_lines
@@ -172,7 +182,7 @@ def _extract_header_lines(lines: List[str]) -> List[str]:
 
 def _extract_footer_lines(lines: List[str]) -> List[str]:
     for index, line in enumerate(lines):
-        if line.startswith("UID Nr"):
+        if _is_footer_start_line(line):
             return lines[index + 1 :]
     return []
 
@@ -199,8 +209,45 @@ def _extract_company_from_line(line: str) -> Optional[str]:
     return match.group("company").strip()
 
 
-def _looks_like_address_line(line: str) -> bool:
-    return extract_address_from_lines([line]) is not None
+def _find_first_valid_address(lines: List[str]) -> Optional[dict]:
+    """Return the first address-like block that parses cleanly and is not metadata."""
+    for start_index in range(len(lines)):
+        for window_size in (1, 2, 3):
+            candidate_lines = lines[start_index : start_index + window_size]
+            if not candidate_lines:
+                continue
+            if any(_looks_like_metadata_line(line) for line in candidate_lines):
+                continue
+            parsed_address = extract_address_from_lines(candidate_lines)
+            if not parsed_address:
+                continue
+            return parsed_address
+    return None
+
+
+def _is_footer_start_line(line: str) -> bool:
+    return FOOTER_START_RE.match(line.strip()) is not None
+
+
+def _looks_like_metadata_line(line: str) -> bool:
+    normalized = re.sub(r"\s+", " ", line or "").strip().lower()
+    return any(
+        marker in normalized
+        for marker in (
+            "bon-nr",
+            "summe",
+            "geg.",
+            "markt:",
+            "kasse",
+            "bed.",
+            "uid",
+            "ust-idnr",
+            "uhrzeit",
+            "datum",
+            "bonus",
+            " eur",
+        )
+    ) or normalized == "eur"
 
 
 

@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Generic, List, TypeVar
+from typing import Any, Dict, Generic, List, TypeVar
 
-if TYPE_CHECKING:
-    from result_types import WorkflowSummary
+from result_types import WorkflowSummary
 
 
 @dataclass(frozen=True)
@@ -62,8 +61,3 @@ class WorkflowResult:
     summary: WorkflowSummary
     skipped_issues: List[ReceiptIssue]
     skipped_report_path: Path | None = None
-
-    def skipped_details(self) -> List[Dict[str, str]]:
-        return [issue.as_detail() for issue in self.skipped_issues]
-
-

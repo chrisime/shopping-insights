@@ -7,6 +7,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 REMOVED_WRAPPER_PATHS = [
     REPO_ROOT / "receipt_schema.py",
+    REPO_ROOT / "retailers",
     REPO_ROOT / "parsing" / "receipt_schema.py",
     REPO_ROOT / "parsing" / "receipt_parse_result.py",
     REPO_ROOT / "diagnostics" / "__init__.py",
@@ -16,10 +17,17 @@ REMOVED_WRAPPER_PATHS = [
     REPO_ROOT / "storage" / "receipt_repository.py",
     REPO_ROOT / "storage" / "file_manager.py",
     REPO_ROOT / "storage" / "receipt_store.py",
+    REPO_ROOT / "storage" / "lidl_extension_store.py",
+    REPO_ROOT / "storage" / "rewe_extension_store.py",
+    REPO_ROOT / "storage" / "sqlite_extension_profiles.py",
+    REPO_ROOT / "config" / "retailer_profiles.py",
 ]
 
 FORBIDDEN_IMPORT_MODULES = {
     "receipt_schema",
+    "retailers",
+    "retailers.receipt_schema_profiles",
+    "retailers.runtime_profiles",
     "parsing.receipt_schema",
     "parsing.receipt_parse_result",
     "diagnostics",
@@ -30,10 +38,12 @@ FORBIDDEN_IMPORT_MODULES = {
     "storage.receipt_repository",
     "storage.file_manager",
     "storage.receipt_store",
+    "storage.sqlite_extension_profiles",
+    "config.retailer_profiles",
 }
 
 PACKAGE_RULES = {
-    "shared": {"api", "auth", "parsing", "storage", "reporting", "workflows", "diagnostics", "cli", "config"},
+    "shared": {"api", "auth", "parsing", "storage", "reporting", "workflows", "diagnostics", "cli"},
     "api": {"auth", "parsing", "storage", "reporting", "workflows", "diagnostics", "cli"},
     "auth": {"api", "parsing", "storage", "reporting", "workflows", "diagnostics", "cli"},
     "parsing": {"api", "auth", "storage", "reporting", "workflows", "diagnostics", "cli"},

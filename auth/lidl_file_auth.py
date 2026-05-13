@@ -13,6 +13,7 @@ from .cookie_policies import (
     RECOMMENDED_LIDL_COOKIE_NAMES,
 )
 from .shared_file_auth import (
+    CookieDiagnosticExtras,
     CookieDiagnosticProfile,
     assess_cookie_quality,
     build_cookie_session,
@@ -40,29 +41,16 @@ def _lidl_diagnostic_profile() -> CookieDiagnosticProfile:
     )
 
 
-def _lidl_extra_diagnostics(cookie_names: set[str]) -> None:
-    """Print LIDL-specific extra diagnostics (identity cookie hint)."""
+def _build_lidl_diagnostic_extras(cookie_names: set[str]) -> CookieDiagnosticExtras:
+    """Return optional LIDL-specific diagnostic lines."""
+    lines: list[str] = []
     if LIDL_IDENTITY_COOKIE_NAMES & cookie_names and "authToken" not in cookie_names:
-        print(
+        lines.append(
             "  Es wurden zwar typische Lidl-Konto-/Kontext-Cookies gefunden, "
             "aber kein authToken. Das deutet auf eine unvollständige oder "
             "nicht mehr nutzbare Login-Sitzung hin."
         )
-
-
-def _looks_like_lidl_domain(domain: str) -> bool:
-    """Return True when a cookie domain belongs to LIDL."""
-    if not domain:
-        return False
-    normalized = domain.lower().lstrip(".")
-    return normalized.endswith(LidlConfig.get_cookie_domain())
-
-
-def _is_valid_lidl_cookie_data(cookie_data: dict) -> bool:
-    """Return True for cookie dicts that belong to LIDL and have a name."""
-    domain = str(cookie_data.get("domain", "") or "")
-    name = str(cookie_data.get("name", "") or "")
-    return _looks_like_lidl_domain(domain) and bool(name)
+    return CookieDiagnosticExtras(lines=lines)
 
 
 def load_lidl_cookies_from_file(
@@ -107,7 +95,7 @@ def load_lidl_cookies_from_file(
         session, cookie_count = build_cookie_session(
             cookies_list,
             user_agent=LidlConfig.DEFAULT_USER_AGENT,
-            include_cookie=_is_valid_lidl_cookie_data,
+            domain_suffix=LidlConfig.get_cookie_domain(),
         )
 
         if cookie_count == 0:
@@ -116,12 +104,15 @@ def load_lidl_cookies_from_file(
             return None
 
         print(f"✓ Erfolgreich {cookie_count} Cookies aus Datei geladen")
+        cookie_names = {cookie.name for cookie in session.cookies}
         profile = _lidl_diagnostic_profile()
         print_cookie_diagnostics(
-            session.cookies, profile, extra_diagnostics=_lidl_extra_diagnostics,
+            session.cookies,
+            profile,
+            extras=_build_lidl_diagnostic_extras(cookie_names),
         )
         status, _, _ = assess_cookie_quality(
-            {cookie.name for cookie in session.cookies}, profile,
+            cookie_names, profile,
         )
         if status == "ROT":
             return None
@@ -161,7 +152,7 @@ def diagnose_lidl_cookie_file(file_path: Optional[str] = None) -> bool:
     session, cookie_count = build_cookie_session(
         cookies_list,
         user_agent=LidlConfig.DEFAULT_USER_AGENT,
-        include_cookie=_is_valid_lidl_cookie_data,
+        domain_suffix=LidlConfig.get_cookie_domain(),
     )
 
     if cookie_count == 0:
@@ -170,12 +161,14 @@ def diagnose_lidl_cookie_file(file_path: Optional[str] = None) -> bool:
         return False
 
     print(f"✓ Datei ist lesbar, {cookie_count} LIDL-Cookies erkannt")
+    cookie_names = {cookie.name for cookie in session.cookies}
     profile = _lidl_diagnostic_profile()
     print_cookie_diagnostics(
-        session.cookies, profile, extra_diagnostics=_lidl_extra_diagnostics,
+        session.cookies,
+        profile,
+        extras=_build_lidl_diagnostic_extras(cookie_names),
     )
     status, _, _ = assess_cookie_quality(
-        {cookie.name for cookie in session.cookies}, profile,
+        cookie_names, profile,
     )
     return status != "ROT"
-

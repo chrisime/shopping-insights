@@ -220,7 +220,7 @@ Für spätere Läufe kannst du auch `update` verwenden:
 python3 get_data.py update --retailer rewe --output-dir tmp/rewe
 ```
 
-Wichtig: REWE bietet aktuell keinen echten serverseitigen Delta-Endpunkt. `update` arbeitet deshalb rein lokal auf bereits vorhandenen PDFs in `tmp/rewe/pdfs` (bzw. im gewählten `--output-dir`) und importiert danach nur solche eBons vollständig, deren REWE-ID noch nicht in `rewe_receipts.json` vorhanden ist.
+Wichtig: REWE bietet aktuell keinen echten serverseitigen Delta-Endpunkt. `update` arbeitet deshalb rein lokal auf bereits vorhandenen PDFs in `tmp/rewe/pdfs` (bzw. im gewählten `--output-dir`) und importiert diese erneut per Upsert in den konfigurierten Store. Bereits bekannte Bons werden also nicht vorab ausgesiebt, sondern beim Persistieren aktualisiert bzw. unverändert belassen.
 
 Optional kannst du ein anderes Ausgabeverzeichnis setzen:
 
@@ -325,7 +325,7 @@ Die Dateien `rewe_cookies.json` und `tmp/` sind im Projekt bereits für Git igno
 - Cloudflare/WAF kann gelegentlich trotz korrekter Cookies blockieren
 - die Session-basierte `customerId`-Ermittlung kann bei abgelaufenen oder von WAF geblockten Cookies fehlschlagen
 - Browserprofil-Auslese ist ein Best-Effort-Pfad und kann wichtige Cookies wie `rstp` verpassen
-- es gibt aktuell keinen echten serverseitigen inkrementellen Delta-Endpunkt für REWE; das Update arbeitet lokal über bereits vorhandene PDFs und bekannte REWE-IDs
+- es gibt aktuell keinen echten serverseitigen inkrementellen Delta-Endpunkt für REWE; das Update arbeitet lokal über bereits vorhandene PDFs und reimportiert sie per Upsert in den Ziel-Store
 
 ---
 

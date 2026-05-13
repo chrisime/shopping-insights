@@ -2,11 +2,12 @@ import unittest
 from unittest.mock import Mock, patch
 
 from result_types import PersistResult, WorkflowSummary
+from shared.receipt_store import ReceiptStore
 from workflows.pipeline_runner import parse_receipts, persist_valid_receipts, validate_receipts
 from workflows.pipeline_types import ParsedReceiptRecord, RawReceiptRecord, ReceiptIssue, WorkflowResult
 
 
-class _FakeStore:
+class _FakeStore(ReceiptStore):
     def persist_receipts(self, receipts, retailer, file_path=None):
         return PersistResult(
             created_count=2,
@@ -18,21 +19,29 @@ class _FakeStore:
 class PipelineRunnerTests(unittest.TestCase):
     def test_parse_receipts_uses_lidl_parser_for_lidl_records(self):
         raw_records = [RawReceiptRecord(source_id="receipt-1", payload={"ticket": True})]
-        parse_record = Mock(return_value={"id": "receipt-1", "items": []})
 
-        result = parse_receipts(raw_records, parse_record=parse_record)
+        with patch(
+            "workflows.pipeline_runner.parse_raw_record_for_retailer",
+            return_value={"id": "receipt-1", "items": []},
+        ) as parse_raw_record_for_retailer:
+            result = parse_receipts(raw_records, retailer="lidl")
 
-        parse_record.assert_called_once_with(raw_records[0])
+        parse_raw_record_for_retailer.assert_called_once_with(raw_records[0], "lidl")
         self.assertEqual(len(result.records), 1)
         self.assertEqual(result.issues, [])
 
     def test_parse_receipts_updates_progress_items_count_from_parsed_receipts(self):
         raw_records = [RawReceiptRecord(source_id="receipt-1.pdf", payload="receipt-1.pdf")]
-        parse_record = Mock(return_value={"id": "receipt-1", "items": [{"name": "A"}, {"name": "B"}]})
 
         progress_display_cls = Mock()
-        with patch("workflows.pipeline_runner.ReceiptProgressDisplay", progress_display_cls):
-            result = parse_receipts(raw_records, parse_record=parse_record, detail_key="file")
+        with (
+            patch("workflows.pipeline_runner.ReceiptProgressDisplay", progress_display_cls),
+            patch(
+                "workflows.pipeline_runner.parse_raw_record_for_retailer",
+                return_value={"id": "receipt-1", "items": [{"name": "A"}, {"name": "B"}]},
+            ),
+        ):
+            result = parse_receipts(raw_records, retailer="rewe", detail_key="file")
 
         self.assertEqual(len(result.records), 1)
         final_state = progress_display_cls.return_value.render.call_args_list[-1].args[0]
@@ -45,16 +54,15 @@ class PipelineRunnerTests(unittest.TestCase):
                 receipt_data={"id": "receipt-1", "items": []},
             )
         ]
-        validate_receipt = Mock()
 
-        result = validate_receipts(
-            parsed_records,
-            validate_receipt=validate_receipt,
-            validation_error_types=(ValueError,),
-            detail_key="file",
-        )
+        with patch("workflows.pipeline_runner.validate_receipt_for_retailer") as validate_receipt_for_retailer:
+            result = validate_receipts(
+                parsed_records,
+                retailer="rewe",
+                detail_key="file",
+            )
 
-        validate_receipt.assert_called_once_with({"id": "receipt-1", "items": []})
+        validate_receipt_for_retailer.assert_called_once_with({"id": "receipt-1", "items": []}, "rewe")
         self.assertEqual(len(result.records), 1)
         self.assertEqual(result.issues, [])
         self.assertEqual(result.total_items, 0)
@@ -67,28 +75,26 @@ class PipelineRunnerTests(unittest.TestCase):
             )
         ]
 
-        result = validate_receipts(
-            parsed_records,
-            validate_receipt=Mock(),
-            validation_error_types=(ValueError,),
-            detail_key="file",
-        )
+        with patch("workflows.pipeline_runner.validate_receipt_for_retailer"):
+            result = validate_receipts(
+                parsed_records,
+                retailer="rewe",
+                detail_key="file",
+            )
 
         self.assertEqual(result.total_items, 2)
 
     def test_persist_valid_receipts_returns_store_result(self):
-        store = _FakeStore()
-
         result = persist_valid_receipts(
             [{"id": "1", "items": []}],
             retailer="lidl",
-            store=store,
+            store=(_FakeStore()),
         )
 
         self.assertEqual(result.processed_count, 3)
         self.assertEqual(result.total_receipts, 5)
 
-    def test_workflow_result_renders_skipped_details_from_issues(self):
+    def test_receipt_issue_renders_detail_dict(self):
         result = WorkflowResult(
             success=True,
             summary=WorkflowSummary(
@@ -102,7 +108,7 @@ class PipelineRunnerTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            result.skipped_details(),
+            [issue.as_detail() for issue in result.skipped_issues],
             [{"receipt_id": "receipt-1", "reason": "kaputt"}],
         )
 

@@ -3,21 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-import json
+import simplejson
 import os
 from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
 
-from config import LidlConfig, ReweConfig
-from result_types import PersistResult, ReceiptStoreSnapshot
-from shared.ports import ReceiptStore
+from config import get_receipt_schema_profile, get_retailer_runtime
+from result_types import PersistResult
+from shared.receipt_store import ReceiptStore
 from shared.receipt_schema import normalize_receipt_schema
-
-
-RECEIPTS_FILES_BY_RETAILER = {
-    "lidl": LidlConfig.RECEIPTS_JSON_FILE,
-    "rewe": ReweConfig.RECEIPTS_JSON_FILE,
-}
-
 
 DATE_FORMATS = (
     "%d.%m.%Y %H:%M",
@@ -37,31 +30,28 @@ def _resolve_receipts_file_path(
     if file_path:
         return file_path
 
-    if retailer:
-        normalized_retailer = retailer.lower()
-        if normalized_retailer not in RECEIPTS_FILES_BY_RETAILER:
-            raise ValueError(f"Unbekannter Händler für Receipt-Storage: {retailer}")
-        return RECEIPTS_FILES_BY_RETAILER[normalized_retailer]
-
-    return LidlConfig.RECEIPTS_JSON_FILE
+    retailer_runtime = get_retailer_runtime(retailer or "lidl")
+    if retailer_runtime is None:
+        raise ValueError(f"Unbekannter Händler für Receipt-Storage: {retailer}")
+    return retailer_runtime.receipts_json_file
 
 
-def _load_existing_receipts(
+def _get_existing_receipts(
     file_path: Optional[str] = None,
     retailer: Optional[str] = None,
-) -> tuple[set[str], list[Dict[str, Any]], str]:
+) -> tuple[set[str], list[Dict[str, Any]]]:
     """Load existing raw receipts from the resolved JSON file."""
     receipts_file = _resolve_receipts_file_path(file_path=file_path, retailer=retailer)
 
     if not os.path.exists(receipts_file):
-        return set(), [], receipts_file
+        return set(), []
 
     try:
         with open(receipts_file, "r", encoding="utf-8") as file:
-            receipts = json.load(file)
+            receipts = simplejson.load(file)
 
         if not isinstance(receipts, list):
-            return set(), [], receipts_file
+            return set(), []
 
         existing_ids = set()
         for receipt in receipts:
@@ -69,10 +59,10 @@ def _load_existing_receipts(
                 existing_ids.add(receipt["id"])
             elif "url" in receipt:
                 existing_ids.add(receipt["url"])
-        return existing_ids, receipts, receipts_file
-    except (json.JSONDecodeError, KeyError) as e:
+        return existing_ids, receipts
+    except (simplejson.JSONDecodeError, KeyError) as e:
         print(f"Warning: Error loading existing receipts: {e}")
-        return set(), [], receipts_file
+        return set(), []
 
 
 def _save_receipts_to_json(
@@ -84,7 +74,7 @@ def _save_receipts_to_json(
     receipts_file = _resolve_receipts_file_path(file_path=file_path, retailer=retailer)
 
     with open(receipts_file, "w", encoding="utf-8") as file:
-        json.dump(receipts, file, ensure_ascii=False, indent=2)
+        simplejson.dump(receipts, file, ensure_ascii=False, indent=2)
 
 
 def upsert_receipts(
@@ -97,12 +87,16 @@ def upsert_receipts(
     Returns:
         tuple: (created_count, updated_count, total_count_after_merge)
     """
-    _, existing_receipts, _ = _load_existing_receipts(
+    _, existing_receipts = _get_existing_receipts(
         file_path=file_path,
         retailer=retailer,
     )
     existing_receipts = [
-        normalize_receipt_schema(receipt, retailer=retailer)
+        normalize_receipt_schema(
+            receipt,
+            retailer=retailer,
+            profile=get_receipt_schema_profile(retailer),
+        )
         for receipt in existing_receipts
     ]
     receipts_by_id = {
@@ -115,7 +109,11 @@ def upsert_receipts(
     updated_count = 0
 
     for receipt_data in receipts_data:
-        normalized_receipt_data = normalize_receipt_schema(receipt_data, retailer=retailer)
+        normalized_receipt_data = normalize_receipt_schema(
+            receipt_data,
+            retailer=retailer,
+            profile=get_receipt_schema_profile(retailer),
+        )
         receipt_id = normalized_receipt_data.get("id") or normalized_receipt_data.get("url")
         if not receipt_id:
             continue
@@ -144,9 +142,13 @@ def sort_receipts_by_date(
     retailer: Optional[str] = None,
 ) -> int:
     """Sort all receipts in the JSON file by date (newest first)."""
-    _, receipts, _ = _load_existing_receipts(file_path=file_path, retailer=retailer)
+    _, receipts = _get_existing_receipts(file_path=file_path, retailer=retailer)
     receipts = [
-        normalize_receipt_schema(receipt, retailer=retailer)
+        normalize_receipt_schema(
+            receipt,
+            retailer=retailer,
+            profile=get_receipt_schema_profile(retailer),
+        )
         for receipt in receipts
     ]
 
@@ -174,20 +176,16 @@ def sort_receipts_by_date(
 class JsonReceiptStore(ReceiptStore):
     """JSON-backed receipt store used by the current workflows."""
 
-    def load_receipts_snapshot(
+    def find_existing_ids(
         self,
         retailer: str,
         file_path: Optional[str] = None,
-    ) -> ReceiptStoreSnapshot:
-        existing_ids, receipts, receipts_file = _load_existing_receipts(
+    ) -> set[str]:
+        existing_ids, _ = _get_existing_receipts(
             file_path=file_path,
             retailer=retailer,
         )
-        return ReceiptStoreSnapshot(
-            existing_ids=existing_ids,
-            receipts=receipts,
-            receipts_file=receipts_file,
-        )
+        return existing_ids
 
     def persist_receipts(
         self,

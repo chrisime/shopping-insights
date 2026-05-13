@@ -56,7 +56,6 @@ def download_receipts_zip(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     url = _build_receipts_zip_url(customer_id)
 
-    last_exception: Optional[Exception] = None
     for attempt in range(1, ReweConfig.MAX_RETRIES + 1):
         try:
             response = session.get(
@@ -82,7 +81,6 @@ def download_receipts_zip(
             response.close()
             return None
         except requests.exceptions.RequestException as exc:
-            last_exception = exc
             if attempt >= ReweConfig.MAX_RETRIES:
                 break
             wait_seconds = ReweConfig.RETRY_BACKOFF_SECONDS ** attempt

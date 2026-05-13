@@ -12,7 +12,7 @@ by LZ4-block-compressed JSON.
 
 from __future__ import annotations
 
-import json
+import simplejson
 import platform
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Set
@@ -84,7 +84,7 @@ def _read_jsonlz4(path: Path) -> Optional[dict]:
 
     try:
         decompressed = lz4.block.decompress(raw[8:])
-        return json.loads(decompressed)
+        return simplejson.loads(decompressed)
     except Exception:
         return None
 

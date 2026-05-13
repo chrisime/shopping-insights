@@ -3,32 +3,23 @@
 import re
 from typing import Any, Dict, List, Optional
 
+from config.receipt_schema_profiles import ReceiptSchemaProfile
+
 from shared.addresses import empty_address, normalize_address
 from shared.payment_methods import normalize_payment_method_entry
 
 
-MONEY_FIELDS = {
+SHARED_MONEY_FIELDS = {
     "total_price",
     "amount_saved",
-    "sticker_discount_amount",
     "saved_deposit",
-    "lidlplus_amount_saved",
-    "rewe_bonus_amount",
-    "rewe_bonus_amount_saved",
-    "rewe_bonus_total_amount",
 }
 
 
-DEFAULT_RECEIPT_FIELDS = {
+SHARED_RECEIPT_FIELDS = {
     "total_price": None,
     "amount_saved": None,
-    "sticker_discount_amount": None,
-    "sticker_discount_pct": [],
     "saved_deposit": None,
-    "lidlplus_amount_saved": None,
-    "rewe_bonus_amount": None,
-    "rewe_bonus_amount_saved": None,
-    "rewe_bonus_total_amount": None,
     "address": empty_address(),
     "market": None,
     "register": None,
@@ -44,23 +35,23 @@ def build_receipt_schema(
     retailer: str,
     purchase_date: Optional[str],
     store: Optional[str],
+    profile: Optional[ReceiptSchemaProfile] = None,
     **overrides: Any,
 ) -> Dict[str, Any]:
     """Create a normalized receipt dict with shared core and optional fields."""
     receipt_data = {
         "id": receipt_id,
         "retailer": retailer,
-        "purchase_date": _normalize_purchase_date(purchase_date, retailer),
+        "purchase_date": _normalize_optional_text(purchase_date),
         "store": store,
     }
 
-    for key, value in DEFAULT_RECEIPT_FIELDS.items():
-        if isinstance(value, list):
-            receipt_data[key] = list(value)
-        elif isinstance(value, dict):
-            receipt_data[key] = dict(value)
-        else:
-            receipt_data[key] = value
+    for key, value in SHARED_RECEIPT_FIELDS.items():
+        receipt_data[key] = _copy_default_value(value)
+
+    if profile:
+        for key, value in profile.extra_defaults.items():
+            receipt_data[key] = _copy_default_value(value)
 
     receipt_data.update(overrides)
     return receipt_data
@@ -85,60 +76,109 @@ def build_receipt_item(
 def normalize_receipt_schema(
     receipt_data: Dict[str, Any],
     retailer: Optional[str] = None,
+    profile: Optional[ReceiptSchemaProfile] = None,
 ) -> Dict[str, Any]:
     """Merge an existing receipt dict into the shared schema defaults."""
-    resolved_retailer = retailer or receipt_data.get("retailer") or _infer_retailer(receipt_data)
-    normalized = build_receipt_schema(
-        receipt_id=receipt_data.get("id") or receipt_data.get("url") or "",
-        retailer=resolved_retailer,
-        purchase_date=receipt_data.get("purchase_date"),
-        store=receipt_data.get("store"),
-    )
+    resolved_retailer = _resolve_receipt_retailer(receipt_data, retailer)
+    normalized = _build_normalized_receipt_base(receipt_data, resolved_retailer, profile)
     normalized.update(receipt_data)
-    normalized["retailer"] = resolved_retailer
-    normalized["purchase_date"] = _normalize_purchase_date(
-        normalized.get("purchase_date"),
-        resolved_retailer,
-    )
-    normalized.pop("total_price_no_saving", None)
-    if normalized.get("payment_methods") is None:
-        normalized["payment_methods"] = []
-    if normalized.get("items") is None:
-        normalized["items"] = []
-    if normalized.get("sticker_discount_pct") is None:
-        normalized["sticker_discount_pct"] = []
-    normalized["address"] = normalize_address(normalized.get("address"))
-    if resolved_retailer == "lidl" and normalized.get("lidlplus_amount_saved") is None:
-        normalized["lidlplus_amount_saved"] = 0.0
-    if resolved_retailer == "rewe" and normalized.get("rewe_bonus_amount") is None:
-        normalized["rewe_bonus_amount"] = 0.0
-    if resolved_retailer == "rewe" and normalized.get("rewe_bonus_amount_saved") is None:
-        normalized["rewe_bonus_amount_saved"] = 0.0
-
-    for field_name in MONEY_FIELDS:
-        normalized[field_name] = _normalize_money_value(normalized.get(field_name))
-
-    normalized["payment_methods"] = _normalize_payment_methods(normalized.get("payment_methods"))
-    normalized["items"] = _normalize_items(normalized.get("items"))
-    if resolved_retailer == "lidl":
-        normalized["store"] = "lidl"
+    _normalize_receipt_metadata_fields(normalized, resolved_retailer)
+    _restore_mutable_defaults(normalized, profile)
+    _normalize_receipt_address(normalized)
+    _normalize_receipt_money_fields(normalized, profile)
+    _normalize_receipt_collection_fields(normalized)
     return normalized
 
 
-def _infer_retailer(receipt_data: Dict[str, Any]) -> str:
-    """Infer the retailer from existing receipt fields when missing."""
-    receipt_id = str(receipt_data.get("id") or receipt_data.get("url") or "")
-    if receipt_id.startswith("rewe-"):
-        return "rewe"
-    return "lidl"
+def _normalize_optional_text(value: str | None) -> Optional[str]:
+    if value is None:
+        return None
+    return value.strip() or None
 
 
-def _normalize_payment_methods(payment_methods: Any) -> List[Dict[str, Any]]:
+def _resolve_receipt_retailer(
+    receipt_data: Dict[str, Any],
+    retailer: Optional[str] = None,
+) -> str:
+    resolved_retailer = _normalize_optional_text(retailer or receipt_data.get("retailer"))
+    if resolved_retailer is None:
+        raise ValueError("Receipt retailer fehlt für die Schema-Normalisierung")
+    return resolved_retailer
+
+
+def _build_normalized_receipt_base(
+    receipt_data: Dict[str, Any],
+    retailer: str,
+    profile: Optional[ReceiptSchemaProfile] = None,
+) -> Dict[str, Any]:
+    return build_receipt_schema(
+        receipt_id=receipt_data.get("id") or receipt_data.get("url") or "",
+        retailer=retailer,
+        purchase_date=receipt_data.get("purchase_date"),
+        store=receipt_data.get("store"),
+        profile=profile,
+    )
+
+
+def _normalize_receipt_metadata_fields(normalized: Dict[str, Any], retailer: str) -> None:
+    normalized["retailer"] = retailer
+    normalized["purchase_date"] = _normalize_optional_text(normalized.get("purchase_date"))
+    normalized.pop("total_price_no_saving", None)
+
+
+def _restore_mutable_defaults(normalized: Dict[str, Any], profile: Optional[ReceiptSchemaProfile] = None) -> None:
+    for field_name, default_value in SHARED_RECEIPT_FIELDS.items():
+        if normalized.get(field_name) is None:
+            normalized[field_name] = _copy_default_value(default_value)
+
+    if profile:
+        for field_name, default_value in profile.extra_defaults.items():
+            if normalized.get(field_name) is None:
+                normalized[field_name] = _copy_default_value(default_value)
+
+
+def _copy_default_value(value: Any) -> Any:
+    if isinstance(value, list):
+        return list(value)
+    if isinstance(value, dict):
+        return dict(value)
+    return value
+
+
+def _normalize_receipt_address(normalized: Dict[str, Any]) -> None:
+    normalized["address"] = normalize_address(normalized.get("address"))
+
+
+def _normalize_receipt_money_fields(normalized: Dict[str, Any], profile: Optional[ReceiptSchemaProfile] = None) -> None:
+    for field_name in SHARED_MONEY_FIELDS:
+        if field_name in normalized:
+            normalized[field_name] = _normalize_money_value(normalized.get(field_name))
+
+    if profile:
+        for field_name in profile.extra_money_fields:
+            if field_name in normalized:
+                normalized[field_name] = _normalize_money_value(normalized.get(field_name))
+
+
+def _normalize_receipt_collection_fields(normalized: Dict[str, Any]) -> None:
+    normalized["payment_methods"] = _normalize_payment_methods(
+        normalized.get("payment_methods"),
+        retailer=normalized.get("retailer"),
+    )
+    normalized["items"] = _normalize_items(normalized.get("items"))
+
+
+def _normalize_payment_methods(payment_methods: Any, *, retailer: Any = None) -> List[Dict[str, Any]]:
     normalized_methods: List[Dict[str, Any]] = []
     for payment_method in payment_methods or []:
         if not isinstance(payment_method, dict):
             continue
-        normalized_method = normalize_payment_method_entry(payment_method)
+        normalized_method = normalize_payment_method_entry(
+            {
+                **payment_method,
+                "retailer": retailer,
+            }
+        )
         if normalized_method:
             normalized_methods.append(normalized_method)
     return normalized_methods
@@ -152,10 +192,7 @@ def _normalize_items(items: Any) -> List[Dict[str, Any]]:
         normalized_item = dict(item)
         normalized_item["unit"] = str(normalized_item.get("unit") or "stk").strip().lower() or "stk"
         normalized_item["price"] = _normalize_money_value(normalized_item.get("price"))
-        normalized_item["quantity"] = _normalize_quantity_value(
-            normalized_item.get("quantity"),
-            normalized_item["unit"],
-        )
+        normalized_item["quantity"] = _normalize_quantity_value(normalized_item.get("quantity"), normalized_item["unit"])
         normalized_items.append(normalized_item)
     return normalized_items
 
@@ -170,7 +207,7 @@ def _normalize_money_value(value: Any) -> Optional[float]:
     if not normalized:
         return None
 
-    match = re.search(r"-?\d+(?:[\.,]\d{1,2})?", normalized)
+    match = re.search(r"-?\d+(?:[.,]\d{1,2})?", normalized)
     if not match:
         return None
 
@@ -208,7 +245,7 @@ def _parse_numeric_value(value: Any) -> Optional[float]:
     if not normalized:
         return None
 
-    match = re.search(r"-?\d+(?:[\.,]\d{1,3})?", normalized)
+    match = re.search(r"-?\d+(?:[.,]\d{1,3})?", normalized)
     if not match:
         return None
 
@@ -216,31 +253,3 @@ def _parse_numeric_value(value: Any) -> Optional[float]:
         return float(match.group(0).replace(",", "."))
     except ValueError:
         return None
-
-
-def _normalize_purchase_date(value: Any, retailer: str) -> Optional[str]:
-    if value is None:
-        return None
-
-    normalized = str(value).strip()
-    if not normalized:
-        return None
-
-    if retailer == "rewe":
-        iso_style = re.fullmatch(r"(?P<year>\d{4})\.(?P<month>\d{2})\.(?P<day>\d{2})", normalized)
-        if iso_style:
-            return normalized
-
-        legacy_style = re.fullmatch(
-            r"(?P<day>\d{2})\.(?P<month>\d{2})\.(?P<year>\d{4})(?:\s+\d{2}:\d{2}(?::\d{2})?)?",
-            normalized,
-        )
-        if legacy_style:
-            return (
-                f"{legacy_style.group('year')}."
-                f"{legacy_style.group('month')}."
-                f"{legacy_style.group('day')}"
-            )
-
-    return normalized
-

@@ -6,12 +6,16 @@ from .common_prompts import (
     print_invalid_choice,
     prompt_optional_value,
     prompt_with_default,
+    prompt_write_backend,
 )
-from workflows.rewe_workflow import run_rewe_check, run_rewe_initial, run_rewe_update
+from auth.rewe_file_auth import diagnose_rewe_cookie_file
+from workflows.rewe_workflow import run_rewe_initial, run_rewe_update
+
 
 
 def _run_rewe_initial() -> None:
     """Interactive wrapper around the central REWE initial workflow."""
+    write_backend = prompt_write_backend()
     auth_kwargs = prompt_auth_source(
         "REWE",
         "Cookie-/Request-Datei",
@@ -26,6 +30,7 @@ def _run_rewe_initial() -> None:
     success = run_rewe_initial(
         customer_id=customer_id,
         output_dir=output_dir,
+        write_backend=write_backend,
         **auth_kwargs,
     )
     if success:
@@ -36,13 +41,14 @@ def _run_rewe_initial() -> None:
 
 def _run_rewe_update() -> None:
     """Interactive wrapper around the local REWE update workflow."""
+    write_backend = prompt_write_backend()
     output_dir = prompt_with_default(
         "Verzeichnis mit vorhandenen REWE ZIP/PDFs",
         "tmp/rewe",
     )
 
     print("\nStarte REWE Update aus vorhandenen PDFs...")
-    success = run_rewe_update(output_dir=output_dir)
+    success = run_rewe_update(output_dir=output_dir, write_backend=write_backend)
     if success:
         print("✓ REWE-Update erfolgreich abgeschlossen!")
     else:
@@ -52,7 +58,7 @@ def _run_rewe_update() -> None:
 def _run_rewe_check() -> None:
     """Diagnose a REWE cookie/request file."""
     path = _prompt_rewe_cookies_file()
-    success = run_rewe_check(path)
+    success = diagnose_rewe_cookie_file(path)
     if success:
         print("✓ REWE-Cookie-Datei sieht grundsätzlich brauchbar aus!")
     else:

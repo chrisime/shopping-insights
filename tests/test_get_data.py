@@ -26,11 +26,11 @@ class GetDataTests(unittest.TestCase):
             "--retailer",
             "rewe",
             "--write-backend",
-            "json",
+            "sqlite",
         ])
 
         self.assertEqual(args.command, "update")
-        self.assertEqual(args.write_backend, "json")
+        self.assertEqual(args.write_backend, "sqlite")
 
     def test_dispatch_check_calls_lidl_diagnostics(self):
         args = argparse.Namespace(

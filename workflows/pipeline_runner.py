@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional, Sequence
+from typing import Optional, Sequence
 
 from result_types import PersistResult
-from shared.ports import ReceiptStore
+from shared.receipt_store import ReceiptStore
 
 from .progress_display import ProgressState, ReceiptProgressDisplay
-from .error_mapping import build_exception_issue, build_validation_issue
+from .retailer_pipeline import (
+    parse_raw_record_for_retailer,
+    validate_receipt_for_retailer,
+    validation_error_types_for_retailer,
+)
+from .error_mapping import render_exception_reason, render_validation_reason
 from .pipeline_types import (
     ParsedReceiptRecord,
     RawReceiptRecord,
@@ -16,17 +21,11 @@ from .pipeline_types import (
     StageResult,
 )
 
-
-ParseRecord = Callable[[RawReceiptRecord], dict]
-ValidateReceipt = Callable[[dict], None]
-UnexpectedErrorFormatter = Callable[[Exception], str]
-
-
 def parse_receipts(
     raw_records: Sequence[RawReceiptRecord],
-    parse_record: ParseRecord,
+    retailer: str,
     detail_key: str = "receipt_id",
-    unexpected_error_formatter: Optional[UnexpectedErrorFormatter] = None,
+    unexpected_error_kind: Optional[str] = None,
 ) -> StageResult[ParsedReceiptRecord]:
     """Parse raw retailer payloads into normalized receipt records."""
     progress = ReceiptProgressDisplay(added_label="Geparst")
@@ -51,7 +50,7 @@ def parse_receipts(
         )
 
         try:
-            receipt_data = parse_record(raw_record)
+            receipt_data = parse_raw_record_for_retailer(raw_record, retailer)
             parsed_records.append(
                 ParsedReceiptRecord(
                     source_id=raw_record.source_id,
@@ -61,19 +60,18 @@ def parse_receipts(
             parsed_items_count += len(receipt_data.get("items", []))
         except (KeyError, TypeError, ValueError) as exc:
             issues.append(
-                build_exception_issue(
+                ReceiptIssue(
                     source_id=raw_record.source_id,
-                    exc=exc,
+                    reason=render_exception_reason(exc),
                     detail_key=detail_key,
                 )
             )
         except Exception as exc:  # pragma: no cover - filesystem/pdfplumber dependent
             issues.append(
-                build_exception_issue(
+                ReceiptIssue(
                     source_id=raw_record.source_id,
-                    exc=exc,
+                    reason=render_exception_reason(exc, unexpected_error_kind),
                     detail_key=detail_key,
-                    reason_formatter=unexpected_error_formatter,
                 )
             )
 
@@ -99,8 +97,7 @@ def parse_receipts(
 
 def validate_receipts(
     parsed_records: Sequence[ParsedReceiptRecord],
-    validate_receipt: ValidateReceipt,
-    validation_error_types: tuple[type[Exception], ...],
+    retailer: str,
     detail_key: str = "receipt_id",
 ) -> StageResult[dict]:
     """Validate parsed receipt records before persistence."""
@@ -111,6 +108,7 @@ def validate_receipts(
     valid_items_count = 0
 
     progress.render(ProgressState(0, total_records, 0, 0, 0, 0, "-"))
+    validation_error_types = validation_error_types_for_retailer(retailer)
 
     for index, parsed_record in enumerate(parsed_records, 1):
         progress.render(
@@ -126,14 +124,14 @@ def validate_receipts(
         )
 
         try:
-            validate_receipt(parsed_record.receipt_data)
+            validate_receipt_for_retailer(parsed_record.receipt_data, retailer)
             valid_receipts.append(parsed_record.receipt_data)
             valid_items_count += _count_total_items([parsed_record.receipt_data])
         except validation_error_types as exc:
             issues.append(
-                build_validation_issue(
+                ReceiptIssue(
                     source_id=parsed_record.source_id,
-                    exc=exc,
+                    reason=render_validation_reason(exc),
                     detail_key=detail_key,
                 )
             )
@@ -175,5 +173,3 @@ def persist_valid_receipts(
 def _count_total_items(receipts: Sequence[dict]) -> int:
     """Return the total number of items across normalized receipt payloads."""
     return sum(len(receipt.get("items", [])) for receipt in receipts)
-
-

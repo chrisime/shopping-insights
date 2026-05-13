@@ -88,10 +88,11 @@ Aktuell ist `json` das einzige verfügbare Backend. Der Schalter ist bereits als
 
 Für neue Änderungen gelten explizite Paket- und Workflow-Regeln. Der empfohlene Einstieg ist:
 
-1. [`docs/architecture/package-layer-rules.md`](./docs/architecture/package-layer-rules.md)
-2. [`docs/architecture/workflow-overview.md`](./docs/architecture/workflow-overview.md)
-3. [`docs/adr/README.md`](./docs/adr/README.md)
-4. [`docs/adr/0003-package-layer-rules-and-wrapper-removal.md`](./docs/adr/0003-package-layer-rules-and-wrapper-removal.md)
+1. [`docs/architecture/code-reading-guide.md`](./docs/architecture/code-reading-guide.md)
+2. [`docs/architecture/package-layer-rules.md`](./docs/architecture/package-layer-rules.md)
+3. [`docs/architecture/workflow-overview.md`](./docs/architecture/workflow-overview.md)
+4. [`docs/adr/README.md`](./docs/adr/README.md)
+5. [`docs/adr/0003-package-layer-rules-and-wrapper-removal.md`](./docs/adr/0003-package-layer-rules-and-wrapper-removal.md)
 
 Wichtige Kurzfassung:
 

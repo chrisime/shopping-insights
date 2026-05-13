@@ -2,83 +2,47 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+import simplejson
+from typing import Optional
 
-from result_types import ReceiptParseResult
+import requests
 
-from .pipeline_types import ReceiptIssue
-
-ReasonFormatter = Callable[[Exception], str]
-
-
-def build_receipt_issue(
-    source_id: str,
-    reason: str,
-    detail_key: str = "receipt_id",
-) -> ReceiptIssue:
-    """Create a structured workflow issue with a stable detail key."""
-    return ReceiptIssue(
-        source_id=source_id,
-        reason=reason,
-        detail_key=detail_key,
-    )
-
-
-def build_exception_issue(
-    source_id: str,
-    exc: Exception,
-    detail_key: str = "receipt_id",
-    reason_formatter: Optional[ReasonFormatter] = None,
-) -> ReceiptIssue:
-    """Map an exception into a structured workflow issue."""
-    if reason_formatter is None:
-        reason = str(exc)
-    else:
-        reason = reason_formatter(exc)
-    return build_receipt_issue(
-        source_id=source_id,
-        reason=reason,
-        detail_key=detail_key,
-    )
+from .workflow_constants import (
+    REASON_KIND_LIDL_FETCH,
+    REASON_KIND_REWE_DELTA_SCAN,
+    REASON_KIND_REWE_PDF_PARSE,
+)
 
 
 def render_validation_reason(exc: Exception) -> str:
     """Render a validator exception into the normalized workflow reason string."""
-    issues_text = "; ".join(issue.render() for issue in exc.issues)
+    issues = getattr(exc, "issues", [])
+    issues_text = "; ".join(issue.render() for issue in issues)
     return f"Validatorfehler: {issues_text}"
 
 
-def build_validation_issue(
-    source_id: str,
-    exc: Exception,
-    detail_key: str = "receipt_id",
-) -> ReceiptIssue:
-    """Map a validator exception into a structured workflow issue."""
-    return build_receipt_issue(
-        source_id=source_id,
-        reason=render_validation_reason(exc),
-        detail_key=detail_key,
-    )
+
+def render_exception_reason(exc: Exception, reason_kind: Optional[str] = None) -> str:
+    """Render stable workflow reasons for known exception contexts."""
+    if reason_kind == REASON_KIND_LIDL_FETCH:
+        return _format_lidl_fetch_error(exc)
+    if reason_kind == REASON_KIND_REWE_PDF_PARSE:
+        return f"PDF konnte nicht gelesen werden: {exc}"
+    if reason_kind == REASON_KIND_REWE_DELTA_SCAN:
+        return f"Bon konnte nicht für Delta-Prüfung identifiziert werden: {exc}"
+    return str(exc)
 
 
-def build_skip_result(reason: str) -> ReceiptParseResult:
-    """Create a skipped parse result with a normalized skip reason."""
-    return ReceiptParseResult(receipt_data=None, skip_reason=reason)
+def _format_lidl_fetch_error(exc: Exception) -> str:
+    """Render LIDL fetch-related exceptions into stable workflow reason strings."""
+    if isinstance(exc, requests.exceptions.HTTPError):
+        if exc.response is not None and exc.response.status_code == 401:
+            return "Nicht autorisiert (401)"
+        return f"HTTP-Fehler beim Abrufen: {exc}"
+    if isinstance(exc, requests.exceptions.RequestException):
+        return f"Fehler beim Abrufen: {exc}"
+    if isinstance(exc, simplejson.JSONDecodeError):
+        return f"JSON-Decodierungsfehler: {exc}"
+    return f"Unerwarteter Fehler: {exc}"
 
-
-def build_exception_skip_result(
-    exc: Exception,
-    reason_formatter: Optional[ReasonFormatter] = None,
-) -> ReceiptParseResult:
-    """Map an exception into a skipped parse result."""
-    if reason_formatter is None:
-        reason = str(exc)
-    else:
-        reason = reason_formatter(exc)
-    return build_skip_result(reason)
-
-
-def build_validation_skip_result(exc: Exception) -> ReceiptParseResult:
-    """Map a validator exception into a skipped parse result."""
-    return build_skip_result(render_validation_reason(exc))
 

@@ -4,18 +4,19 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, Protocol, Sequence
 
-from result_types import PersistResult, ReceiptStoreSnapshot
+from result_types import PersistResult
 
 
 class ReceiptStore(Protocol):
     """Persistenzvertrag für normalisierte Receipt-Datensätze."""
 
-    def load_receipts_snapshot(
+
+    def find_existing_ids(
         self,
         retailer: str,
         file_path: Optional[str] = None,
-    ) -> ReceiptStoreSnapshot:
-        """Load existing ids, raw receipts and the resolved target path for a retailer."""
+    ) -> set[str]:
+        """Return the already persisted receipt ids used for incremental updates."""
 
     def persist_receipts(
         self,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import json
+import simplejson
 from pathlib import Path
 from typing import Optional
 
@@ -25,7 +25,7 @@ def write_rewe_skipped_receipts_report(
         "skipped_receipts": skipped_details,
     }
     report_path.write_text(
-        json.dumps(report_payload, ensure_ascii=False, indent=2) + "\n",
+        simplejson.dumps(report_payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     return report_path
@@ -56,8 +56,8 @@ def print_rewe_import_summary(summary: WorkflowSummary) -> None:
 
 
 def print_rewe_update_no_delta() -> None:
-    """Explain that REWE updates import only new receipts from already available PDFs."""
-    print("ℹ REWE: importiere aus vorhandenen PDFs nur neue eBons.")
+    """Explain that REWE updates now refill the target store from local PDFs via upsert."""
+    print("ℹ REWE: importiere alle vorhandenen PDFs lokal per Upsert neu.")
 
 
 def print_rewe_missing_auth_source() -> None:

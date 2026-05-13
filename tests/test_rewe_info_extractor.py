@@ -147,6 +147,122 @@ König-Ludwig-Str. 2
             },
         )
 
+    def test_extract_rewe_receipt_info_parses_header_address_without_comma_after_house_number(self):
+        text = """
+R E W E
+Markt 4196
+Ludwig-Erhard-Allee 12 76131 Karlsruhe
+EUR
+BANANE 1,99 A
+SUMME EUR 1,99
+Geg. VISA EUR 1,99
+Markt:4196 Kasse:4 Bed.:432104
+12.02.2026 11:03 Bon-Nr.:2587
+""".strip()
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+        metadata = extract_rewe_receipt_info(text, lines)
+
+        self.assertEqual(metadata["store"], "R E W E")
+        self.assertEqual(
+            metadata["address"],
+            {
+                "street": "Ludwig-Erhard-Allee",
+                "street_no": "12",
+                "zip": 76131,
+                "city": "Karlsruhe",
+            },
+        )
+        self.assertEqual(metadata["id"], "rewe-4196-4-12022026-1103-2587")
+
+    def test_extract_rewe_receipt_info_parses_footer_address_after_uid_dash_variant(self):
+        text = """
+R E W E
+EUR
+BANANE 1,99 A
+SUMME EUR 1,99
+Geg. VISA EUR 1,99
+12.02.2026 11:03 Bon-Nr.:2587
+UID-Nr.: DE123456789
+Ludwig-Erhard-Allee 12
+76131 Karlsruhe
+""".strip()
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+        metadata = extract_rewe_receipt_info(text, lines)
+
+        self.assertEqual(
+            metadata["address"],
+            {
+                "street": "Ludwig-Erhard-Allee",
+                "street_no": "12",
+                "zip": 76131,
+                "city": "Karlsruhe",
+            },
+        )
+
+    def test_extract_rewe_receipt_info_parses_split_header_address_for_12022026_layout(self):
+        text = """
+R E W E
+Markt 4196
+Ludwig-Erhard-Allee
+12
+76131 Karlsruhe
+EUR
+JA! KOERN. FRISC 1,19 A
+SUMME EUR 8,22
+Geg. VISA EUR 8,22
+Markt:4196 Kasse:4 Bed.:432104
+12.02.2026 11:03 Bon-Nr.:2587
+""".strip()
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+        metadata = extract_rewe_receipt_info(text, lines)
+
+        self.assertEqual(metadata["store"], "R E W E")
+        self.assertEqual(
+            metadata["address"],
+            {
+                "street": "Ludwig-Erhard-Allee",
+                "street_no": "12",
+                "zip": 76131,
+                "city": "Karlsruhe",
+            },
+        )
+        self.assertEqual(metadata["market"], "4196")
+        self.assertEqual(metadata["register"], "4")
+        self.assertEqual(metadata["cashier"], "432104")
+        self.assertEqual(metadata["id"], "rewe-4196-4-12022026-1103-2587")
+
+    def test_extract_rewe_receipt_info_parses_real_12022026_header_with_stars_and_glued_house_number(self):
+        text = """
+R E W E
+** Poppenreuther Str.72-74 **
+** 90765 Fürth **
+UID Nr.: DE811274562
+EUR
+JA! KOERN. FRISC 1,19 B
+SUMME EUR 8,22
+Geg. VISA EUR 8,22
+12.02.2026 11:03 Bon-Nr.:2587
+Markt:4196 Kasse:4 Bed.:432104
+""".strip()
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+        metadata = extract_rewe_receipt_info(text, lines)
+
+        self.assertEqual(metadata["store"], "R E W E")
+        self.assertEqual(
+            metadata["address"],
+            {
+                "street": "Poppenreuther Str.",
+                "street_no": "72-74",
+                "zip": 90765,
+                "city": "Fürth",
+            },
+        )
+        self.assertEqual(metadata["id"], "rewe-4196-4-12022026-1103-2587")
+
 
 if __name__ == "__main__":
     unittest.main()

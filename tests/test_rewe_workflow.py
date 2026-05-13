@@ -1,19 +1,42 @@
 import io
-import json
+import simplejson
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Optional
 from unittest.mock import Mock, patch
 
+from config import ReweConfig
 import workflows.rewe_workflow as rewe_workflow
-from result_types import PersistResult, ReceiptStoreSnapshot
+from result_types import PersistResult
 from workflows.pipeline_types import ReceiptIssue, StageResult
-from workflows.rewe_workflow import (
-    _filter_new_rewe_pdf_paths,
-    import_rewe_receipts_from_pdfs,
-    run_rewe_initial,
-    run_rewe_update,
-)
+from workflows.rewe_workflow import run_rewe_initial, run_rewe_update
+
+
+def _import_rewe_receipts_from_pdfs(
+    pdf_dir: Path,
+    file_path: Optional[str] = None,
+    retailer: str = rewe_workflow.RETAILER_REWE,
+    write_backend: str = "json",
+) -> tuple[int, int, int]:
+    store = rewe_workflow.create_receipt_store(write_backend)
+    receipts_file = rewe_workflow.resolve_receipt_store_target(
+        write_backend,
+        retailer=retailer,
+        file_path=file_path,
+    )
+    workflow_result = rewe_workflow._run_rewe_pdf_import_pipeline(
+        pdf_dir,
+        file_path=file_path,
+        retailer=retailer,
+        store=store,
+        receipts_file=receipts_file,
+    )
+    return (
+        workflow_result.summary.processed_count,
+        workflow_result.summary.skipped_count,
+        workflow_result.summary.total_receipts,
+    )
 
 
 class ReweWorkflowTests(unittest.TestCase):
@@ -23,36 +46,9 @@ class ReweWorkflowTests(unittest.TestCase):
             [
                 "run_rewe_initial",
                 "run_rewe_update",
-                "run_rewe_check",
-                "import_rewe_receipts_from_pdfs",
-                "parse_rewe_receipt_pdf_with_result",
             ],
         )
 
-    def test_filter_new_rewe_pdf_paths_keeps_only_unknown_receipt_ids(self):
-        pdf_paths = [Path("known.pdf"), Path("new.pdf"), Path("broken.pdf")]
-
-        def fake_metadata(pdf_path: Path):
-            if pdf_path.name == "known.pdf":
-                return {"id": "known-id"}
-            if pdf_path.name == "new.pdf":
-                return {"id": "new-id"}
-            raise ValueError("kaputt")
-
-        with patch(
-            "workflows.rewe_workflow.ReceiptProgressDisplay",
-        ) as progress_display, patch(
-            "workflows.rewe_workflow.extract_rewe_receipt_metadata_from_pdf",
-            side_effect=fake_metadata,
-        ):
-            new_paths, issues = _filter_new_rewe_pdf_paths(pdf_paths, ["known-id"])
-
-        self.assertEqual(new_paths, [Path("new.pdf")])
-        self.assertEqual(len(issues), 1)
-        self.assertEqual(issues[0].source_id, "broken.pdf")
-        self.assertIn("Delta-Prüfung", issues[0].reason)
-        progress_display.return_value.render.assert_called()
-        progress_display.return_value.close.assert_called_once_with()
 
     def test_import_rewe_receipts_prints_skipped_file_and_reason(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -62,11 +58,6 @@ class ReweWorkflowTests(unittest.TestCase):
 
             stdout = io.StringIO()
             fake_store = Mock()
-            fake_store.load_receipts_snapshot.return_value = ReceiptStoreSnapshot(
-                existing_ids=set(),
-                receipts=[],
-                receipts_file="rewe_receipts.json",
-            )
             with patch(
                 "workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
@@ -83,10 +74,10 @@ class ReweWorkflowTests(unittest.TestCase):
                 "workflows.rewe_workflow.persist_valid_receipts",
                 return_value=PersistResult(created_count=0, updated_count=0, total_receipts=203),
             ), patch("sys.stdout", new=stdout):
-                imported_count, skipped_count, total_receipts = import_rewe_receipts_from_pdfs(pdf_dir)
+                imported_count, skipped_count, total_receipts = _import_rewe_receipts_from_pdfs(pdf_dir)
 
-            report_path = pdf_dir.parent / "skipped_receipts.json"
-            report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+            report_path = pdf_dir.parent / ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE
+            report_payload = simplejson.loads(report_path.read_text(encoding="utf-8"))
 
         output = stdout.getvalue()
         self.assertEqual(imported_count, 0)
@@ -95,7 +86,7 @@ class ReweWorkflowTests(unittest.TestCase):
         self.assertIn("ℹ Übersprungene REWE-Bons:", output)
         self.assertIn("skip-me.pdf", output)
         self.assertIn("Validatorfehler: payment_methods fehlen", output)
-        self.assertIn("skipped_receipts.json", output)
+        self.assertIn(ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE, output)
         self.assertTrue(report_path.exists())
         self.assertEqual(report_payload["count"], 1)
         self.assertEqual(
@@ -118,31 +109,18 @@ class ReweWorkflowTests(unittest.TestCase):
         self.assertFalse(success)
         download_zip.assert_not_called()
 
-    def test_run_rewe_update_imports_only_new_receipts_from_downloaded_zip(self):
+    def test_run_rewe_update_imports_all_local_receipts_from_downloaded_pdfs(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             output_dir = Path(tmp_dir)
             pdf_dir = output_dir / "pdfs"
             pdf_dir.mkdir(parents=True, exist_ok=True)
-            (pdf_dir / "known.pdf").write_bytes(b"%PDF-1.4\n")
-            (pdf_dir / "new.pdf").write_bytes(b"%PDF-1.4\n")
-
-            def fake_metadata(pdf_path: Path):
-                if pdf_path.name == "known.pdf":
-                    return {"id": "known-id"}
-                return {"id": "new-id"}
+            (pdf_dir / "first.pdf").write_bytes(b"%PDF-1.4\n")
+            (pdf_dir / "second.pdf").write_bytes(b"%PDF-1.4\n")
 
             fake_store = Mock()
-            fake_store.load_receipts_snapshot.return_value = ReceiptStoreSnapshot(
-                existing_ids={"known-id"},
-                receipts=[{"id": "known-id"}],
-                receipts_file="rewe_receipts.json",
-            )
 
             with patch("workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
-            ), patch(
-                "workflows.rewe_workflow.extract_rewe_receipt_metadata_from_pdf",
-                side_effect=fake_metadata,
             ), patch(
                 "workflows.rewe_workflow.parse_receipts",
                 return_value=StageResult(records=[], issues=[]),
@@ -156,8 +134,9 @@ class ReweWorkflowTests(unittest.TestCase):
                 success = run_rewe_update(output_dir=str(output_dir))
 
         self.assertTrue(success)
+        fake_store.find_existing_ids.assert_not_called()
         raw_records = parse_receipts.call_args.args[0]
-        self.assertEqual([record.source_id for record in raw_records], ["new.pdf"])
+        self.assertEqual([record.source_id for record in raw_records], ["first.pdf", "second.pdf"])
 
     def test_run_rewe_update_reports_total_items_from_pipeline_validation(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -168,17 +147,9 @@ class ReweWorkflowTests(unittest.TestCase):
 
             stdout = io.StringIO()
             fake_store = Mock()
-            fake_store.load_receipts_snapshot.return_value = ReceiptStoreSnapshot(
-                existing_ids=set(),
-                receipts=[],
-                receipts_file="rewe_receipts.json",
-            )
             with patch(
                 "workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
-            ), patch(
-                "workflows.rewe_workflow.extract_rewe_receipt_metadata_from_pdf",
-                return_value={"id": "new-id"},
             ), patch(
                 "workflows.rewe_workflow.parse_receipts",
                 return_value=StageResult(records=[], issues=[]),
@@ -194,42 +165,31 @@ class ReweWorkflowTests(unittest.TestCase):
         self.assertTrue(success)
         self.assertIn("7 Artikel", stdout.getvalue())
 
-    def test_run_rewe_update_returns_success_without_reparsing_when_all_receipts_are_known(self):
+    def test_run_rewe_update_reimports_even_previously_known_local_receipts(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             output_dir = Path(tmp_dir)
             pdf_dir = output_dir / "pdfs"
             pdf_dir.mkdir(parents=True, exist_ok=True)
             (pdf_dir / "known.pdf").write_bytes(b"%PDF-1.4\n")
             fake_store = Mock()
-            fake_store.load_receipts_snapshot.return_value = ReceiptStoreSnapshot(
-                existing_ids={"known-id"},
-                receipts=[{"id": "known-id"}],
-                receipts_file="rewe_receipts.json",
-            )
 
             with patch("workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
-            ), patch(
-                "workflows.rewe_workflow.extract_rewe_receipt_metadata_from_pdf",
-                return_value={"id": "known-id"},
             ), patch("workflows.rewe_workflow.parse_receipts") as parse_receipts, patch(
                 "workflows.rewe_workflow.persist_valid_receipts",
+                return_value=PersistResult(created_count=0, updated_count=1, total_receipts=1),
             ) as persist_receipts:
                 success = run_rewe_update(output_dir=str(output_dir))
 
         self.assertTrue(success)
-        parse_receipts.assert_not_called()
-        persist_receipts.assert_not_called()
+        fake_store.find_existing_ids.assert_not_called()
+        parse_receipts.assert_called_once()
+        persist_receipts.assert_called_once()
 
     def test_run_rewe_update_fails_when_no_local_pdfs_exist(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             output_dir = Path(tmp_dir)
             fake_store = Mock()
-            fake_store.load_receipts_snapshot.return_value = ReceiptStoreSnapshot(
-                existing_ids=set(),
-                receipts=[],
-                receipts_file="rewe_receipts.json",
-            )
 
             with patch(
                 "workflows.rewe_workflow.create_receipt_store",
@@ -243,11 +203,6 @@ class ReweWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             output_dir = Path(tmp_dir)
             fake_store = Mock()
-            fake_store.load_receipts_snapshot.return_value = ReceiptStoreSnapshot(
-                existing_ids=set(),
-                receipts=[],
-                receipts_file="rewe_receipts.json",
-            )
 
             with patch(
                 "workflows.rewe_workflow.create_receipt_store",

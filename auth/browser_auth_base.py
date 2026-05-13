@@ -14,9 +14,10 @@ from typing import Callable, Dict, Iterable, Mapping, Optional, Set
 
 import browser_cookie3
 import requests
+from requests.cookies import create_cookie
 
 from .session_cookie_recovery import read_session_cookies_for_domain
-from .shared_file_auth import validate_cookie_names
+from .shared_file_auth import analyze_cookie_names
 
 
 # Single source of truth for the available browser_cookie3 loaders.
@@ -135,7 +136,7 @@ class BrowserCookieExtractor:
             if self.include_expires:
                 kwargs["expires"] = cookie.expires
 
-            session.cookies.set_cookie(requests.cookies.create_cookie(**kwargs))
+            session.cookies.set_cookie(create_cookie(**kwargs))
             count += 1
         return count
 
@@ -157,7 +158,7 @@ class BrowserCookieExtractor:
             if not name or name in existing_names:
                 continue
             session.cookies.set_cookie(
-                requests.cookies.create_cookie(
+                create_cookie(
                     domain=cookie_data.get("domain", ""),
                     name=name,
                     value=cookie_data.get("value", ""),
@@ -177,23 +178,23 @@ class BrowserCookieExtractor:
         self, session: requests.Session, browser_label: str
     ) -> bool:
         """Default validation: enforce required + warn on missing recommended."""
-        validation = validate_cookie_names(
+        analysis = analyze_cookie_names(
             (cookie.name for cookie in session.cookies),
             required_cookies=self.required_cookies,
             recommended_cookies=self.recommended_cookies,
         )
 
-        if validation.missing_required:
+        if analysis.missing_required:
             print(
                 f"✗ Im lokalen {browser_label}-Profil fehlen wichtige "
                 f"{self.retailer_name}-Session-Cookies: "
-                f"{', '.join(validation.missing_required)}"
+                f"{', '.join(analysis.missing_required)}"
             )
-            self._on_missing_required(set(validation.cookie_names), browser_label)
+            self._on_missing_required(set(analysis.cookie_names), browser_label)
             return False
 
         if self.recommended_cookies and not (
-            set(validation.cookie_names) & self.recommended_cookies
+            set(analysis.cookie_names) & self.recommended_cookies
         ):
             self._on_missing_recommended(browser_label)
 

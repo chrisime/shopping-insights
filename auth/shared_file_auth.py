@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass
+import simplejson
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Iterable, List, Optional, Set
+from typing import Any, Iterable, List, Optional, Set
 
-import requests
-
-
-CookiePredicate = Callable[[dict], bool]
+from requests import Session
+from requests.cookies import create_cookie
 
 
-def _default_cookie_sort_key(cookie: dict) -> tuple[str, str, str]:
+def _default_cookie_sort_key(cookie: dict[str, Any]) -> tuple[str, str, str]:
     """Return the canonical sort key for normalized cookie dictionaries."""
     return (
         cookie.get("domain", ""),
@@ -23,8 +21,8 @@ def _default_cookie_sort_key(cookie: dict) -> tuple[str, str, str]:
 
 
 @dataclass(frozen=True)
-class CookieValidationResult:
-    """Result of validating observed cookie names against a policy."""
+class CookieNameAnalysis:
+    """Analysis of observed cookie names against required and recommended sets."""
 
     cookie_names: frozenset[str]
     missing_required: tuple[str, ...]
@@ -69,44 +67,47 @@ class CookieDiagnosticProfile:
     missing_required_hint: str = ""
 
 
+@dataclass(frozen=True)
+class CookieDiagnosticExtras:
+    """Optional store-specific diagnostic lines and next steps."""
+
+    lines: list[str] = field(default_factory=list)
+    steps: list[str] = field(default_factory=list)
+
+
 def assess_cookie_quality(
     cookie_names: Set[str],
     profile: CookieDiagnosticProfile,
 ) -> tuple[str, str, str]:
     """Classify the current cookie set into an operational traffic-light rating."""
     if not profile.required_cookies.issubset(cookie_names):
-        return ("ROT", profile.rot_summary, profile.rot_recommendation)
+        return "ROT", profile.rot_summary, profile.rot_recommendation
 
     if profile.recommended_cookies.issubset(cookie_names):
-        return ("GRUEN", profile.gruen_summary, profile.gruen_recommendation)
+        return "GRUEN", profile.gruen_summary, profile.gruen_recommendation
 
-    return ("GELB", profile.gelb_summary, profile.gelb_recommendation)
+    return "GELB", profile.gelb_summary, profile.gelb_recommendation
 
 
 def print_cookie_diagnostics(
     cookie_jar,
     profile: CookieDiagnosticProfile,
     *,
-    extra_diagnostics: Optional[Callable[[Set[str]], None]] = None,
-    extra_steps: Optional[Callable[[str, Set[str]], List[str]]] = None,
+    extras: Optional[CookieDiagnosticExtras] = None,
 ) -> None:
-    """Print actionable diagnostics for a loaded cookie set.
-
-    Args:
-        extra_diagnostics: Optional callback printing store-specific info lines.
-        extra_steps: Optional callback returning additional next-step strings.
-            Receives (status, cookie_names) and returns a list of step texts.
-    """
-    validation = validate_cookie_names(
+    """Print actionable diagnostics for a loaded cookie set."""
+    analysis = analyze_cookie_names(
         (cookie.name for cookie in cookie_jar),
         required_cookies=profile.required_cookies,
         recommended_cookies=profile.recommended_cookies,
     )
-    cookie_names = set(validation.cookie_names)
-    missing_required = sorted(validation.missing_required)
-    missing_recommended = sorted(validation.missing_recommended)
+    cookie_names = set(analysis.cookie_names)
+    missing_required = sorted(analysis.missing_required)
+    missing_recommended = sorted(analysis.missing_recommended)
 
-    print(f"  Erkannte Cookie-Namen: {render_cookie_name_list(cookie_names)}")
+    names = sorted(str(name) for name in cookie_names if name)
+    cookie_names_list = ", ".join(names) if names else "keine"
+    print(f"  Erkannte Cookie-Namen: {cookie_names_list}")
 
     if missing_required:
         print(
@@ -120,21 +121,21 @@ def print_cookie_diagnostics(
             f"⚠ Zusätzliche hilfreiche {profile.store_name}-Cookies fehlen: {', '.join(missing_recommended)}"
         )
 
-    if extra_diagnostics:
-        extra_diagnostics(cookie_names)
+    active_extras = extras or CookieDiagnosticExtras()
+    for line in active_extras.lines:
+        print(line)
 
     status, summary, recommendation = assess_cookie_quality(cookie_names, profile)
     print(f"  Ampelstatus: {status}")
     print(f"  Einschaetzung: {summary}")
     print(f"  Empfehlung: {recommendation}")
-    steps = build_next_steps(status, missing_required, missing_recommended, profile)
-    if extra_steps:
-        steps.extend(extra_steps(status, cookie_names))
+    steps = _build_next_steps(status, missing_required, missing_recommended, profile)
+    steps.extend(active_extras.steps)
     for step in steps:
         print(f"  Naechster Schritt: {step}")
 
 
-def build_next_steps(
+def _build_next_steps(
     status: str,
     missing_required: List[str],
     missing_recommended: List[str],
@@ -172,8 +173,8 @@ def parse_json_cookie_export(raw_cookie_text: str) -> Optional[list[dict]]:
         None: Not JSON at all.
     """
     try:
-        cookies_data = json.loads(raw_cookie_text)
-    except json.JSONDecodeError:
+        cookies_data = simplejson.loads(raw_cookie_text)
+    except simplejson.JSONDecodeError:
         return None
 
     if isinstance(cookies_data, dict) and "cookies" in cookies_data:
@@ -191,113 +192,114 @@ def read_utf8_text_file(file_path: str) -> str:
     return Path(file_path).read_text(encoding="utf-8")
 
 
-def create_cookie_session(user_agent: Optional[str] = None) -> requests.Session:
-    """Create a requests session for cookie-based authentication."""
-    session = requests.Session()
+def build_cookie_session(
+    cookies_list: Iterable[dict[str, Any]],
+    user_agent: Optional[str] = None,
+    default_domain: str = "",
+    domain_suffix: Optional[str] = None,
+) -> tuple[Session, int]:
+    """Create and populate a cookie-backed requests session."""
+    session = Session()
+
     if user_agent:
         session.headers.update({"User-Agent": user_agent})
-    return session
 
-
-def build_cookie_session(
-    cookies_list: Iterable[dict],
-    *,
-    user_agent: Optional[str] = None,
-    include_cookie: Optional[CookiePredicate] = None,
-    default_domain: str = "",
-    sort_key: Optional[Callable[[dict], object]] = None,
-) -> tuple[requests.Session, int]:
-    """Create and populate a cookie-backed requests session."""
-    session = create_cookie_session(user_agent)
-    cookie_count = add_cookie_dicts_to_session(
-        session,
+    normalized_cookies = _prepare_cookie_dicts(
         cookies_list,
-        include_cookie=include_cookie,
         default_domain=default_domain,
-        sort_key=sort_key,
+        domain_suffix=domain_suffix,
     )
-    return session, cookie_count
+    _store_cookies_in_session(session, normalized_cookies)
+
+    return session, len(normalized_cookies)
 
 
-def validate_cookie_names(
+def analyze_cookie_names(
     cookie_names: Iterable[str],
-    *,
     required_cookies: Iterable[str] = (),
     recommended_cookies: Iterable[str] = (),
-) -> CookieValidationResult:
-    """Validate observed cookie names against required and recommended sets."""
+) -> CookieNameAnalysis:
+    """Analyze observed cookie names against required and recommended sets."""
     observed_names = frozenset(str(name) for name in cookie_names if name)
     required_set = set(required_cookies)
     recommended_set = set(recommended_cookies)
-    missing_recommended = tuple(sorted(recommended_set - observed_names))
-    return CookieValidationResult(
+    return CookieNameAnalysis(
         cookie_names=observed_names,
         missing_required=tuple(sorted(required_set - observed_names)),
         present_recommended=tuple(sorted(recommended_set & observed_names)),
-        missing_recommended=missing_recommended,
+        missing_recommended=tuple(sorted(recommended_set - observed_names)),
     )
 
 
-def classify_cookie_quality(validation: CookieValidationResult) -> str:
-    """Classify validated cookies into ROT/GELB/GRUEN."""
-    if validation.missing_required:
-        return "ROT"
-    if validation.missing_recommended:
-        return "GELB"
-    return "GRUEN"
-
-
-def render_cookie_name_list(cookie_names: Iterable[str]) -> str:
-    """Render cookie names in stable sorted order for diagnostics."""
-    names = sorted(str(name) for name in cookie_names if name)
-    return ", ".join(names) if names else "keine"
-
-
-def add_cookie_dicts_to_session(
-    session: requests.Session,
-    cookies_list: Iterable[dict],
-    *,
-    include_cookie: Optional[CookiePredicate] = None,
+def _prepare_cookie_dicts(
+    cookies_list: Iterable[dict[str, Any]],
     default_domain: str = "",
-    sort_key: Optional[Callable[[dict], object]] = None,
-) -> int:
-    """Populate a session from cookie dictionaries with filtering and deduplication."""
-    deduplicated: dict[tuple[str, str, str], dict] = {}
+    domain_suffix: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    """Filter, normalize, deduplicate and sort cookie dictionaries."""
+    deduplicated: dict[tuple[str, str, str], dict[str, Any]] = {}
+    normalized_domain_suffix = _normalize_domain_suffix(domain_suffix)
+
     for cookie_data in cookies_list:
-        if include_cookie and not include_cookie(cookie_data):
+        normalized = _normalize_cookie_dict(cookie_data, default_domain)
+        if normalized is None:
+            continue
+        if normalized_domain_suffix and not _matches_domain_suffix(normalized, normalized_domain_suffix):
             continue
 
-        domain = str(cookie_data.get("domain", default_domain) or default_domain)
-        name = str(cookie_data.get("name", "") or "")
-        if not domain or not name:
-            continue
-
-        normalized = {
-            "domain": domain,
-            "name": name,
-            "value": cookie_data.get("value", ""),
-            "path": cookie_data.get("path", "/") or "/",
-            "secure": bool(cookie_data.get("secure", False)),
-            "expirationDate": cookie_data.get("expirationDate"),
-        }
-        deduplicated[(domain, normalized["path"], name)] = normalized
+        cookie_key = (
+            str(normalized["domain"]),
+            str(normalized["path"]),
+            str(normalized["name"]),
+        )
+        deduplicated[cookie_key] = normalized
 
     normalized_cookies = list(deduplicated.values())
-    if sort_key is not None:
-        normalized_cookies.sort(key=sort_key)
-    else:
-        normalized_cookies.sort(key=_default_cookie_sort_key)
+    normalized_cookies.sort(key=_default_cookie_sort_key)
 
-    for cookie_data in normalized_cookies:
+    return normalized_cookies
+
+
+def _normalize_domain_suffix(domain_suffix: Optional[str]) -> Optional[str]:
+    """Normalize an optional cookie domain suffix for endswith matching."""
+    if not domain_suffix:
+        return None
+    return domain_suffix.lower().lstrip(".")
+
+
+def _matches_domain_suffix(cookie_data: dict[str, Any], domain_suffix: str) -> bool:
+    """Return True when the cookie belongs to the requested domain suffix."""
+    normalized_domain = str(cookie_data.get("domain", "")).lower().lstrip(".")
+    return normalized_domain.endswith(domain_suffix)
+
+
+def _normalize_cookie_dict(cookie_data: dict[str, Any], default_domain: str = "") -> dict[str, Any] | None:
+    """Return a normalized cookie dictionary or None when required fields are missing."""
+    domain = str(cookie_data.get("domain", default_domain) or default_domain)
+    name = str(cookie_data.get("name", "") or "")
+    if not domain or not name:
+        return None
+
+    return {
+        "domain": domain,
+        "name": name,
+        "value": cookie_data.get("value", ""),
+        "path": str(cookie_data.get("path", "/") or "/"),
+        "secure": bool(cookie_data.get("secure", False)),
+        "expirationDate": cookie_data.get("expirationDate"),
+    }
+
+
+def _store_cookies_in_session(session: Session, cookies_list: Iterable[dict[str, Any]]) -> None:
+    """Write normalized cookie dictionaries into the target session."""
+    for cookie_data in cookies_list:
         session.cookies.set_cookie(
-            requests.cookies.create_cookie(
-                domain=cookie_data["domain"],
-                name=cookie_data["name"],
-                value=cookie_data.get("value", ""),
-                path=cookie_data.get("path", "/"),
+            create_cookie(
+                domain=str(cookie_data["domain"]),
+                name=str(cookie_data["name"]),
+                value=str(cookie_data.get("value", "")),
+                path=str(cookie_data.get("path", "/")),
                 secure=bool(cookie_data.get("secure", False)),
                 expires=cookie_data.get("expirationDate"),
             )
         )
-    return len(normalized_cookies)
-

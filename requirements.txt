@@ -7,3 +7,4 @@ lz4>=4.0.0
 beautifulsoup4>=4.14.2
 requests>=2.31.0
 pdfplumber>=0.11.0
+pypika>=0.51.1
