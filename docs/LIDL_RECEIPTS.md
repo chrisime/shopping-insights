@@ -11,8 +11,7 @@ Der LIDL-Workflow kann aktuell:
 - Cookies direkt aus unterstützten Browserprofilen übernehmen
 - exportierte Cookie-Dateien einlesen
 - die LIDL-Session vor dem eigentlichen Abruf testen
-- alle historischen verfügbaren Bons importieren (`initial`)
-- nur neue Bons seit dem letzten Lauf ergänzen (`update`)
+- alle verfügbaren API-Seiten prüfen und nur neue/geänderte Bons importieren (`sync`)
 - Cookie-Dateien vorab per Diagnose prüfen (`check`)
 - die importierten Daten in `lidl_receipts.json` persistieren
 
@@ -68,6 +67,8 @@ Beispiel:
 python get_data.py initial --retailer lidl --browser firefox
 ```
 
+Hinweis: Für LIDL führen `initial` und `update` aktuell intern beide denselben vollständigen Sync-Lauf aus.
+
 Hinweis für macOS: Wenn Chrome beim Cookie-Zugriff Probleme mit dem Schlüsselbund macht, ist Firefox oft der robustere Pfad.
 
 ### Alternative: Cookie-Datei
@@ -99,9 +100,9 @@ Die Diagnose prüft unter anderem:
 
 ---
 
-## Historischen Import starten
+## Sync starten
 
-Für den ersten vollständigen Import:
+Für einen vollständigen LIDL-Sync:
 
 ```bash
 python get_data.py initial --retailer lidl --cookies-file lidl_cookies.json
@@ -121,9 +122,9 @@ python get_data.py initial --retailer lidl --cookies-file lidl_cookies.json --co
 
 ---
 
-## Spätere Updates
+## CLI-Aliase
 
-Um nur neue Bons hinzuzufügen:
+Die Kommandos `initial` und `update` stehen aus Kompatibilitätsgründen weiterhin zur Verfügung, führen für LIDL aber beide denselben Sync aus:
 
 ```bash
 python get_data.py update --retailer lidl --cookies-file lidl_cookies.json
@@ -135,7 +136,7 @@ Optional mit Browserprofil:
 python get_data.py update --retailer lidl --browser firefox
 ```
 
-Der Update-Lauf prüft nur die konfigurierten jüngsten Seiten und ergänzt fehlende Bons in der bestehenden Datei.
+Der LIDL-Sync prüft immer alle von der API gemeldeten Seiten und lädt nur neue bzw. per `source_hash` geänderte Bons nach.
 
 ---
 
@@ -149,10 +150,9 @@ python get_data.py
 
 Im LIDL-Menü stehen aktuell zur Verfügung:
 
-1. Initial Setup
-2. Update
-3. Cookie-Datei prüfen (Diagnose)
-4. Zurück
+1. Sync
+2. Cookie-Datei prüfen (Diagnose)
+3. Zurück
 
 ---
 

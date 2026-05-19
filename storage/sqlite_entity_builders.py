@@ -89,6 +89,7 @@ def build_purchase_entity(
         currency=str(receipt_data.get("currency") or "EUR"),
         source_file=receipt_data.get("source_file"),
         hash=payload_hash,
+        source_hash=receipt_data.get("source_hash"),
     )
 
 

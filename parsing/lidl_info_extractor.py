@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from config import get_receipt_schema_profile
 from shared.receipt_schema import build_receipt_schema
 from shared.addresses import normalize_address
+from shared.receipt_dates import parse_purchase_date
 from shared.payment_methods import normalize_payment_method_entry
 
 from .address_extractor import extract_address_from_lines
@@ -284,7 +285,8 @@ def _is_meaningful_payment_network(network: Optional[str]) -> bool:
 def infer_lidl_pos_metadata_from_receipt_id(receipt_id: str, receipt_date: str) -> Optional[dict]:
     """Infer market/register/cashier from the Lidl receipt id when it matches the known pattern."""
     receipt_id = str(receipt_id or "")
-    date_token = str(receipt_date or "").replace(".", "")
+    parsed_receipt_date = parse_purchase_date(receipt_date)
+    date_token = parsed_receipt_date.strftime("%Y%m%d") if parsed_receipt_date else ""
     if not receipt_id.startswith("2300") or not date_token:
         return None
 
@@ -319,7 +321,7 @@ def _apply_lidl_pos_metadata(
     pos_line = _extract_text_from_repeated_id(soup, "return_code_line_13")
     serial_line = _extract_text_from_repeated_id(soup, "return_code_line_3")
 
-    metadata = {
+    metadata: Dict[str, Optional[str]] = {
         "market": None,
         "register": None,
         "cashier": None,

@@ -52,7 +52,10 @@ if data:
         return f"{int(row['quantity'])} {row['unit']}"
 
     # Apply conversions
-    purchase_dates = pd.to_datetime(df['purchase_date'], format='%Y.%m.%d', errors='coerce')
+    purchase_dates = pd.to_datetime(df['purchase_date'], format='ISO8601', errors='coerce')
+    purchase_dates = purchase_dates.fillna(
+        pd.to_datetime(df['purchase_date'], format='%Y.%m.%d', errors='coerce')
+    )
     purchase_dates = purchase_dates.fillna(
         pd.to_datetime(df['purchase_date'], format='%d.%m.%Y %H:%M', errors='coerce')
     )

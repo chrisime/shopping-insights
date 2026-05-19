@@ -1,6 +1,7 @@
 """Interactive menu for LIDL workflows."""
 
 from auth.lidl_file_auth import diagnose_lidl_cookie_file
+from workflows.lidl_workflow import run_lidl_sync
 
 from .auth_prompts import prompt_auth_source, prompt_cookies_file
 from .common_prompts import (
@@ -9,7 +10,6 @@ from .common_prompts import (
     prompt_optional_value,
     prompt_write_backend,
 )
-from workflows.lidl_workflow import run_lidl_initial, run_lidl_update
 
 
 def _prompt_lidl_country() -> str | None:
@@ -17,32 +17,18 @@ def _prompt_lidl_country() -> str | None:
     return prompt_optional_value("Optionaler LIDL-Ländercode (leer = Standardland)")
 
 
-def _run_lidl_initial() -> None:
-    """Interactive wrapper around the central LIDL initial workflow."""
+def _run_lidl_sync() -> None:
+    """Interactive wrapper around the central LIDL sync workflow."""
     write_backend = prompt_write_backend()
     auth_kwargs = prompt_auth_source("LIDL", "Cookie-Datei", "lidl_cookies.json")
     country = _prompt_lidl_country()
 
-    print("\nStarte LIDL Initial Setup...")
-    success = run_lidl_initial(country=country, write_backend=write_backend, **auth_kwargs)
+    print("\nStarte LIDL-Sync...")
+    success = run_lidl_sync(country=country, write_backend=write_backend, **auth_kwargs)
     if success:
-        print("✓ Initial Setup erfolgreich abgeschlossen!")
+        print("✓ LIDL-Sync erfolgreich abgeschlossen!")
     else:
-        print("✗ Initial Setup fehlgeschlagen!")
-
-
-def _run_lidl_update() -> None:
-    """Interactive wrapper around the central LIDL update workflow."""
-    write_backend = prompt_write_backend()
-    auth_kwargs = prompt_auth_source("LIDL", "Cookie-Datei", "lidl_cookies.json")
-    country = _prompt_lidl_country()
-
-    print("\nStarte LIDL Update...")
-    success = run_lidl_update(country=country, write_backend=write_backend, **auth_kwargs)
-    if success:
-        print("✓ Update erfolgreich abgeschlossen!")
-    else:
-        print("✗ Update fehlgeschlagen!")
+        print("✗ LIDL-Sync fehlgeschlagen!")
 
 
 def _run_lidl_check() -> None:
@@ -60,7 +46,7 @@ def show_lidl_menu() -> None:
     while True:
         _print_lidl_menu()
         try:
-            choice = input("\nWähle eine Option (1-4): ").strip()
+            choice = input("\nWähle eine Option (1-3): ").strip()
             if not _dispatch_lidl_menu_choice(choice):
                 return
 
@@ -72,10 +58,9 @@ def show_lidl_menu() -> None:
 def _print_lidl_menu() -> None:
     """Render the LIDL submenu options."""
     print("\n=== LIDL: Welche Aktion möchtest du ausführen? ===")
-    print("1. Initial Setup (Alle Kassenbons)")
-    print("2. Update (Nur neue Kassenbons hinzufügen)")
-    print("3. Cookie-Datei prüfen (Diagnose)")
-    print("4. Zurück")
+    print("1. Sync (Alle Seiten prüfen, neue/geänderte Kassenbons importieren)")
+    print("2. Cookie-Datei prüfen (Diagnose)")
+    print("3. Zurück")
 
 
 def _dispatch_lidl_menu_choice(choice: str) -> bool:
@@ -84,21 +69,17 @@ def _dispatch_lidl_menu_choice(choice: str) -> bool:
     Returns `True` when the menu should keep running and `False` when it should close.
     """
     if choice == "1":
-        _run_lidl_initial()
+        _run_lidl_sync()
         return False
 
     if choice == "2":
-        _run_lidl_update()
-        return False
-
-    if choice == "3":
         _run_lidl_check()
         return False
 
-    if choice == "4":
+    if choice == "3":
         return False
 
-    print_invalid_choice("1, 2, 3 oder 4")
+    print_invalid_choice("1, 2 oder 3")
     return True
 
 

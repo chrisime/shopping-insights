@@ -79,7 +79,7 @@ class GetDataTests(unittest.TestCase):
             write_backend="json",
         )
 
-    def test_dispatch_initial_calls_lidl_workflow_with_selected_write_backend(self):
+    def test_dispatch_initial_calls_lidl_sync_with_selected_write_backend(self):
         args = argparse.Namespace(
             retailer="lidl",
             browser="firefox",
@@ -90,15 +90,37 @@ class GetDataTests(unittest.TestCase):
             write_backend="json",
         )
 
-        with patch("workflows.lidl_workflow.run_lidl_initial", return_value=True) as run_initial:
+        with patch("workflows.lidl_workflow.run_lidl_sync", return_value=True) as run_sync:
             success = get_data._dispatch(args, "initial")
 
         self.assertTrue(success)
-        run_initial.assert_called_once_with(
+        run_sync.assert_called_once_with(
             browser="firefox",
             cookies_file=None,
             country="de",
             write_backend="json",
+        )
+
+    def test_dispatch_update_calls_lidl_sync_with_selected_write_backend(self):
+        args = argparse.Namespace(
+            retailer="lidl",
+            browser=None,
+            cookies_file="lidl_cookies.json",
+            customer_id=None,
+            output_dir="tmp/rewe",
+            country="de",
+            write_backend="sqlite",
+        )
+
+        with patch("workflows.lidl_workflow.run_lidl_sync", return_value=True) as run_sync:
+            success = get_data._dispatch(args, "update")
+
+        self.assertTrue(success)
+        run_sync.assert_called_once_with(
+            browser=None,
+            cookies_file="lidl_cookies.json",
+            country="de",
+            write_backend="sqlite",
         )
 
     def test_main_runs_interactive_cli_when_no_subcommand_is_given(self):

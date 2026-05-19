@@ -141,16 +141,11 @@ def _dispatch_check(args: argparse.Namespace) -> bool:
 
 def _dispatch_workflow(args: argparse.Namespace, mode: str) -> bool:
     """Run the requested retailer workflow for `initial` or `update`."""
-    from workflows.lidl_workflow import run_lidl_initial, run_lidl_update
+    from workflows.lidl_workflow import run_lidl_sync
     from workflows.rewe_workflow import run_rewe_initial, run_rewe_update
 
     if args.retailer == "lidl":
-        if mode == "initial":
-            workflow_func = run_lidl_initial
-        else:
-            workflow_func = run_lidl_update
-
-        return workflow_func(
+        return run_lidl_sync(
             browser=args.browser,
             cookies_file=args.cookies_file,
             country=args.country,

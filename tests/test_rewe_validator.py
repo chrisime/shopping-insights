@@ -38,7 +38,7 @@ class ReweValidatorTests(unittest.TestCase):
         receipt = {
             "id": "rewe-0605-8-01042026-1908-7714",
             "retailer": "rewe",
-            "purchase_date": "2026.04.01",
+            "purchase_date": "2026-04-01",
             "total_price": 1.0,
             "rewe_bonus_amount": 0.30,
             "rewe_bonus_total_amount": 15.93,
@@ -55,7 +55,7 @@ class ReweValidatorTests(unittest.TestCase):
         receipt = {
             "id": "rewe-0605-8-01042026-1908-7714",
             "retailer": "rewe",
-            "purchase_date": "2026.04.01",
+            "purchase_date": "2026-04-01",
             "total_price": 1.0,
             "market": "0605",
             "register": "8",
@@ -85,7 +85,7 @@ class ReweValidatorTests(unittest.TestCase):
         receipt = {
             "id": "rewe-0605-8-01042026-1908-7714",
             "retailer": "rewe",
-            "purchase_date": "2026.04.01",
+            "purchase_date": "2026-04-01",
             "total_price": 1.0,
             "market": "0605",
             "register": "14",
@@ -279,7 +279,7 @@ Markt:5802 Kasse:4 Bed.: 4646
 
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt["id"], "rewe-5802-4-12102025-1439-9216")
-        self.assertEqual(receipt["purchase_date"], "2025.10.12")
+        self.assertEqual(receipt["purchase_date"], "2025-10-12")
         self.assertEqual(receipt["market"], "5802")
         self.assertEqual(receipt["register"], "4")
         self.assertEqual(receipt["cashier"], "4646")
@@ -340,7 +340,7 @@ Einfach beim nächsten Einkauf einlösen!
             {
                 "id": "rewe-0605-8-01042026-1908-7714",
                 "retailer": "rewe",
-                "purchase_date": "2026.04.01",
+                "purchase_date": "2026-04-01",
                 "store": "REWE-Markt GmbH",
                 "address": {
                     "street": "Kaiserstr.",
@@ -385,7 +385,7 @@ Einfach beim nächsten Einkauf einlösen!
             {
                 "id": "rewe-0605-8-01042026-1908-7714",
                 "retailer": "rewe",
-                "purchase_date": "2026.04.01",
+                "purchase_date": "2026-04-01",
                 "rewe_bonus_amount": "1,25",
             },
             profile=get_receipt_schema_profile("rewe"),
@@ -400,7 +400,7 @@ Einfach beim nächsten Einkauf einlösen!
             {
                 "id": "rewe-0605-13-10032026-1903-4479",
                 "retailer": "rewe",
-                "purchase_date": "2026.03.10",
+                "purchase_date": "2026-03-10",
                 "payment_methods": [{"method": "Bonus-Guthaben", "amount": "5,00"}],
             }
         )
@@ -415,7 +415,7 @@ Einfach beim nächsten Einkauf einlösen!
             {
                 "id": "rewe-0605-13-10032026-1903-4479",
                 "retailer": "rewe",
-                "purchase_date": "2026.03.10",
+                "purchase_date": "2026-03-10",
                 "payment_methods": [{"method": "Inflationsprämie", "amount": "5,00"}],
             }
         )
@@ -425,24 +425,24 @@ Einfach beim nächsten Einkauf einlösen!
             [{"method": "Inflationsprämie", "network": "REWE", "amount": 5.0}],
         )
 
-    def test_normalize_receipt_schema_keeps_existing_rewe_purchase_date_format(self):
+    def test_normalize_receipt_schema_converts_rewe_purchase_date_to_iso_format(self):
         normalized = normalize_receipt_schema(
             {
                 "id": "rewe-0605-8-01042026-1908-7714",
                 "retailer": "rewe",
-                "purchase_date": " 01.04.2026 19:08 ",
+                "purchase_date": " 01.04.2026 ",
                 "store": "REWE-Markt GmbH",
             }
         )
 
-        self.assertEqual(normalized["purchase_date"], "01.04.2026 19:08")
+        self.assertEqual(normalized["purchase_date"], "2026-04-01")
 
     def test_normalize_receipt_schema_requires_explicit_or_embedded_retailer(self):
         with self.assertRaisesRegex(ValueError, "Receipt retailer fehlt"):
             normalize_receipt_schema(
                 {
                     "id": "rewe-0605-8-01042026-1908-7714",
-                    "purchase_date": "2026.04.01",
+                    "purchase_date": "2026-04-01",
                 }
             )
 

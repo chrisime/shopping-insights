@@ -6,6 +6,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from shared.addresses import empty_address
+from shared.receipt_dates import normalize_purchase_date
 from shared.payment_methods import normalize_payment_method_entry
 
 from .address_extractor import extract_address_from_lines
@@ -84,7 +85,7 @@ def extract_rewe_receipt_info(text: str, lines: List[str]) -> Dict[str, Optional
     total_match = SUM_RE.search(text)
     total_price = to_rewe_float(total_match.group("amount")) if total_match else None
 
-    purchase_date = _normalize_rewe_purchase_date(date_value)
+    purchase_date = normalize_purchase_date(date_value)
     store = _extract_store(lines)
 
     receipt_id_parts = ["rewe"]
@@ -254,12 +255,3 @@ def _looks_like_metadata_line(line: str) -> bool:
 def _is_rewe_bonus_payment_method(method: str) -> bool:
     normalized_method = method.strip().lower()
     return "bonus" in normalized_method and "guthaben" in normalized_method
-
-
-def _normalize_rewe_purchase_date(date_value: Optional[str]) -> Optional[str]:
-    """Convert REWE dates from dd.mm.yyyy to yyyy.mm.dd."""
-    if not date_value:
-        return None
-    day, month, year = date_value.split(".")
-    return f"{year}.{month}.{day}"
-

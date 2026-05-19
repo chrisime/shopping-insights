@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import simplejson
 import sqlite3
 from contextlib import closing
 from pathlib import Path
@@ -11,8 +9,9 @@ from typing import Any, Dict, Optional, Sequence
 
 from config import get_receipt_schema_profile
 from result_types import PersistResult
+from shared.receipt_hashes import calculate_receipt_payload_hash
 from shared.receipt_schema import normalize_receipt_schema
-from shared.receipt_store import ReceiptStore
+from shared.receipt_store import ReceiptStore, ReceiptStoreState
 
 from .sqlite_domains import (
     PaymentMethodDomain,
@@ -59,22 +58,9 @@ def _ensure_schema(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
-def _calculate_receipt_payload_hash(receipt_data: Dict[str, Any]) -> str:
-    """Render a normalized receipt dict into a canonical hash for change detection."""
-    value = simplejson.dumps(
-        receipt_data,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    text = "" if value is None else value
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
 def _persist_receipt_row(
     receipt_data: Dict[str, Any],
     payload_hash: str,
-    *,
     store_domain: StoreDomain,
     purchase_domain: PurchaseDomain,
     purchase_item_domain: PurchaseItemDomain,
@@ -115,6 +101,16 @@ class SqliteReceiptStore(ReceiptStore):
             purchase_domain = PurchaseDomain(connection)
             return purchase_domain.find_ids_by_retailer(retailer.lower())
 
+    def find_receipt_states(
+        self,
+        retailer: str,
+        file_path: Optional[str] = None,
+    ) -> dict[str, ReceiptStoreState]:
+        db_path = _resolve_receipts_db_path(file_path)
+        with closing(_connect_sqlite(db_path)) as connection:
+            purchase_domain = PurchaseDomain(connection)
+            return purchase_domain.find_states_by_retailer(retailer.lower())
+
     def persist_receipts(
         self,
         receipts: Sequence[Dict[str, Any]],
@@ -150,7 +146,11 @@ class SqliteReceiptStore(ReceiptStore):
                     if not receipt_id:
                         continue
                     normalized_receipt["id"] = str(receipt_id)
-                    payload_hash = _calculate_receipt_payload_hash(normalized_receipt)
+                    payload_hash = str(
+                        normalized_receipt.get("payload_hash")
+                        or calculate_receipt_payload_hash(normalized_receipt)
+                    )
+                    normalized_receipt["payload_hash"] = payload_hash
                     action = _persist_receipt_row(
                         normalized_receipt,
                         payload_hash,

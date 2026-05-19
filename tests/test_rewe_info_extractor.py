@@ -117,7 +117,7 @@ Geg. VISA EUR 10,48
                 "city": "Schwangau",
             },
         )
-        self.assertEqual(metadata["purchase_date"], "2025.10.12")
+        self.assertEqual(metadata["purchase_date"], "2025-10-12")
         self.assertEqual(metadata["id"], "rewe-12102025-1439-9216")
 
     def test_extract_rewe_receipt_info_parses_footer_only_address_when_header_has_none(self):

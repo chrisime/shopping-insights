@@ -41,7 +41,7 @@ class LidlDiagnosticsTests(unittest.TestCase):
     def test_fetch_lidl_receipt_parse_result_returns_skip_reason_for_invalid_receipt(self):
         session = Mock()
         ticket_data = {
-            "date": "2024-08-19T12:00:00",
+            "date": "19.08.2024",
             "store": "Fürth-Südstadt",
             "htmlPrintedReceipt": "<html><body></body></html>",
         }
@@ -60,7 +60,7 @@ class LidlDiagnosticsTests(unittest.TestCase):
     def test_fetch_lidl_receipt_parse_result_maps_store_address_in_workflow_layer(self):
         session = Mock()
         ticket_data = {
-            "date": "2024-08-19T12:00:00",
+            "date": "19.08.2024",
             "store": {
                 "name": "Fürth-Südstadt",
                 "street": "Hauptstr.",

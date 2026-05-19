@@ -11,7 +11,7 @@ class LidlClientTests(unittest.TestCase):
         response.raise_for_status.return_value = None
         response.json.return_value = {
             "ticket": {
-                "date": "2024-08-19T12:00:00",
+                "date": "19.08.2024",
                 "store": {"name": "Fürth-Südstadt"},
                 "htmlPrintedReceipt": "",
             }
@@ -23,7 +23,7 @@ class LidlClientTests(unittest.TestCase):
             "230058821020240819725516",
         )
 
-        self.assertEqual(result["date"], "2024-08-19T12:00:00")
+        self.assertEqual(result["date"], "19.08.2024")
         self.assertEqual(result["store"], {"name": "Fürth-Südstadt"})
 
     def test_get_lidl_ticket_accepts_direct_ticket_payload(self):
@@ -31,7 +31,7 @@ class LidlClientTests(unittest.TestCase):
         response = Mock()
         response.raise_for_status.return_value = None
         response.json.return_value = {
-            "date": "2024-08-19T12:00:00",
+            "date": "19.08.2024",
             "store": {"name": "Fürth-Südstadt"},
             "htmlPrintedReceipt": "<html><body></body></html>",
         }
@@ -42,7 +42,7 @@ class LidlClientTests(unittest.TestCase):
             "230058821020240819725516",
         )
 
-        self.assertEqual(result["date"], "2024-08-19T12:00:00")
+        self.assertEqual(result["date"], "19.08.2024")
         self.assertEqual(result["store"], {"name": "Fürth-Südstadt"})
 
     def test_test_lidl_session_returns_true_when_tickets_endpoint_is_accessible(self):

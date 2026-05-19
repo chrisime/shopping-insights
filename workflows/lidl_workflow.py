@@ -1,8 +1,9 @@
-"""Central LIDL workflows for initial import and incremental updates."""
+"""Central LIDL workflow for synchronizing receipt state from the Lidl API."""
 
+from dataclasses import dataclass
 import simplejson
 import time
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import requests
 from bs4 import BeautifulSoup
@@ -31,7 +32,8 @@ from reporting.lidl_reporting import (
     write_lidl_skipped_receipts_report,
 )
 from result_types import WorkflowSummary
-from shared.receipt_store import ReceiptStore
+from shared.receipt_hashes import calculate_lidl_source_hash, calculate_receipt_payload_hash
+from shared.receipt_store import ReceiptStore, ReceiptStoreState
 from storage import create_receipt_store, resolve_receipt_store_target
 
 from .error_mapping import (
@@ -44,57 +46,28 @@ from .workflow_constants import RETAILER_LIDL, REASON_KIND_LIDL_FETCH
 
 
 __all__ = [
-    "run_lidl_initial",
-    "run_lidl_update",
+    "run_lidl_sync",
 ]
 
 
+@dataclass(frozen=True)
+class LidlReceiptSource:
+    """Receipt reference discovered on the Lidl ticket list including its source hash."""
 
-def run_lidl_initial(
+    receipt_id: str
+    source_hash: str
+
+
+
+def run_lidl_sync(
     browser: Optional[str] = None,
     cookies_file: Optional[str] = None,
     country: Optional[str] = None,
     write_backend: str = "json",
 ) -> bool:
-    """Run the full historical LIDL import workflow."""
-    return _run_lidl_import_workflow(
-        browser=browser,
-        cookies_file=cookies_file,
-        country=country,
-        write_backend=write_backend,
-        start_title="=== INITIAL SETUP: Extrahiere alle LIDL-Kassenbons ===",
-        completion_title="\n=== INITIAL SETUP ABGESCHLOSSEN ===",
-    )
-
-
-def run_lidl_update(
-    browser: Optional[str] = None,
-    cookies_file: Optional[str] = None,
-    country: Optional[str] = None,
-    write_backend: str = "json",
-) -> bool:
-    """Run the incremental LIDL update workflow."""
-    return _run_lidl_import_workflow(
-        browser=browser,
-        cookies_file=cookies_file,
-        country=country,
-        write_backend=write_backend,
-        start_title="=== UPDATE: Füge neue LIDL-Kassenbons hinzu ===",
-        completion_title="\n=== UPDATE ABGESCHLOSSEN ===",
-        max_pages=LidlConfig.PAGES_TO_CHECK,
-    )
-
-
-def _run_lidl_import_workflow(
-    browser: Optional[str],
-    cookies_file: Optional[str],
-    country: Optional[str],
-    write_backend: str,
-    start_title: str,
-    completion_title: str,
-    max_pages: Optional[int] = None,
-) -> bool:
-    """Run the shared LIDL import flow for full-history and update modes."""
+    """Synchronize Lidl receipts by scanning all pages and importing only new/changed tickets."""
+    start_title = "=== SYNC: Synchronisiere LIDL-Kassenbons ==="
+    completion_title = "\n=== SYNC ABGESCHLOSSEN ==="
     print_lidl_workflow_header(start_title)
     session = _prepare_lidl_session(browser, cookies_file, country)
     if not session:
@@ -102,20 +75,20 @@ def _run_lidl_import_workflow(
 
     store = create_receipt_store(write_backend)
     receipts_file = resolve_receipt_store_target(write_backend, retailer=RETAILER_LIDL)
-    receipt_ids, page_count = _collect_lidl_receipt_ids(session, max_pages)
-    existing_receipt_ids = store.find_existing_ids(retailer=RETAILER_LIDL, file_path=receipts_file)
+    receipt_sources, page_count = _collect_lidl_receipt_sources(session)
+    existing_receipt_states = store.find_receipt_states(retailer=RETAILER_LIDL, file_path=receipts_file)
+    source_hash_by_id = {source.receipt_id: source.source_hash for source in receipt_sources}
+    receipt_ids = _filter_lidl_receipt_ids_for_processing(receipt_sources, existing_receipt_states)
 
-    print_lidl_existing_receipts_count(len(existing_receipt_ids))
-    new_receipt_ids = _filter_new_receipt_ids(receipt_ids, existing_receipt_ids)
-    if max_pages is not None:
-        print_lidl_checked_pages(page_count)
-    print_lidl_new_receipts_count(len(new_receipt_ids))
+    print_lidl_existing_receipts_count(len(existing_receipt_states))
+    print_lidl_checked_pages(page_count)
+    print_lidl_new_receipts_count(len(receipt_ids))
 
     workflow_result = _run_lidl_receipt_pipeline(
         session=session,
-        receipt_ids=new_receipt_ids,
-        checked_pages=page_count if max_pages is not None else None,
-        processed_pages=page_count if max_pages is None else None,
+        receipt_ids=receipt_ids,
+        source_hash_by_id=source_hash_by_id,
+        checked_pages=page_count,
         store=store,
         receipts_file=receipts_file,
     )
@@ -123,16 +96,18 @@ def _run_lidl_import_workflow(
     _print_lidl_completion(
         title=completion_title,
         total_items=workflow_result.summary.total_items,
-        checked_pages=page_count if max_pages is not None else None,
-        processed_pages=page_count if max_pages is None else None,
+        checked_pages=page_count,
     )
     return workflow_result.success
 
 
 
-def _collect_lidl_receipt_ids(session: requests.Session, max_pages: Optional[int] = None) -> Tuple[List[str], int]:
-    """Collect LIDL receipt IDs from all pages or only a limited number."""
-    all_receipt_ids: List[str] = []
+def _collect_lidl_receipt_sources(
+    session: requests.Session,
+    max_pages: Optional[int] = None,
+) -> Tuple[List[LidlReceiptSource], int]:
+    """Collect LIDL receipt references from all pages or only a limited number."""
+    all_receipt_sources: List[LidlReceiptSource] = []
     page = 1
     processed_pages = 0
 
@@ -150,7 +125,7 @@ def _collect_lidl_receipt_ids(session: requests.Session, max_pages: Optional[int
         if not tickets:
             break
 
-        all_receipt_ids.extend(_extract_receipt_ids_from_tickets(tickets))
+        all_receipt_sources.extend(_extract_receipt_sources_from_tickets(tickets))
         processed_pages = page
 
         if max_pages is not None and page >= max_pages:
@@ -164,8 +139,8 @@ def _collect_lidl_receipt_ids(session: requests.Session, max_pages: Optional[int
 
         page += 1
 
-    print_lidl_receipt_collection_result(len(all_receipt_ids))
-    return all_receipt_ids, processed_pages
+    print_lidl_receipt_collection_result(len(all_receipt_sources))
+    return all_receipt_sources, processed_pages
 
 
 
@@ -253,9 +228,7 @@ def _fetch_lidl_tickets(
     )
     total_receipts = len(receipt_ids)
 
-    progress.render(
-        ProgressState(0, total_receipts, 0, 0, 0, 0, "-")
-    )
+    progress.render(ProgressState(0, total_receipts, 0, 0, 0, 0, "-"))
 
     for index, receipt_id in enumerate(receipt_ids, 1):
         current = index - 1
@@ -319,6 +292,7 @@ def _count_lidl_ticket_items(ticket_data: Dict[str, object]) -> int:
 def _run_lidl_receipt_pipeline(
     session: requests.Session,
     receipt_ids: List[str],
+    source_hash_by_id: Dict[str, str],
     store: ReceiptStore,
     receipts_file: str,
     checked_pages: Optional[int] = None,
@@ -328,8 +302,12 @@ def _run_lidl_receipt_pipeline(
     fetched_tickets, fetch_issues = _fetch_lidl_tickets(session, receipt_ids)
     parse_result = parse_receipts(fetched_tickets, retailer=RETAILER_LIDL)
     validation_result = validate_receipts(parse_result.records, retailer=RETAILER_LIDL)
-    persist_result = persist_valid_receipts(
+    receipts_to_persist = _prepare_lidl_receipts_for_persistence(
         validation_result.records,
+        source_hash_by_id,
+    )
+    persist_result = persist_valid_receipts(
+        receipts_to_persist,
         retailer=RETAILER_LIDL,
         store=store,
     )
@@ -360,30 +338,64 @@ def _run_lidl_receipt_pipeline(
 
 
 
-def _extract_receipt_ids_from_tickets(tickets: List[Dict[str, object]]) -> List[str]:
-    """Extract receipt IDs for tickets that have HTML receipts."""
-    receipt_ids = []
+def _extract_receipt_sources_from_tickets(tickets: List[Dict[str, object]]) -> List[LidlReceiptSource]:
+    """Extract hashed receipt references for tickets that have HTML receipts."""
+    receipt_sources: List[LidlReceiptSource] = []
     for ticket in tickets:
-        if not isinstance(ticket, dict):
+        ticket_data = _extract_lidl_ticket_data(ticket)
+        if ticket_data is None:
             continue
 
-        if "ticket" in ticket:
-            ticket_data = ticket["ticket"]
-            if not isinstance(ticket_data, dict):
-                continue
-            receipt_id = ticket_data.get("id", "")
-            has_html = ticket_data.get("isHtml", False)
-        else:
-            receipt_id = ticket.get("id", "")
-            has_html = ticket.get("isHtml", False)
-
+        receipt_id = ticket_data.get("id", "")
+        has_html = ticket_data.get("isHtml", False)
         if receipt_id and has_html:
-            receipt_ids.append(str(receipt_id))
+            receipt_sources.append(
+                LidlReceiptSource(
+                    receipt_id=str(receipt_id),
+                    source_hash=calculate_lidl_source_hash(ticket_data),
+                )
+            )
 
+    return receipt_sources
+
+
+def _extract_lidl_ticket_data(ticket: object) -> Optional[Dict[str, object]]:
+    if not isinstance(ticket, dict):
+        return None
+    if "ticket" not in ticket:
+        return ticket
+    nested_ticket = ticket.get("ticket")
+    if not isinstance(nested_ticket, dict):
+        return None
+    return nested_ticket
+
+
+def _filter_lidl_receipt_ids_for_processing(
+    receipt_sources: Sequence[LidlReceiptSource],
+    existing_states: dict[str, ReceiptStoreState],
+) -> List[str]:
+    """Return receipt ids that are new or whose source hash changed."""
+    receipt_ids: List[str] = []
+    for receipt_source in receipt_sources:
+        existing_state = existing_states.get(receipt_source.receipt_id)
+        if existing_state is None or existing_state.source_hash != receipt_source.source_hash:
+            receipt_ids.append(receipt_source.receipt_id)
     return receipt_ids
 
 
-def _filter_new_receipt_ids(receipt_ids: Sequence[str], existing_ids: Iterable[str],) -> List[str]:
-    """Return only receipt IDs that are not already stored."""
-    existing_id_set = set(existing_ids)
-    return [receipt_id for receipt_id in receipt_ids if receipt_id not in existing_id_set]
+def _prepare_lidl_receipts_for_persistence(
+    receipts: Sequence[Dict[str, object]],
+    source_hash_by_id: Dict[str, str],
+) -> List[Dict[str, object]]:
+    """Attach source_hash and payload_hash to validated Lidl receipts before persistence."""
+    prepared_receipts: List[Dict[str, object]] = []
+    for receipt in receipts:
+        prepared_receipt = dict(receipt)
+        receipt_id = str(prepared_receipt.get("id") or "").strip()
+        if receipt_id:
+            source_hash = source_hash_by_id.get(receipt_id)
+            if source_hash:
+                prepared_receipt["source_hash"] = source_hash
+        prepared_receipt["payload_hash"] = calculate_receipt_payload_hash(prepared_receipt)
+        prepared_receipts.append(prepared_receipt)
+    return prepared_receipts

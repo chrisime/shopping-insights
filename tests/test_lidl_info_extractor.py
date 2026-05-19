@@ -15,7 +15,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
     def test_infer_lidl_pos_metadata_from_receipt_id(self):
         metadata = infer_lidl_pos_metadata_from_receipt_id(
             "230058821020240819725516",
-            "2024.08.19",
+            "2024-08-19",
         )
 
         self.assertEqual(
@@ -42,7 +42,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024.08.28",
+            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -71,7 +71,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024.08.28",
+            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -162,7 +162,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024.08.28",
+            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -183,7 +183,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024.08.28",
+            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -204,7 +204,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024.08.28",
+            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -218,7 +218,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024.08.28",
+            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -238,7 +238,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024.08.28",
+            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -249,7 +249,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
             {
                 "id": "23004426420240828113520",
                 "retailer": "lidl",
-                "purchase_date": "2024.08.28",
+                "purchase_date": "28.08.2024",
                 "store": "Fürth-Südstadt",
                 "address": {
                     "street": "Hauptstr.",
@@ -273,6 +273,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
         self.assertNotIn("rewe_bonus_amount", normalized)
         self.assertNotIn("rewe_bonus_amount_saved", normalized)
         self.assertNotIn("rewe_bonus_total_amount", normalized)
+        self.assertEqual(normalized["purchase_date"], "2024-08-28")
         self.assertEqual(
             normalized["address"],
             {
@@ -292,7 +293,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
             {
                 "id": "23004426420240828113520",
                 "retailer": "lidl",
-                "purchase_date": "2024.08.28",
+                "purchase_date": "28.08.2024",
                 "store": "Fürth-Südstadt",
                 "lidlplus_amount_saved": "2,78",
             },

@@ -23,11 +23,14 @@ create table if not exists store
         unique (hash)
 );
 
+create index if not exists idx_store__retailer_code
+    on store (retailer_code);
+
 create table if not exists purchase
 (
     id            varchar primary key,
     store_id      integer,
-    purchase_date varchar not null,
+    purchase_date date    not null,
     market        varchar,
     register_id   varchar,
     cashier       varchar,
@@ -37,6 +40,7 @@ create table if not exists purchase
     currency      varchar not null default 'EUR',
     source_file   varchar,
     hash          varchar not null,
+    source_hash   varchar,
 
     constraint fk_purchase__store
         foreign key (store_id) references store (id) on delete cascade,
@@ -44,6 +48,13 @@ create table if not exists purchase
     constraint uq_purchase__hash
         unique (hash)
 );
+
+create index if not exists idx_purchase__store_id
+    on purchase (store_id);
+
+create index if not exists idx_purchase__source_hash
+    on purchase (source_hash);
+
 
 create table if not exists purchase_item
 (
@@ -56,7 +67,9 @@ create table if not exists purchase_item
     price       real    not null,
 
     constraint fk_purchase_item__purchase
-        foreign key (purchase_id) references purchase (id) on delete cascade
+        foreign key (purchase_id) references purchase (id) on delete cascade,
+
+    constraint uq_purchase_item__purchase_position unique (purchase_id, position)
 );
 
 create table if not exists payment_method
@@ -70,20 +83,7 @@ create table if not exists payment_method
 
 
     constraint fk_payment_method__purchase
-        foreign key (purchase_id) references purchase (id) on delete cascade
+        foreign key (purchase_id) references purchase (id) on delete cascade,
+
+    constraint uq_payment_method__purchase_position unique (purchase_id, position)
 );
-
-create index if not exists idx_store__retailer_code
-    on store (retailer_code);
-
-create index if not exists idx_purchase__purchase_date
-    on purchase (purchase_date desc);
-
-create index if not exists idx_purchase__store_id
-    on purchase (store_id);
-
-create unique index if not exists uq_purchase_item__purchase_position
-    on purchase_item (purchase_id, position);
-
-create unique index if not exists uq_payment_method__purchase_position
-    on payment_method (purchase_id, position);

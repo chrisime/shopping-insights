@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from shared.receipt_dates import is_normalized_purchase_date
+
 from .lidl_info_extractor import infer_lidl_pos_metadata_from_receipt_id
 
 
@@ -126,6 +128,17 @@ def validate_lidl_receipt_data(receipt_data: Dict[str, Any]) -> None:
         expected="5-6 Ziffern",
     )
 
+    purchase_date = str(receipt_data.get("purchase_date") or "").strip()
+    if not is_normalized_purchase_date(purchase_date):
+        issues.append(
+            LidlValidationIssue(
+                field="purchase_date",
+                reason="hat nicht das erwartete Datumsformat",
+                expected="yyyy-mm-dd",
+                actual=purchase_date or "leer",
+            )
+        )
+
     inferred_metadata = infer_lidl_pos_metadata_from_receipt_id(
         str(receipt_data.get("id") or receipt_data.get("url") or ""),
         str(receipt_data.get("purchase_date") or ""),
@@ -182,7 +195,7 @@ def _parse_amount_to_cents(value: Optional[Any]) -> Optional[int]:
     normalized = str(value).strip()
     if not normalized:
         return None
-    match = re.search(r"(\d+)(?:[\.,](\d{1,2}))?", normalized)
+    match = re.search(r"(\d+)(?:[.,](\d{1,2}))?", normalized)
     if not match:
         return None
     euros = int(match.group(1))

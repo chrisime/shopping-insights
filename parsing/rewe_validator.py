@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from shared.receipt_dates import is_normalized_purchase_date, normalize_purchase_date_from_receipt_id_token
+
 
 REWE_ID_RE = re.compile(
 	r"^rewe-(?P<market>\d+)-(?P<register>\d+)-(?P<date>\d{8})-(?P<time>\d{4})-(?P<bon>\d+)$"
@@ -75,12 +77,12 @@ def validate_rewe_receipt_data(receipt_data: Dict[str, Any]) -> None:
 		)
 
 	purchase_date = str(receipt_data.get("purchase_date") or "").strip()
-	if not re.fullmatch(r"\d{4}\.\d{2}\.\d{2}", purchase_date):
+	if not is_normalized_purchase_date(purchase_date):
 		issues.append(
 			ReweValidationIssue(
 				field="purchase_date",
 				reason="hat nicht das erwartete Datumsformat",
-				expected="yyyy.mm.dd",
+				expected="yyyy-mm-dd",
 				actual=purchase_date or "leer",
 			)
 		)
@@ -176,9 +178,7 @@ def _validate_id_consistency(
 	expected_market = id_match.group("market")
 	expected_register = id_match.group("register")
 	expected_date = id_match.group("date")
-	expected_purchase_date = (
-		f"{expected_date[4:8]}.{expected_date[2:4]}.{expected_date[0:2]}"
-	)
+	expected_purchase_date = normalize_purchase_date_from_receipt_id_token(expected_date)
 
 	market = str(receipt_data.get("market") or "").strip()
 	if market and market != expected_market:
@@ -203,7 +203,7 @@ def _validate_id_consistency(
 		)
 
 	purchase_date = str(receipt_data.get("purchase_date") or "").strip()
-	if purchase_date:
+	if purchase_date and expected_purchase_date:
 		if purchase_date != expected_purchase_date:
 			issues.append(
 				ReweValidationIssue(

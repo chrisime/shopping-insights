@@ -17,6 +17,7 @@ from .sqlite_entities import (
     RetailerEntity,
     StoreEntity,
 )
+from shared.receipt_store import ReceiptStoreState
 
 RETAILER_TABLE = Table("retailer")
 STORE_TABLE = Table("store")
@@ -191,6 +192,7 @@ class PurchaseDomain:
                     PURCHASE_TABLE.currency,
                     PURCHASE_TABLE.source_file,
                     PURCHASE_TABLE.hash,
+                    PURCHASE_TABLE.source_hash,
                 )
                 .where(PURCHASE_TABLE.id == Parameter("?"))
             ).get_sql(),
@@ -211,6 +213,7 @@ class PurchaseDomain:
             currency=str(row["currency"]),
             source_file=None if row["source_file"] is None else str(row["source_file"]),
             hash=str(row["hash"]),
+            source_hash=None if row["source_hash"] is None else str(row["source_hash"]),
         )
 
     def find_hash_by_id(self, purchase_id: str) -> str | None:
@@ -241,8 +244,10 @@ class PurchaseDomain:
                     PURCHASE_TABLE.currency,
                     PURCHASE_TABLE.source_file,
                     PURCHASE_TABLE.hash,
+                    PURCHASE_TABLE.source_hash,
                 )
                 .insert(
+                    Parameter("?"),
                     Parameter("?"),
                     Parameter("?"),
                     Parameter("?"),
@@ -270,6 +275,7 @@ class PurchaseDomain:
                 entity.currency,
                 entity.source_file,
                 entity.hash,
+                entity.source_hash,
             ),
         )
 
@@ -290,8 +296,10 @@ class PurchaseDomain:
                     PURCHASE_TABLE.currency,
                     PURCHASE_TABLE.source_file,
                     PURCHASE_TABLE.hash,
+                    PURCHASE_TABLE.source_hash,
                 )
                 .replace(
+                    Parameter("?"),
                     Parameter("?"),
                     Parameter("?"),
                     Parameter("?"),
@@ -319,6 +327,7 @@ class PurchaseDomain:
                 entity.currency,
                 entity.source_file,
                 entity.hash,
+                entity.source_hash,
             ),
         )
 
@@ -357,6 +366,25 @@ class PurchaseDomain:
             (retailer_code,),
         ).fetchone()
         return 0 if row is None else int(row[0])
+
+    def find_states_by_retailer(self, retailer_code: str) -> dict[str, ReceiptStoreState]:
+        rows = self.connection.execute(
+            (
+                SQLLiteQuery.from_(PURCHASE_TABLE)
+                .join(STORE_TABLE)
+                .on(STORE_TABLE.id == PURCHASE_TABLE.store_id)
+                .select(PURCHASE_TABLE.id, PURCHASE_TABLE.source_hash, PURCHASE_TABLE.hash)
+                .where(STORE_TABLE.retailer_code == Parameter("?"))
+            ).get_sql(),
+            (retailer_code,),
+        ).fetchall()
+        return {
+            str(row["id"]): ReceiptStoreState(
+                source_hash=None if row["source_hash"] is None else str(row["source_hash"]),
+                payload_hash=None if row["hash"] is None else str(row["hash"]),
+            )
+            for row in rows
+        }
 
 
 class PurchaseItemDomain:

@@ -9,23 +9,12 @@ from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
 
 from config import get_receipt_schema_profile, get_retailer_runtime
 from result_types import PersistResult
-from shared.receipt_store import ReceiptStore
+from shared.receipt_dates import parse_purchase_date
+from shared.receipt_store import ReceiptStore, ReceiptStoreState
 from shared.receipt_schema import normalize_receipt_schema
 
-DATE_FORMATS = (
-    "%d.%m.%Y %H:%M",
-    "%d.%m.%Y %H:%M:%S",
-    "%d.%m.%Y",
-    "%Y.%m.%d %H:%M",
-    "%Y.%m.%d %H:%M:%S",
-    "%Y.%m.%d",
-)
 
-
-def _resolve_receipts_file_path(
-    file_path: Optional[str] = None,
-    retailer: Optional[str] = None,
-) -> str:
+def _resolve_receipts_file_path(file_path: Optional[str] = None, retailer: Optional[str] = None) -> str:
     """Resolve the JSON file path used for receipt persistence."""
     if file_path:
         return file_path
@@ -55,14 +44,36 @@ def _get_existing_receipts(
 
         existing_ids = set()
         for receipt in receipts:
-            if "id" in receipt:
-                existing_ids.add(receipt["id"])
-            elif "url" in receipt:
-                existing_ids.add(receipt["url"])
+            receipt_id = _extract_receipt_id(receipt)
+            if receipt_id:
+                existing_ids.add(receipt_id)
         return existing_ids, receipts
     except (simplejson.JSONDecodeError, KeyError) as e:
         print(f"Warning: Error loading existing receipts: {e}")
         return set(), []
+
+
+def _extract_receipt_id(receipt: Dict[str, Any]) -> Optional[str]:
+    receipt_id = receipt.get("id") or receipt.get("url")
+    if receipt_id is None:
+        return None
+    normalized_receipt_id = str(receipt_id).strip()
+    return normalized_receipt_id or None
+
+
+def _build_receipt_states(receipts: Iterable[Dict[str, Any]]) -> dict[str, ReceiptStoreState]:
+    states: dict[str, ReceiptStoreState] = {}
+    for receipt in receipts:
+        receipt_id = _extract_receipt_id(receipt)
+        if receipt_id is None:
+            continue
+        source_hash = receipt.get("source_hash")
+        payload_hash = receipt.get("payload_hash")
+        states[receipt_id] = ReceiptStoreState(
+            source_hash=None if source_hash is None else str(source_hash),
+            payload_hash=None if payload_hash is None else str(payload_hash),
+        )
+    return states
 
 
 def _save_receipts_to_json(
@@ -156,12 +167,7 @@ def sort_receipts_by_date(
         date_str = receipt.get("purchase_date")
         if not date_str:
             return datetime.min
-        for date_format in DATE_FORMATS:
-            try:
-                return datetime.strptime(date_str, date_format)
-            except ValueError:
-                continue
-        return datetime.min
+        return parse_purchase_date(date_str) or datetime.min
 
     sorted_receipts = sorted(receipts, key=get_date_key, reverse=True)
     _save_receipts_to_json(
@@ -176,23 +182,21 @@ def sort_receipts_by_date(
 class JsonReceiptStore(ReceiptStore):
     """JSON-backed receipt store used by the current workflows."""
 
-    def find_existing_ids(
-        self,
-        retailer: str,
-        file_path: Optional[str] = None,
-    ) -> set[str]:
+    def find_existing_ids(self, retailer: str, file_path: Optional[str] = None) -> set[str]:
         existing_ids, _ = _get_existing_receipts(
             file_path=file_path,
             retailer=retailer,
         )
         return existing_ids
 
-    def persist_receipts(
-        self,
-        receipts: Sequence[Dict[str, Any]],
-        retailer: str,
-        file_path: Optional[str] = None,
-    ) -> PersistResult:
+    def find_receipt_states(self, retailer: str, file_path: Optional[str] = None) -> dict[str, ReceiptStoreState]:
+        _, receipts = _get_existing_receipts(
+            file_path=file_path,
+            retailer=retailer,
+        )
+        return _build_receipt_states(receipts)
+
+    def persist_receipts(self, receipts: Sequence[Dict[str, Any]], retailer: str, file_path: Optional[str] = None) -> PersistResult:
         created_count, updated_count, _ = upsert_receipts(
             receipts,
             file_path=file_path,
@@ -204,6 +208,3 @@ class JsonReceiptStore(ReceiptStore):
             updated_count=updated_count,
             total_receipts=total_receipts,
         )
-
-
-

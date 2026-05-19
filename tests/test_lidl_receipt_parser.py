@@ -62,7 +62,7 @@ class LidlReceiptParserTests(unittest.TestCase):
     def test_fetch_lidl_receipt_parse_result_returns_skip_reason_for_invalid_receipt(self):
         session = Mock()
         ticket_data = {
-            "date": "2024-08-19T12:00:00",
+            "date": "19.08.2024",
             "store": "Fürth-Südstadt",
             "htmlPrintedReceipt": "<html><body></body></html>",
         }
@@ -81,7 +81,7 @@ class LidlReceiptParserTests(unittest.TestCase):
     def test_fetch_lidl_receipt_parse_result_returns_receipt_data_for_valid_receipt(self):
         session = Mock()
         ticket_data = {
-            "date": "2024-08-19T12:00:00",
+            "date": "19.08.2024",
             "store": "Fürth-Südstadt",
             "htmlPrintedReceipt": """
             <html><body>
@@ -104,6 +104,7 @@ class LidlReceiptParserTests(unittest.TestCase):
 
         self.assertIsNotNone(receipt_data)
         self.assertEqual(receipt_data["id"], "230058821020240819725516")
+        self.assertEqual(receipt_data["purchase_date"], "2024-08-19")
         self.assertEqual(
             receipt_data["address"],
             {
@@ -118,9 +119,27 @@ class LidlReceiptParserTests(unittest.TestCase):
         self.assertEqual(receipt_data["cashier"], "725516")
         self.assertEqual(receipt_data["total_price"], 2.78)
 
+    def test_validate_lidl_receipt_data_rejects_non_iso_purchase_date(self):
+        with self.assertRaises(LidlReceiptValidationError) as context:
+            validate_lidl_receipt_data(
+                {
+                    "id": "230058821020240819725516",
+                    "retailer": "lidl",
+                    "purchase_date": "19.08.2024",
+                    "market": "5882",
+                    "register": "10",
+                    "cashier": "725516",
+                    "total_price": 2.78,
+                    "payment_methods": [{"method": "Lidl Pay", "network": "LIDL", "amount": 2.78}],
+                    "items": [{"name": "Wasser", "price": 2.78, "quantity": 1, "unit": "stk"}],
+                }
+            )
+
+        self.assertIn("purchase_date: hat nicht das erwartete Datumsformat", str(context.exception))
+
     def test_parse_lidl_ticket_maps_store_address_in_parsing_layer(self):
         ticket_data = {
-            "date": "2024-08-19T12:00:00",
+            "date": "19.08.2024",
             "store": {
                 "name": "Fürth-Südstadt",
                 "street": "Hauptstr.",
@@ -157,7 +176,7 @@ class LidlReceiptParserTests(unittest.TestCase):
 
     def test_parse_lidl_ticket_extracts_address_from_split_header_line_spans(self):
         ticket_data = {
-            "date": "2024-08-19T12:00:00",
+            "date": "19.08.2024",
             "store": "Lidl Nürnberg",
             "htmlPrintedReceipt": """
             <html><body>

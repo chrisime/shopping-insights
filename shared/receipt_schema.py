@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 from config.receipt_schema_profiles import ReceiptSchemaProfile
 
 from shared.addresses import empty_address, normalize_address
+from shared.receipt_dates import normalize_purchase_date
 from shared.payment_methods import normalize_payment_method_entry
 
 
@@ -122,7 +123,7 @@ def _build_normalized_receipt_base(
 
 def _normalize_receipt_metadata_fields(normalized: Dict[str, Any], retailer: str) -> None:
     normalized["retailer"] = retailer
-    normalized["purchase_date"] = _normalize_optional_text(normalized.get("purchase_date"))
+    normalized["purchase_date"] = normalize_purchase_date(normalized.get("purchase_date"))
     normalized.pop("total_price_no_saving", None)
 
 

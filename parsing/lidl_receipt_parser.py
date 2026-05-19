@@ -4,6 +4,8 @@ from typing import Any, Dict, Optional
 
 from bs4 import BeautifulSoup
 
+from shared.receipt_dates import normalize_purchase_date
+
 from .lidl_info_extractor import extract_lidl_receipt_info
 from .lidl_items_extractor import extract_lidl_receipt_items
 from .lidl_totals_extractor import extract_lidl_totals
@@ -11,7 +13,9 @@ from .lidl_totals_extractor import extract_lidl_totals
 
 def parse_lidl_ticket(ticket_data: Dict[str, Any], receipt_id: str) -> Dict[str, Any]:
     """Parse a raw Lidl ticket payload into the normalized receipt structure."""
-    receipt_date = ticket_data["date"][:10].replace("-", ".")
+    receipt_date = normalize_purchase_date(ticket_data["date"])
+    if receipt_date is None:
+        raise ValueError("Kein gültiges Kaufdatum im Ticket vorhanden")
 
     address = None
     if isinstance(ticket_data.get("store"), dict):
