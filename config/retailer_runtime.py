@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
 from .lidl_config import LidlConfig
 from .rewe_config import ReweConfig
@@ -33,8 +34,8 @@ _RUNTIME_DEFINITIONS = {
 
 
 
-def get_retailer_runtime(retailer: str | None) -> RetailerRuntime | None:
-    retailer_code = str(retailer or "").strip().lower()
+def get_retailer_runtime(retailer: str) -> Optional[RetailerRuntime]:
+    retailer_code = retailer.strip().lower()
     if not retailer_code:
         return None
 

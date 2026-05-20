@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, time
-import re
+from datetime import datetime, date, time
 from typing import Any
+import re
 
-RETAILER_PURCHASE_DATE_FORMAT = "%d.%m.%Y"
-NORMALIZED_PURCHASE_DATE_FORMAT = "%Y-%m-%d"
+DATE_FORMATS = (
+    "%d.%m.%Y",
+    "%Y-%m-%d",
+    "%Y-%m-%dT%H:%M:%S",
+)
 ISO_PURCHASE_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}$")
 
 
@@ -24,24 +27,19 @@ def parse_purchase_date(value: Any) -> datetime | None:
     if not text:
         return None
 
-    for date_format in (RETAILER_PURCHASE_DATE_FORMAT, NORMALIZED_PURCHASE_DATE_FORMAT):
+    for fmt in DATE_FORMATS:
         try:
-            return datetime.strptime(text, date_format)
+            return datetime.strptime(text, fmt)
         except ValueError:
             continue
 
     return None
 
 
-
 def normalize_purchase_date(value: Any) -> str | None:
     """Normalize supported receipt purchase dates into ISO-8601 date text."""
     if value is None:
         return None
-    if isinstance(value, datetime):
-        return value.date().isoformat()
-    if isinstance(value, date) and not isinstance(value, datetime):
-        return value.isoformat()
 
     text = str(value).strip()
     if not text:
@@ -50,6 +48,7 @@ def normalize_purchase_date(value: Any) -> str | None:
     parsed = parse_purchase_date(text)
     if parsed is None:
         return None
+
     return parsed.date().isoformat()
 
 
@@ -69,5 +68,4 @@ def normalize_purchase_date_from_receipt_id_token(value: Any) -> str | None:
     if re.fullmatch(r"\d{8}", text) is None:
         return None
     return normalize_purchase_date(f"{text[:2]}.{text[2:4]}.{text[4:8]}")
-
 

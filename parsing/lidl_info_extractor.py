@@ -332,6 +332,7 @@ def _apply_lidl_pos_metadata(
         metadata["market"] = pos_match.group("market")
         metadata["register"] = pos_match.group("register")
         metadata["cashier"] = pos_match.group("cashier")
+        metadata["date"] = pos_match.group("date")
         receipt_data.update(metadata)
         return
 

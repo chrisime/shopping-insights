@@ -40,7 +40,6 @@ create table if not exists purchase
     currency      varchar not null default 'EUR',
     source_file   varchar,
     hash          varchar not null,
-    source_hash   varchar,
 
     constraint fk_purchase__store
         foreign key (store_id) references store (id) on delete cascade,
@@ -51,9 +50,6 @@ create table if not exists purchase
 
 create index if not exists idx_purchase__store_id
     on purchase (store_id);
-
-create index if not exists idx_purchase__source_hash
-    on purchase (source_hash);
 
 
 create table if not exists purchase_item

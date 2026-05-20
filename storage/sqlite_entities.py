@@ -38,7 +38,6 @@ class PurchaseEntity:
     currency: str
     source_file: str | None
     hash: str
-    source_hash: str | None
 
 
 @dataclass(frozen=True)

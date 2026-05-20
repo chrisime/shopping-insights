@@ -1,6 +1,6 @@
 # LIDL-Kassenbons extrahieren
 
-Diese Anleitung beschreibt den aktuellen LIDL-Workflow des Projekts: Session aufbauen, API testen, Bons abrufen, parsen, validieren und in `lidl_receipts.json` speichern.
+Diese Anleitung beschreibt den aktuellen LIDL-Workflow des Projekts: Session aufbauen, API testen, Bons abrufen, parsen, validieren und in `shopping_receipts.sqlite` speichern.
 
 ---
 
@@ -13,7 +13,8 @@ Der LIDL-Workflow kann aktuell:
 - die LIDL-Session vor dem eigentlichen Abruf testen
 - alle verfügbaren API-Seiten prüfen und nur neue/geänderte Bons importieren (`sync`)
 - Cookie-Dateien vorab per Diagnose prüfen (`check`)
-- die importierten Daten in `lidl_receipts.json` persistieren
+- die importierten Daten in `shopping_receipts.sqlite` persistieren
+- JSON aus dem aktuellen DB-Stand exportieren
 
 ---
 
@@ -136,7 +137,7 @@ Optional mit Browserprofil:
 python get_data.py update --retailer lidl --browser firefox
 ```
 
-Der LIDL-Sync prüft immer alle von der API gemeldeten Seiten und lädt nur neue bzw. per `source_hash` geänderte Bons nach.
+Der LIDL-Sync prüft immer alle von der API gemeldeten Seiten und lädt nur neue Bons anhand stabiler `receipt_id` nach.
 
 ---
 
@@ -151,16 +152,23 @@ python get_data.py
 Im LIDL-Menü stehen aktuell zur Verfügung:
 
 1. Sync
-2. Cookie-Datei prüfen (Diagnose)
-3. Zurück
+2. JSON aus aktuellem DB-Stand erzeugen
+3. Cookie-Datei prüfen (Diagnose)
+4. Zurück
 
 ---
 
 ## Ausgabe
 
-Der LIDL-Workflow schreibt die importierten Bons nach:
+Der LIDL-Workflow schreibt die importierten Bons standardmäßig nach:
 
-- `lidl_receipts.json`
+- `shopping_receipts.sqlite`
+
+Einen JSON-Export kannst du bei Bedarf separat erzeugen:
+
+```bash
+python get_data.py export --retailer lidl --output-file lidl_receipts.json
+```
 
 Zusätzlich kann bei übersprungenen Bons ein Report mit Skip-Gründen geschrieben werden.
 

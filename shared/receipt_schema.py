@@ -97,10 +97,7 @@ def _normalize_optional_text(value: str | None) -> Optional[str]:
     return value.strip() or None
 
 
-def _resolve_receipt_retailer(
-    receipt_data: Dict[str, Any],
-    retailer: Optional[str] = None,
-) -> str:
+def _resolve_receipt_retailer(receipt_data: Dict[str, Any], retailer: Optional[str] = None) -> str:
     resolved_retailer = _normalize_optional_text(retailer or receipt_data.get("retailer"))
     if resolved_retailer is None:
         raise ValueError("Receipt retailer fehlt für die Schema-Normalisierung")

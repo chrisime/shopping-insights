@@ -3,10 +3,10 @@ import simplejson
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Optional
 from unittest.mock import Mock, patch
 
 from config import ReweConfig
+from config import storage_config
 import workflows.rewe_workflow as rewe_workflow
 from result_types import PersistResult
 from workflows.pipeline_types import ReceiptIssue, StageResult
@@ -15,19 +15,12 @@ from workflows.rewe_workflow import run_rewe_initial, run_rewe_update
 
 def _import_rewe_receipts_from_pdfs(
     pdf_dir: Path,
-    file_path: Optional[str] = None,
     retailer: str = rewe_workflow.RETAILER_REWE,
-    write_backend: str = "json",
 ) -> tuple[int, int, int]:
-    store = rewe_workflow.create_receipt_store(write_backend)
-    receipts_file = rewe_workflow.resolve_receipt_store_target(
-        write_backend,
-        retailer=retailer,
-        file_path=file_path,
-    )
+    store = rewe_workflow.create_receipt_store()
+    receipts_file = storage_config.SQLITE_RECEIPTS_DB_FILE
     workflow_result = rewe_workflow._run_rewe_pdf_import_pipeline(
         pdf_dir,
-        file_path=file_path,
         retailer=retailer,
         store=store,
         receipts_file=receipts_file,
@@ -70,10 +63,8 @@ class ReweWorkflowTests(unittest.TestCase):
             ), patch(
                 "workflows.rewe_workflow.validate_receipts",
                 return_value=StageResult(records=[], issues=[]),
-            ), patch(
-                "workflows.rewe_workflow.persist_valid_receipts",
-                return_value=PersistResult(created_count=0, updated_count=0, total_receipts=203),
             ), patch("sys.stdout", new=stdout):
+                fake_store.persist_receipts.return_value = PersistResult(created_count=0, updated_count=0, total_receipts=203)
                 imported_count, skipped_count, total_receipts = _import_rewe_receipts_from_pdfs(pdf_dir)
 
             report_path = pdf_dir.parent / ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE
@@ -127,10 +118,8 @@ class ReweWorkflowTests(unittest.TestCase):
             ) as parse_receipts, patch(
                 "workflows.rewe_workflow.validate_receipts",
                 return_value=StageResult(records=[], issues=[]),
-            ), patch(
-                "workflows.rewe_workflow.persist_valid_receipts",
-                return_value=PersistResult(created_count=1, updated_count=0, total_receipts=11),
             ):
+                fake_store.persist_receipts.return_value = PersistResult(created_count=1, updated_count=0, total_receipts=11)
                 success = run_rewe_update(output_dir=str(output_dir))
 
         self.assertTrue(success)
@@ -156,10 +145,8 @@ class ReweWorkflowTests(unittest.TestCase):
             ), patch(
                 "workflows.rewe_workflow.validate_receipts",
                 return_value=StageResult(records=[], issues=[], total_items=7),
-            ), patch(
-                "workflows.rewe_workflow.persist_valid_receipts",
-                return_value=PersistResult(created_count=1, updated_count=0, total_receipts=11),
             ), patch("sys.stdout", new=stdout):
+                fake_store.persist_receipts.return_value = PersistResult(created_count=1, updated_count=0, total_receipts=11)
                 success = run_rewe_update(output_dir=str(output_dir))
 
         self.assertTrue(success)
@@ -175,16 +162,14 @@ class ReweWorkflowTests(unittest.TestCase):
 
             with patch("workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
-            ), patch("workflows.rewe_workflow.parse_receipts") as parse_receipts, patch(
-                "workflows.rewe_workflow.persist_valid_receipts",
-                return_value=PersistResult(created_count=0, updated_count=1, total_receipts=1),
-            ) as persist_receipts:
+            ), patch("workflows.rewe_workflow.parse_receipts") as parse_receipts:
+                fake_store.persist_receipts.return_value = PersistResult(created_count=0, updated_count=1, total_receipts=1)
                 success = run_rewe_update(output_dir=str(output_dir))
 
         self.assertTrue(success)
         fake_store.find_existing_ids.assert_not_called()
         parse_receipts.assert_called_once()
-        persist_receipts.assert_called_once()
+        fake_store.persist_receipts.assert_called_once()
 
     def test_run_rewe_update_fails_when_no_local_pdfs_exist(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -199,7 +184,7 @@ class ReweWorkflowTests(unittest.TestCase):
 
         self.assertFalse(success)
 
-    def test_run_rewe_update_passes_selected_write_backend_to_store_factory(self):
+    def test_run_rewe_update_uses_default_store_factory(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             output_dir = Path(tmp_dir)
             fake_store = Mock()
@@ -208,12 +193,11 @@ class ReweWorkflowTests(unittest.TestCase):
                 "workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
             ) as create_store:
-                success = run_rewe_update(output_dir=str(output_dir), write_backend="json")
+                success = run_rewe_update(output_dir=str(output_dir))
 
         self.assertFalse(success)
-        create_store.assert_called_once_with("json")
+        create_store.assert_called_once_with()
 
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from typing import Optional, Sequence
 
-from result_types import PersistResult
-from shared.receipt_store import ReceiptStore
-
 from .progress_display import ProgressState, ReceiptProgressDisplay
 from .retailer_pipeline import (
     parse_raw_record_for_retailer,
@@ -154,21 +151,6 @@ def validate_receipts(
         issues=issues,
         total_items=valid_items_count,
     )
-
-
-def persist_valid_receipts(
-    receipts: Sequence[dict],
-    retailer: str,
-    store: ReceiptStore,
-    file_path: Optional[str] = None,
-) -> PersistResult:
-    """Persist validated receipts via the configured store implementation."""
-    return store.persist_receipts(
-        receipts,
-        retailer=retailer,
-        file_path=file_path,
-    )
-
 
 def _count_total_items(receipts: Sequence[dict]) -> int:
     """Return the total number of items across normalized receipt payloads."""

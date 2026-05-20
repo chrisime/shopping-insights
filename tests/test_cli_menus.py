@@ -6,7 +6,7 @@ import cli.lidl_menu as lidl_menu
 import cli.menu as main_menu
 import cli.rewe_menu as rewe_menu
 from cli.auth_prompts import prompt_auth_source, prompt_cookies_file
-from cli.common_prompts import prompt_optional_value, prompt_with_default, prompt_write_backend
+from cli.common_prompts import prompt_optional_value, prompt_with_default
 from cli.lidl_menu import show_lidl_menu
 from cli.rewe_menu import show_rewe_menu
 
@@ -29,18 +29,6 @@ class AuthPromptsTests(unittest.TestCase):
             result = prompt_optional_value("Optionaler Wert")
 
         self.assertIsNone(result)
-
-    def test_prompt_write_backend_uses_default_when_empty(self):
-        with patch("builtins.input", return_value=""):
-            result = prompt_write_backend()
-
-        self.assertEqual(result, "json")
-
-    def test_prompt_write_backend_accepts_numbered_sqlite_choice(self):
-        with patch("builtins.input", return_value="2"):
-            result = prompt_write_backend()
-
-        self.assertEqual(result, "sqlite")
 
     def test_prompt_auth_source_returns_browser_selection(self):
         with patch("builtins.input", side_effect=["2"]):
@@ -77,21 +65,18 @@ class CliMenuTests(unittest.TestCase):
             should_continue = rewe_menu._dispatch_rewe_menu_choice("9")
 
         self.assertTrue(should_continue)
-        print_invalid_choice.assert_called_once_with("1, 2, 3 oder 4")
+        print_invalid_choice.assert_called_once_with("1, 2, 3, 4 oder 5")
 
     def test_show_lidl_menu_prints_normalized_invalid_choice_message(self):
         stdout = io.StringIO()
-        with patch("builtins.input", side_effect=["9", "3"]), patch("sys.stdout", new=stdout):
+        with patch("builtins.input", side_effect=["9", "4"]), patch("sys.stdout", new=stdout):
             show_lidl_menu()
 
-        self.assertIn("Ungültige Eingabe. Bitte wähle 1, 2 oder 3.", stdout.getvalue())
+        self.assertIn("Ungültige Eingabe. Bitte wähle 1, 2, 3 oder 4.", stdout.getvalue())
 
     def test_show_lidl_menu_runs_sync_with_prompted_auth(self):
         stdout = io.StringIO()
         with patch("builtins.input", side_effect=["1", ""]), patch(
-            "cli.lidl_menu.prompt_write_backend",
-            return_value="sqlite",
-        ), patch(
             "cli.lidl_menu.prompt_auth_source",
             return_value={"browser": "firefox"},
         ), patch("cli.lidl_menu.run_lidl_sync", return_value=True) as run_sync, patch(
@@ -99,12 +84,12 @@ class CliMenuTests(unittest.TestCase):
         ):
             show_lidl_menu()
 
-        run_sync.assert_called_once_with(browser="firefox", country=None, write_backend="sqlite")
+        run_sync.assert_called_once_with(browser="firefox", country=None)
         self.assertIn("✓ LIDL-Sync erfolgreich abgeschlossen!", stdout.getvalue())
 
     def test_show_lidl_menu_runs_check_with_prompted_cookie_file(self):
         stdout = io.StringIO()
-        with patch("builtins.input", side_effect=["2"]), patch(
+        with patch("builtins.input", side_effect=["3"]), patch(
             "cli.lidl_menu.prompt_cookies_file",
             return_value="lidl_cookies.json",
         ), patch("cli.lidl_menu.diagnose_lidl_cookie_file", return_value=True) as diagnose_lidl_cookie_file, patch(
@@ -118,12 +103,19 @@ class CliMenuTests(unittest.TestCase):
             stdout.getvalue(),
         )
 
+    def test_show_lidl_menu_runs_json_export(self):
+        stdout = io.StringIO()
+        with patch("builtins.input", side_effect=["2", "lidl_receipts.json"]), patch(
+            "cli.lidl_menu.run_export_json_from_db",
+            return_value=True,
+        ) as run_export, patch("sys.stdout", new=stdout):
+            show_lidl_menu()
+
+        run_export.assert_called_once_with(retailer="lidl", output_file="lidl_receipts.json")
+
     def test_show_rewe_menu_runs_initial_with_prompted_auth(self):
         stdout = io.StringIO()
         with patch("builtins.input", side_effect=["1", "tmp/rewe", ""]), patch(
-            "cli.rewe_menu.prompt_write_backend",
-            return_value="sqlite",
-        ), patch(
             "cli.rewe_menu.prompt_auth_source",
             return_value={"cookies_file": "rewe_cookies.json"},
         ), patch("cli.rewe_menu.run_rewe_initial", return_value=True) as run_initial, patch(
@@ -135,31 +127,37 @@ class CliMenuTests(unittest.TestCase):
             customer_id=None,
             output_dir="tmp/rewe",
             cookies_file="rewe_cookies.json",
-            write_backend="sqlite",
         )
         self.assertIn("✓ REWE-Import erfolgreich abgeschlossen!", stdout.getvalue())
 
     def test_show_rewe_menu_runs_update_with_prompted_auth(self):
         stdout = io.StringIO()
         with patch("builtins.input", side_effect=["2", "tmp/rewe"]), patch(
-            "cli.rewe_menu.prompt_write_backend",
-            return_value="sqlite",
-        ), patch(
             "cli.rewe_menu.run_rewe_update", return_value=True
         ) as run_update, patch(
             "sys.stdout", new=stdout
         ):
             show_rewe_menu()
 
-        run_update.assert_called_once_with(output_dir="tmp/rewe", write_backend="sqlite")
+        run_update.assert_called_once_with(output_dir="tmp/rewe")
         self.assertIn("✓ REWE-Update erfolgreich abgeschlossen!", stdout.getvalue())
+
+    def test_show_rewe_menu_runs_json_export(self):
+        stdout = io.StringIO()
+        with patch("builtins.input", side_effect=["3", "rewe_receipts.json"]), patch(
+            "cli.rewe_menu.run_export_json_from_db",
+            return_value=True,
+        ) as run_export, patch("sys.stdout", new=stdout):
+            show_rewe_menu()
+
+        run_export.assert_called_once_with(retailer="rewe", output_file="rewe_receipts.json")
 
     def test_show_rewe_menu_prints_normalized_invalid_choice_message(self):
         stdout = io.StringIO()
-        with patch("builtins.input", side_effect=["9", "4"]), patch("sys.stdout", new=stdout):
+        with patch("builtins.input", side_effect=["9", "5"]), patch("sys.stdout", new=stdout):
             show_rewe_menu()
 
-        self.assertIn("Ungültige Eingabe. Bitte wähle 1, 2, 3 oder 4.", stdout.getvalue())
+        self.assertIn("Ungültige Eingabe. Bitte wähle 1, 2, 3, 4 oder 5.", stdout.getvalue())
 
 
 if __name__ == "__main__":

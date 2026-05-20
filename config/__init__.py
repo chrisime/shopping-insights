@@ -7,11 +7,13 @@ from .retailer_runtime import (
 	get_retailer_runtime,
 )
 from .rewe_config import ReweConfig
+from .storage_config import SQLITE_RECEIPTS_DB_FILE
 
 __all__ = [
 	"LidlConfig",
 	"ReweConfig",
 	"RetailerRuntime",
+	"SQLITE_RECEIPTS_DB_FILE",
 	"get_receipt_schema_profile",
 	"get_retailer_runtime",
 ]

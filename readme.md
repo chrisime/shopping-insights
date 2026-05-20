@@ -9,8 +9,10 @@ Ein Tool zum Extrahieren, Prüfen und Verwalten von Kassenbons aus Online-Kaufhi
 
 Das Projekt unterstützt aktuell zwei Händler:
 
-- **LIDL**: Abruf der digitalen Bons, Parsing, Validierung und Persistierung in `lidl_receipts.json`
-- **REWE**: Download der eBon-ZIP, PDF-Extraktion, Parsing, Validierung und Persistierung in `rewe_receipts.json`
+- **LIDL**: Abruf der digitalen Bons, Parsing, Validierung und Persistierung in `shopping_receipts.sqlite`
+- **REWE**: Download der eBon-ZIP, PDF-Extraktion, Parsing, Validierung und Persistierung in `shopping_receipts.sqlite`
+
+JSON-Dateien sind ein **Exportformat** aus dem aktuellen DB-Stand.
 
 Zusätzlich gibt es für beide Händler einen Diagnosepfad für Cookie-/Request-Dateien:
 
@@ -50,12 +52,10 @@ venv\Scripts\activate
 python get_data.py
 ```
 
-Im Menü kannst du pro Händler zwischen folgenden Aktionen wählen:
+Im Menü kannst du je nach Händler folgende Aktionen wählen:
 
-1. Initial Setup / Vollimport
-2. Update
-3. Cookie-Datei prüfen (Diagnose)
-4. Zurück
+- **LIDL**: Sync, JSON aus DB erzeugen, Cookie-Datei prüfen
+- **REWE**: Initial, Update, JSON aus DB erzeugen, Cookie-/Request-Datei prüfen
 
 ### Direkte CLI-Aufrufe
 
@@ -63,25 +63,25 @@ Im Menü kannst du pro Händler zwischen folgenden Aktionen wählen:
 python get_data.py initial --retailer lidl --cookies-file lidl_cookies.json
 python get_data.py update --retailer lidl --cookies-file lidl_cookies.json
 python get_data.py check --retailer lidl --cookies-file lidl_cookies.json
+python get_data.py export --retailer lidl --output-file lidl_receipts.json
 
 python get_data.py initial --retailer rewe --cookies-file rewe_cookies.json
 python get_data.py update --retailer rewe --output-dir tmp/rewe
 python get_data.py check --retailer rewe --cookies-file rewe_cookies.json
+python get_data.py export --retailer rewe --output-file rewe_receipts.json
 ```
 
-Optional kann das Write-Backend bereits explizit gewählt werden:
+Optional kann für den Export ein alternativer DB-Pfad gesetzt werden:
 
 ```bash
-python get_data.py initial --retailer lidl --write-backend json
-python get_data.py update --retailer rewe --output-dir tmp/rewe --write-backend json
+python get_data.py export --retailer rewe --db-path shopping_receipts.sqlite --output-file rewe_receipts.json
 ```
-
-Aktuell ist `json` das einzige verfügbare Backend. Der Schalter ist bereits als Vorbereitung für weitere Write-Backends vorgesehen.
 
 ## Händler-spezifische Anleitungen
 
 - [`docs/LIDL_RECEIPTS.md`](./docs/LIDL_RECEIPTS.md) – LIDL-Workflow, Authentifizierung, Limitierungen und Ausgaben
 - [`docs/README_REWE_EBONS.md`](./docs/README_REWE_EBONS.md) – REWE-eBon-Workflow, `customerId`, ZIP/PDF-Import und Fehlersuche
+- [`docs/README_DATA_HARMONIZATION.md`](./docs/README_DATA_HARMONIZATION.md) – Stand und Unterschiede der Harmonisierung zwischen LIDL und REWE
 - [`docs/LIBREWOLF_SESSION_COOKIES.md`](./docs/LIBREWOLF_SESSION_COOKIES.md) – ergänzende Hinweise zur Cookie-Gewinnung aus LibreWolf
 
 ## Architektur und Beitragshinweise
@@ -98,7 +98,7 @@ Wichtige Kurzfassung:
 
 - `workflows/*` ist die einzige Orchestrierungsschicht
 - `workflows/pipeline_runner.py` arbeitet nur mit injizierten Funktionen/Ports, nicht mit konkreten Parsing- oder Storage-Adaptern
-- der Umschaltpunkt für Write-Backends liegt aktuell im CLI-Entry-Point (`--write-backend`) und wird in die Workflow-Einstiege durchgereicht
+- Persistenz erfolgt standardmäßig DB-first nach `shopping_receipts.sqlite`; externe Formate werden über Export-Adapter erzeugt
 - gemeinsame neutrale Bausteine liegen unter `shared/*` sowie in `result_types.py`
 - entfernte Wrapper- und Altpfade wie `receipt_schema`, `parsing.receipt_schema`, `parsing.receipt_parse_result` und `diagnostics.*` sollen nicht wieder eingeführt werden
 
@@ -111,10 +111,10 @@ Kanonische Importpfade für neue Beiträge sind insbesondere:
 
 ## Ausgaben
 
-Je nach Händler entstehen insbesondere folgende Dateien:
+Je nach Workflow entstehen insbesondere folgende Dateien:
 
-- `lidl_receipts.json`
-- `rewe_receipts.json`
+- `shopping_receipts.sqlite`
+- optionale Exporte: `lidl_receipts.json`, `rewe_receipts.json`
 - `tmp/rewe/receipts.zip`
 - `tmp/rewe/pdfs/`
 

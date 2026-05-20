@@ -1,6 +1,6 @@
 # Workflow-Überblick
 
-Stand: 2026-05-10
+Stand: 2026-05-19
 
 Dieses Dokument beschreibt die fachlichen Hauptabläufe in `workflows/*` in einer kompakteren Form als Einstieg für Wartung und Refactoring.
 
@@ -10,8 +10,7 @@ Dieses Dokument beschreibt die fachlichen Hauptabläufe in `workflows/*` in eine
 
 Öffentlich gemacht werden dort nur echte Einstiegspunkte:
 
-- Use Cases wie `run_lidl_initial(...)` oder `run_rewe_update(...)`
-- bewusst freigegebene Diagnose-/Import-Helfer wie `fetch_lidl_receipt_parse_result(...)` oder `parse_rewe_receipt_pdf_with_result(...)`
+- Use Cases wie `run_lidl_sync(...)`, `run_rewe_initial(...)` oder `run_rewe_update(...)`
 
 Alle übrigen Orchestrierungshelfer bleiben privat und beginnen mit `_`.
 
@@ -39,12 +38,12 @@ Wichtige Regel:
 - Der Pipeline-Runner kennt keine konkreten Parser oder Stores.
 - Diese werden durch den jeweiligen Händler-Workflow injiziert.
 
-### Öffentliche Pipeline-Schnittstellen
+### Oeffentliche Pipeline-Schnittstellen
 
 Der Pipeline-Runner arbeitet bewusst nur mit injizierten Funktionen und Ports:
 
-- `parse_receipts(raw_records, parse_record, ...)`
-- `validate_receipts(parsed_records, validate_receipt, validation_error_types, ...)`
+- `parse_receipts(raw_records, retailer, ...)`
+- `validate_receipts(parsed_records, retailer, ...)`
 - `persist_valid_receipts(receipts, retailer, store, ...)`
 
 Damit bleibt die Datei ein gemeinsamer Workflow-Baustein und kein weiterer Adapter-Hub.
@@ -69,42 +68,29 @@ Ziel dabei ist:
 
 Die dafür genutzten Helper liegen in `workflows/error_mapping.py` und kapseln bewusst nur Workflow-Darstellung, nicht Parsing- oder Validatorlogik.
 
-### Gemeinsamer Store-Port und Backend-Umschaltpunkt
+### Gemeinsamer Store-Port und Persistenzmodell
 
-Persistenz und bestehende Receipt-Snapshots laufen jetzt über denselben Store-Port:
+Persistenz und bestehende Receipt-Snapshots laufen ueber denselben Store-Port:
 
-- `shared.ports.ReceiptStore`
+- `shared.receipt_store.ReceiptStore`
 
-Der konkrete Store wird derzeit über eine kleine Factory in `storage/__init__.py` aufgelöst; das JSON-Backend liegt in `storage/json_receipt_store.py`.
-Der aktuelle Umschaltpunkt liegt im CLI-Entry-Point `get_data.py` über `--write-backend` und wird in die öffentlichen Workflow-Einstiege weitergereicht.
-So bleiben die internen Pipelines port-basiert, obwohl aktuell nur das JSON-Backend existiert.
+Der konkrete Persistenz-Store wird ueber `storage/__init__.py` aufgeloest und schreibt standardmaessig nach `shopping_receipts.sqlite` (DB-first).
+Externe Formate werden nicht mehr als Write-Backend ausgewaehlt, sondern ueber Export-Adapter erzeugt (aktuell JSON ueber `export/json_export.py`).
 
 ## LIDL
 
-### Öffentliche LIDL-API
+### Oeffentliche LIDL-API
 
-- `run_lidl_check(...)`
-- `run_lidl_initial(...)`
-- `run_lidl_update(...)`
-- `fetch_lidl_receipt_parse_result(...)`
+- `run_lidl_sync(...)`
 
-Nicht öffentlich ist dagegen die Receipt-ID-Sammlung. Sie bleibt als `_collect_lidl_receipt_ids(...)` ein interner Orchestrierungshelfer des LIDL-Workflows.
+Nicht oeffentlich sind die internen Session-/Collection-/Pipeline-Helper.
 
-### `run_lidl_initial(...)`
+### `run_lidl_sync(...)`
 Ablauf:
 1. Session vorbereiten und prüfen
-2. alle Receipt-IDs sammeln
-3. bekannte IDs über den konfigurierten Store laden
-4. nur neue IDs bestimmen
-5. gemeinsame LIDL-Pipeline ausführen
-6. Skip-Report + Summary + Abschlussausgabe
-
-### `run_lidl_update(...)`
-Ablauf:
-1. Session vorbereiten und prüfen
-2. nur die ersten relevanten Seiten abrufen
-3. bekannte IDs über den konfigurierten Store laden
-4. nur neue IDs bestimmen
+2. alle Ticket-Seiten der LIDL-API sammeln
+3. bestehende Receipt-IDs aus dem Store laden
+4. nur neue Receipts ueber stabile `receipt_id` bestimmen
 5. gemeinsame LIDL-Pipeline ausführen
 6. Skip-Report + Summary + Abschlussausgabe
 
@@ -120,19 +106,16 @@ Die wichtigsten LIDL-Helfer sind jetzt getrennt nach:
 - Session-Aufbau: `_setup_lidl_session(...)`
 - Session-Test: `_test_lidl_workflow_session(...)`
 - Session-Readiness für Use Cases: `_prepare_lidl_session(...)`
-- Receipt-Auswahl: `_collect_lidl_receipt_ids(...)`, `_filter_new_receipt_ids(...)`
+- Receipt-Auswahl: `_collect_lidl_receipt_sources(...)`, `_filter_lidl_receipt_ids_for_processing(...)`
 - Pipeline-Ausgabe: `_print_lidl_pipeline_result(...)`
 - Abschlussausgabe: `_print_lidl_completion(...)`
 
 ## REWE
 
-### Öffentliche REWE-API
+### Oeffentliche REWE-API
 
-- `run_rewe_check(...)`
 - `run_rewe_initial(...)`
 - `run_rewe_update(...)`
-- `import_rewe_receipts_from_pdfs(...)`
-- `parse_rewe_receipt_pdf_with_result(...)`
 
 ### `run_rewe_initial(...)`
 Ablauf:
@@ -152,7 +135,7 @@ Wichtige Helfer:
 Ablauf:
 1. vorhandene lokale PDFs lesen
 2. gemeinsame PDF-Importpipeline für alle gefundenen PDFs ausführen
-3. Persistenz per Upsert dem konfigurierten Store überlassen
+3. Persistenz per Upsert dem DB-Store ueberlassen
 4. Summary ausgeben
 
 ### `_run_rewe_pdf_import_pipeline(...)`
@@ -167,11 +150,13 @@ Hilfsfunktionen dafür:
 - `_build_rewe_missing_pdfs_result(...)`
 - `_build_rewe_prefilter_only_result(...)`
 
-### `parse_rewe_receipt_pdf_with_result(...)`
-Verantwortung:
-- Workflow-seitiges Parse-/Validate-Ergebnis für einen einzelnen REWE-PDF-Bon
-- geeignet für Diagnostik-nahe Einzelprüfungen ohne separates Diagnostics-Paket
-- kapselt Parse- und Validierungsfehler direkt in ein `ReceiptParseResult`
+### Export-Workflow
+
+Fuer Ausgabeformate aus dem aktuellen DB-Stand gibt es einen separaten Workflow:
+
+- `workflows/export_workflow.py` mit `run_export_json_from_db(...)`
+
+Dieser Pfad liest aus SQLite und erzeugt aktuell JSON-Dateien ueber `export/json_export.py`.
 
 ## Warum die Workflows trotzdem noch komplex wirken
 

@@ -5,8 +5,9 @@ Main entry point for the shopping analyzer application. Supports multiple
 retailers (currently LIDL and REWE).
 
 For first-time setup or complete refresh, use the 'initial' command.
-For monthly updates (adds only new data and sorts by date), use the 'update' command.
+For monthly updates (adds only new data), use the 'update' command.
 Use the 'check' command to validate cookie/request files before running imports.
+Use the 'export' command to generate JSON from the current SQLite database state.
 
 Usage:
     python get_data.py                                              # Interactive menu
@@ -14,19 +15,17 @@ Usage:
     python get_data.py update  --retailer lidl --browser chromium   # LIDL update
     python get_data.py initial --retailer lidl --cookies-file cookies.json
     python get_data.py update  --retailer lidl --country bg --browser chromium
-    python get_data.py initial --retailer lidl --write-backend json
-
     python get_data.py initial --retailer rewe --cookies-file rewe_cookies.json
     python get_data.py update  --retailer rewe --output-dir tmp/rewe
     python get_data.py check   --retailer lidl --cookies-file lidl_cookies.json
     python get_data.py check   --retailer rewe --cookies-file rewe_cookies.json
+    python get_data.py export  --retailer lidl --output-file lidl_receipts.json
 """
+
+from __future__ import annotations
 
 import argparse
 import sys
-
-from storage import WRITE_BACKENDS
-
 
 RETAILERS = ("lidl", "rewe")
 
@@ -81,13 +80,6 @@ def create_parser() -> argparse.ArgumentParser:
             default="tmp/rewe",
             help="[REWE only] Directory where the ZIP and extracted PDFs are stored",
         )
-        subparser.add_argument(
-            "--write-backend",
-            choices=WRITE_BACKENDS,
-            default="json",
-            help="Write backend used for receipt persistence (default: json)",
-        )
-
     def add_check_args(subparser: argparse.ArgumentParser) -> None:
         add_retailer_arg(subparser)
         subparser.add_argument(
@@ -95,6 +87,15 @@ def create_parser() -> argparse.ArgumentParser:
             metavar="FILE",
             help="Path to cookies/request JSON file to validate",
         )
+
+    def add_export_args(subparser: argparse.ArgumentParser) -> None:
+        add_retailer_arg(subparser)
+        subparser.add_argument(
+            "--output-file",
+            metavar="FILE",
+            help="Optional output path for exported JSON (defaults to retailer json target)",
+        )
+
 
     initial_parser = subparsers.add_parser(
         "initial",
@@ -114,12 +115,20 @@ def create_parser() -> argparse.ArgumentParser:
     )
     add_check_args(check_parser)
 
+    export_parser = subparsers.add_parser(
+        "export",
+        help="Export receipts from SQLite into JSON",
+    )
+    add_export_args(export_parser)
+
     return parser
 
 
 def _dispatch(args: argparse.Namespace, mode: str) -> bool:
     if mode == "check":
         return _dispatch_check(args)
+    if mode == "export":
+        return _dispatch_export(args)
     return _dispatch_workflow(args, mode)
 
 
@@ -149,7 +158,6 @@ def _dispatch_workflow(args: argparse.Namespace, mode: str) -> bool:
             browser=args.browser,
             cookies_file=args.cookies_file,
             country=args.country,
-            write_backend=args.write_backend,
         )
 
     if args.retailer == "rewe":
@@ -159,11 +167,20 @@ def _dispatch_workflow(args: argparse.Namespace, mode: str) -> bool:
             cookies_file=args.cookies_file,
             customer_id=args.customer_id,
             output_dir=args.output_dir,
-            write_backend=args.write_backend,
         )
 
     print(f"✗ Unbekannter Händler: {args.retailer}", file=sys.stderr)
     return False
+
+
+def _dispatch_export(args: argparse.Namespace) -> bool:
+    """Run JSON export from current SQLite state for one retailer."""
+    from workflows.export_workflow import run_export_json_from_db
+
+    return run_export_json_from_db(
+        retailer=args.retailer,
+        output_file=args.output_file,
+    )
 
 
 def _command_label(command: str) -> str:
@@ -172,12 +189,18 @@ def _command_label(command: str) -> str:
         return "Initial Setup"
     if command == "update":
         return "Update"
+    if command == "export":
+        return "Export"
     return "Check"
 
 
 def _run_subcommand(args: argparse.Namespace) -> int:
     """Execute a parsed subcommand and return the process exit code."""
-    success = _dispatch(args, args.command)
+    try:
+        success = _dispatch(args, args.command)
+    except ModuleNotFoundError as exc:
+        _print_missing_dependency_hint(exc)
+        return 1
     label = _command_label(args.command)
     if success:
         print(f"✓ {label} erfolgreich abgeschlossen!")
@@ -189,10 +212,32 @@ def _run_subcommand(args: argparse.Namespace) -> int:
 
 def _run_interactive_menu() -> int:
     """Start the interactive CLI menu and return a process exit code."""
-    from cli import main as run_cli_main
+    try:
+        from cli import main as run_cli_main
+    except ModuleNotFoundError as exc:
+        _print_missing_dependency_hint(exc)
+        return 1
 
-    run_cli_main()
+    try:
+        run_cli_main()
+    except ModuleNotFoundError as exc:
+        _print_missing_dependency_hint(exc)
+        return 1
     return 0
+
+
+def _print_missing_dependency_hint(exc: ModuleNotFoundError) -> None:
+    """Print a concise installation hint when a required package is missing."""
+    missing_module = str(getattr(exc, "name", "") or "unbekannt")
+    print(
+        (
+            "✗ Fehlende Python-Abhängigkeit: "
+            f"{missing_module}.\n"
+            "Bitte installiere die Projektabhängigkeiten und starte den Befehl erneut:\n"
+            "  python3.14 -m pip install -r requirements.txt"
+        ),
+        file=sys.stderr,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -200,7 +245,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = create_parser()
     args = parser.parse_args(argv)
 
-    if args.command in ("initial", "update", "check"):
+    if args.command in ("initial", "update", "check", "export"):
         return _run_subcommand(args)
 
     return _run_interactive_menu()

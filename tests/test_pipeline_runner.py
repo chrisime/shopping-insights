@@ -1,19 +1,9 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from result_types import PersistResult, WorkflowSummary
-from shared.receipt_store import ReceiptStore
-from workflows.pipeline_runner import parse_receipts, persist_valid_receipts, validate_receipts
+from result_types import WorkflowSummary
+from workflows.pipeline_runner import parse_receipts, validate_receipts
 from workflows.pipeline_types import ParsedReceiptRecord, RawReceiptRecord, ReceiptIssue, WorkflowResult
-
-
-class _FakeStore(ReceiptStore):
-    def persist_receipts(self, receipts, retailer, file_path=None):
-        return PersistResult(
-            created_count=2,
-            updated_count=1,
-            total_receipts=5,
-        )
 
 
 class PipelineRunnerTests(unittest.TestCase):
@@ -84,15 +74,6 @@ class PipelineRunnerTests(unittest.TestCase):
 
         self.assertEqual(result.total_items, 2)
 
-    def test_persist_valid_receipts_returns_store_result(self):
-        result = persist_valid_receipts(
-            [{"id": "1", "items": []}],
-            retailer="lidl",
-            store=(_FakeStore()),
-        )
-
-        self.assertEqual(result.processed_count, 3)
-        self.assertEqual(result.total_receipts, 5)
 
     def test_receipt_issue_renders_detail_dict(self):
         result = WorkflowResult(

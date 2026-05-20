@@ -1,6 +1,6 @@
 # REWE eBons extrahieren
 
-Diese Anleitung beschreibt, wie du mit dem aktuellen Stand des Projekts deine REWE-eBons herunterladen, als PDFs entpacken und anschließend in die gemeinsame JSON-Datenbasis importieren kannst.
+Diese Anleitung beschreibt, wie du mit dem aktuellen Stand des Projekts deine REWE-eBons herunterladen, als PDFs entpacken und anschließend in die gemeinsame SQLite-Datenbasis importieren kannst.
 
 > Status: **funktionierender Workflow**
 >
@@ -19,11 +19,7 @@ Der aktuelle REWE-Workflow kann:
 - alle eBons als ZIP herunterladen
 - die ZIP automatisch in PDF-Dateien entpacken
 - bei `update` aus bereits vorhandenen PDFs nur neue eBons anhand bereits bekannter REWE-IDs importieren
-- die PDFs direkt in `rewe_receipts.json` importieren
-
-Der aktuelle Workflow kann noch **nicht automatisch**:
-
-- REWE-Daten bereits vollständig mit Lidl-Daten harmonisieren
+- die PDFs direkt in `shopping_receipts.sqlite` importieren
 
 ---
 
@@ -220,7 +216,7 @@ Für spätere Läufe kannst du auch `update` verwenden:
 python3 get_data.py update --retailer rewe --output-dir tmp/rewe
 ```
 
-Wichtig: REWE bietet aktuell keinen echten serverseitigen Delta-Endpunkt. `update` arbeitet deshalb rein lokal auf bereits vorhandenen PDFs in `tmp/rewe/pdfs` (bzw. im gewählten `--output-dir`) und importiert diese erneut per Upsert in den konfigurierten Store. Bereits bekannte Bons werden also nicht vorab ausgesiebt, sondern beim Persistieren aktualisiert bzw. unverändert belassen.
+Wichtig: REWE bietet aktuell keinen echten serverseitigen Delta-Endpunkt. `update` arbeitet deshalb rein lokal auf bereits vorhandenen PDFs in `tmp/rewe/pdfs` (bzw. im gewählten `--output-dir`) und importiert diese erneut per Upsert in die SQLite-Datenbank. Bereits bekannte Bons werden also nicht vorab ausgesiebt, sondern beim Persistieren aktualisiert bzw. unverändert belassen.
 
 Optional kannst du ein anderes Ausgabeverzeichnis setzen:
 
@@ -236,7 +232,13 @@ Standardmäßig erzeugt der Workflow folgende Dateien und Ordner:
 
 - `tmp/rewe/receipts.zip`
 - `tmp/rewe/pdfs/`
-- `rewe_receipts.json`
+- `shopping_receipts.sqlite`
+
+Bei Bedarf kannst du zusätzlich einen JSON-Export aus dem aktuellen DB-Stand erzeugen:
+
+```bash
+python3 get_data.py export --retailer rewe --output-file rewe_receipts.json
+```
 
 In `tmp/rewe/pdfs/` liegen anschließend alle entpackten eBon-PDFs.
 
@@ -353,7 +355,13 @@ Danach findest du die PDFs in:
 tmp/rewe/pdfs/
 ```
 
-Die importierten Daten landen zusätzlich in:
+Die importierten Daten landen standardmäßig in:
+
+```text
+shopping_receipts.sqlite
+```
+
+Optionaler Export:
 
 ```text
 rewe_receipts.json

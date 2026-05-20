@@ -9,6 +9,7 @@ import requests
 from api.rewe_client import download_receipts_zip, test_rewe_session
 from auth.rewe_customer_id import cache_customer_id, resolve_rewe_customer_id
 from auth.session_manager import setup_session
+from config import storage_config
 from reporting.rewe_api_reporting import (
     print_rewe_session_test_start, print_rewe_session_test_success,
     print_rewe_zip_saved
@@ -24,9 +25,9 @@ from reporting.rewe_workflow_reporting import (
 )
 from result_types import WorkflowSummary
 from shared.receipt_store import ReceiptStore
-from storage import create_receipt_store, resolve_receipt_store_target
+from storage import create_receipt_store
 
-from .pipeline_runner import parse_receipts, persist_valid_receipts, validate_receipts
+from .pipeline_runner import parse_receipts, validate_receipts
 from .pipeline_types import RawReceiptRecord, ReceiptIssue, WorkflowResult
 from .workflow_constants import RETAILER_REWE, REASON_KIND_REWE_PDF_PARSE
 
@@ -42,12 +43,10 @@ def run_rewe_initial(
         browser: Optional[str] = None,
         cookies_file: Optional[str] = None,
         output_dir: str = REWE_DEFAULT_OUTPUT_DIR,
-        write_backend: str = "json",
 ) -> bool:
     """Run the full REWE eBon workflow: download ZIP, extract PDFs, import JSON."""
 
-    store = create_receipt_store(write_backend)
-    receipts_file = resolve_receipt_store_target(write_backend, retailer=RETAILER_REWE)
+    store = create_receipt_store()
     prepared_session = _prepare_rewe_import_session(
         customer_id=customer_id,
         browser=browser,
@@ -69,7 +68,7 @@ def run_rewe_initial(
         pdf_output_dir,
         retailer=RETAILER_REWE,
         store=store,
-        receipts_file=receipts_file,
+        receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
     )
     print_rewe_import_summary(workflow_result.summary)
 
@@ -84,19 +83,17 @@ def run_rewe_update(
         browser: Optional[str] = None,
         cookies_file: Optional[str] = None,
         output_dir: str = REWE_DEFAULT_OUTPUT_DIR,
-        write_backend: str = "json",
 ) -> bool:
     """Re-import all locally downloaded REWE PDFs into the configured store via upsert."""
     _ = customer_id, browser, cookies_file
     print_rewe_update_no_delta()
-    store = create_receipt_store(write_backend)
-    receipts_file = resolve_receipt_store_target(write_backend, retailer=RETAILER_REWE)
+    store = create_receipt_store()
     pdf_output_dir = Path(output_dir) / "pdfs"
     workflow_result = _run_rewe_pdf_import_pipeline(
         pdf_output_dir,
         retailer=RETAILER_REWE,
         store=store,
-        receipts_file=receipts_file,
+        receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
     )
 
     print_rewe_import_summary(workflow_result.summary)
@@ -108,7 +105,6 @@ def _run_rewe_pdf_import_pipeline(
         pdf_dir: Path,
         store: ReceiptStore,
         receipts_file: str,
-        file_path: Optional[str] = None,
         retailer: str = RETAILER_REWE,
         pdf_paths: Optional[Sequence[Path]] = None,
         prefilter_issues: Optional[Sequence[ReceiptIssue]] = None,
@@ -157,12 +153,7 @@ def _run_rewe_pdf_import_pipeline(
         retailer=RETAILER_REWE,
         detail_key="file",
     )
-    persist_result = persist_valid_receipts(
-        validation_result.records,
-        retailer=retailer,
-        store=store,
-        file_path=file_path,
-    )
+    persist_result = store.persist_receipts(validation_result.records, retailer=retailer)
     skipped_issues = [*initial_issues, *parse_result.issues, *validation_result.issues]
     skipped_details = [issue.as_detail() for issue in skipped_issues]
     skip_report_path = write_rewe_skipped_receipts_report(pdf_dir, skipped_details)

@@ -6,16 +6,15 @@ from .common_prompts import (
     print_invalid_choice,
     prompt_optional_value,
     prompt_with_default,
-    prompt_write_backend,
 )
 from auth.rewe_file_auth import diagnose_rewe_cookie_file
+from config import ReweConfig
+from workflows.export_workflow import run_export_json_from_db
 from workflows.rewe_workflow import run_rewe_initial, run_rewe_update
-
 
 
 def _run_rewe_initial() -> None:
     """Interactive wrapper around the central REWE initial workflow."""
-    write_backend = prompt_write_backend()
     auth_kwargs = prompt_auth_source(
         "REWE",
         "Cookie-/Request-Datei",
@@ -30,7 +29,6 @@ def _run_rewe_initial() -> None:
     success = run_rewe_initial(
         customer_id=customer_id,
         output_dir=output_dir,
-        write_backend=write_backend,
         **auth_kwargs,
     )
     if success:
@@ -41,18 +39,26 @@ def _run_rewe_initial() -> None:
 
 def _run_rewe_update() -> None:
     """Interactive wrapper around the local REWE update workflow."""
-    write_backend = prompt_write_backend()
     output_dir = prompt_with_default(
         "Verzeichnis mit vorhandenen REWE ZIP/PDFs",
         "tmp/rewe",
     )
 
     print("\nStarte REWE Update aus vorhandenen PDFs...")
-    success = run_rewe_update(output_dir=output_dir, write_backend=write_backend)
+    success = run_rewe_update(output_dir=output_dir)
     if success:
         print("✓ REWE-Update erfolgreich abgeschlossen!")
     else:
         print("✗ REWE-Update fehlgeschlagen!")
+
+
+def _run_rewe_export_json() -> None:
+    """Export REWE receipts from SQLite into JSON."""
+
+    output_file = prompt_with_default("Zielpfad für JSON-Export", ReweConfig.RECEIPTS_JSON_FILE)
+    success = run_export_json_from_db(retailer="rewe", output_file=output_file)
+    if not success:
+        print("✗ REWE-JSON-Export fehlgeschlagen!")
 
 
 def _run_rewe_check() -> None:
@@ -71,7 +77,7 @@ def show_rewe_menu() -> None:
         _print_rewe_menu()
 
         try:
-            choice = input("\nWähle eine Option (1-4): ").strip()
+            choice = input("\nWähle eine Option (1-5): ").strip()
             if not _dispatch_rewe_menu_choice(choice):
                 return
 
@@ -83,10 +89,11 @@ def show_rewe_menu() -> None:
 def _print_rewe_menu() -> None:
     """Render the REWE submenu options."""
     print("\n=== REWE: Was möchtest du tun? ===")
-    print("1. Initial Setup (ZIP + PDFs + JSON)")
+    print("1. Initial Setup (ZIP + PDFs + DB-Import)")
     print("2. Update (aus vorhandenen PDFs nur neue eBons importieren)")
-    print("3. Cookie-/Request-Datei prüfen (Diagnose)")
-    print("4. Zurück")
+    print("3. JSON aus aktuellem DB-Stand erzeugen")
+    print("4. Cookie-/Request-Datei prüfen (Diagnose)")
+    print("5. Zurück")
 
 
 def _dispatch_rewe_menu_choice(choice: str) -> bool:
@@ -101,12 +108,15 @@ def _dispatch_rewe_menu_choice(choice: str) -> bool:
         _run_rewe_update()
         return False
     if choice == "3":
-        _run_rewe_check()
+        _run_rewe_export_json()
         return False
     if choice == "4":
+        _run_rewe_check()
+        return False
+    if choice == "5":
         return False
 
-    print_invalid_choice("1, 2, 3 oder 4")
+    print_invalid_choice("1, 2, 3, 4 oder 5")
     return True
 
 

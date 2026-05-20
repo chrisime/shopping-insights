@@ -18,19 +18,19 @@ class GetDataTests(unittest.TestCase):
         self.assertEqual(args.retailer, "lidl")
         self.assertEqual(args.cookies_file, "lidl_cookies.json")
 
-    def test_create_parser_parses_write_backend_for_workflows(self):
+    def test_create_parser_parses_export_command(self):
         parser = get_data.create_parser()
 
         args = parser.parse_args([
-            "update",
+            "export",
             "--retailer",
-            "rewe",
-            "--write-backend",
-            "sqlite",
+            "lidl",
+            "--output-file",
+            "lidl_receipts.json",
         ])
 
-        self.assertEqual(args.command, "update")
-        self.assertEqual(args.write_backend, "sqlite")
+        self.assertEqual(args.command, "export")
+        self.assertEqual(args.output_file, "lidl_receipts.json")
 
     def test_dispatch_check_calls_lidl_diagnostics(self):
         args = argparse.Namespace(
@@ -64,7 +64,6 @@ class GetDataTests(unittest.TestCase):
             customer_id=None,
             output_dir="tmp/rewe",
             country=None,
-            write_backend="json",
         )
 
         with patch("workflows.rewe_workflow.run_rewe_update", return_value=True) as run_update:
@@ -76,10 +75,9 @@ class GetDataTests(unittest.TestCase):
             cookies_file=None,
             customer_id=None,
             output_dir="tmp/rewe",
-            write_backend="json",
         )
 
-    def test_dispatch_initial_calls_lidl_sync_with_selected_write_backend(self):
+    def test_dispatch_initial_calls_lidl_sync(self):
         args = argparse.Namespace(
             retailer="lidl",
             browser="firefox",
@@ -87,7 +85,6 @@ class GetDataTests(unittest.TestCase):
             customer_id=None,
             output_dir="tmp/rewe",
             country="de",
-            write_backend="json",
         )
 
         with patch("workflows.lidl_workflow.run_lidl_sync", return_value=True) as run_sync:
@@ -98,10 +95,9 @@ class GetDataTests(unittest.TestCase):
             browser="firefox",
             cookies_file=None,
             country="de",
-            write_backend="json",
         )
 
-    def test_dispatch_update_calls_lidl_sync_with_selected_write_backend(self):
+    def test_dispatch_update_calls_lidl_sync(self):
         args = argparse.Namespace(
             retailer="lidl",
             browser=None,
@@ -109,7 +105,6 @@ class GetDataTests(unittest.TestCase):
             customer_id=None,
             output_dir="tmp/rewe",
             country="de",
-            write_backend="sqlite",
         )
 
         with patch("workflows.lidl_workflow.run_lidl_sync", return_value=True) as run_sync:
@@ -120,7 +115,21 @@ class GetDataTests(unittest.TestCase):
             browser=None,
             cookies_file="lidl_cookies.json",
             country="de",
-            write_backend="sqlite",
+        )
+
+    def test_dispatch_export_calls_export_workflow(self):
+        args = argparse.Namespace(
+            retailer="rewe",
+            output_file="rewe_receipts.json",
+        )
+
+        with patch("workflows.export_workflow.run_export_json_from_db", return_value=True) as run_export:
+            success = get_data._dispatch(args, "export")
+
+        self.assertTrue(success)
+        run_export.assert_called_once_with(
+            retailer="rewe",
+            output_file="rewe_receipts.json",
         )
 
     def test_main_runs_interactive_cli_when_no_subcommand_is_given(self):

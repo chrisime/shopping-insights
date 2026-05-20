@@ -7,6 +7,7 @@ import simplejson
 from typing import Any
 
 from config import get_retailer_runtime
+from shared.receipt_dto import ReceiptDTO
 
 from .sqlite_entities import (
     PaymentMethodEntity,
@@ -23,27 +24,18 @@ def build_retailer_entity(retailer_code: str) -> RetailerEntity:
     retailer_runtime = get_retailer_runtime(retailer_code)
     if retailer_runtime is None:
         normalized_code = retailer_code.strip().lower()
-        return RetailerEntity(
-            code=normalized_code,
-            name=normalized_code.upper(),
-            country="",
-        )
+        return RetailerEntity(normalized_code, normalized_code.upper(), "")
 
-    return RetailerEntity(
-        code=retailer_runtime.code,
-        name=retailer_runtime.name,
-        country=retailer_runtime.country,
-    )
+    return RetailerEntity(retailer_runtime.code, retailer_runtime.name, retailer_runtime.country)
 
 
-def build_store_entity(receipt_data: dict[str, Any]) -> StoreEntity:
-    address = receipt_data.get("address") or {}
-    retailer_code = str(receipt_data.get("retailer") or "").strip().lower()
-    name = _to_text(receipt_data.get("store"))
-    street = _to_text(address.get("street"))
-    street_no = _to_text(address.get("street_no"))
-    zip_code = _to_text(address.get("zip"))
-    city = _to_text(address.get("city"))
+def build_store_entity(receipt_dto: ReceiptDTO) -> StoreEntity:
+    retailer_code = receipt_dto.retailer
+    name = _to_text(receipt_dto.store)
+    street = _to_text(receipt_dto.address.street)
+    street_no = _to_text(receipt_dto.address.street_no)
+    zip_code = _to_text(receipt_dto.address.zip)
+    city = _to_text(receipt_dto.address.city)
     store_hash = _hash_text(
         simplejson.dumps(
             {
@@ -71,71 +63,66 @@ def build_store_entity(receipt_data: dict[str, Any]) -> StoreEntity:
     )
 
 
-def build_purchase_entity(
-    receipt_data: dict[str, Any],
-    store_id: int | None,
-    payload_hash: str,
-) -> PurchaseEntity:
+def build_purchase_entity(receipt_dto: ReceiptDTO, store_id: int | None, payload_hash: str) -> PurchaseEntity:
     return PurchaseEntity(
-        id=str(receipt_data["id"]),
+        id=receipt_dto.id,
         store_id=store_id,
-        purchase_date=str(receipt_data.get("purchase_date") or ""),
-        market=receipt_data.get("market"),
-        register_id=receipt_data.get("register"),
-        cashier=receipt_data.get("cashier"),
-        total_price=receipt_data.get("total_price"),
-        amount_saved=receipt_data.get("amount_saved") or 0.0,
-        saved_deposit=receipt_data.get("saved_deposit") or 0.0,
-        currency=str(receipt_data.get("currency") or "EUR"),
-        source_file=receipt_data.get("source_file"),
+        purchase_date=receipt_dto.purchase_date,
+        market=receipt_dto.market,
+        register_id=receipt_dto.register_id,
+        cashier=receipt_dto.cashier,
+        total_price=receipt_dto.total_price,
+        amount_saved=receipt_dto.amount_saved,
+        saved_deposit=receipt_dto.saved_deposit,
+        currency=receipt_dto.currency,
+        source_file=receipt_dto.source_file,
         hash=payload_hash,
-        source_hash=receipt_data.get("source_hash"),
     )
 
 
-def build_purchase_item_entities(receipt_data: dict[str, Any]) -> list[PurchaseItemEntity]:
-    purchase_id = str(receipt_data["id"])
+def build_purchase_item_entities(receipt_dto: ReceiptDTO) -> list[PurchaseItemEntity]:
+    purchase_id = receipt_dto.id
     return [
         PurchaseItemEntity(
             purchase_id=purchase_id,
-            position=position,
-            name=str(item.get("name") or ""),
-            quantity=item.get("quantity") if item.get("quantity") is not None else 1,
-            unit=str(item.get("unit") or "stk"),
-            price=item.get("price") if item.get("price") is not None else 0,
+            position=item.position,
+            name=item.name,
+            quantity=item.quantity if item.quantity is not None else 1,
+            unit=item.unit or "stk",
+            price=item.price if item.price is not None else 0,
         )
-        for position, item in enumerate(receipt_data.get("items") or [], start=1)
+        for item in receipt_dto.items
     ]
 
 
-def build_payment_method_entities(receipt_data: dict[str, Any]) -> list[PaymentMethodEntity]:
-    purchase_id = str(receipt_data["id"])
+def build_payment_method_entities(receipt_dto: ReceiptDTO) -> list[PaymentMethodEntity]:
+    purchase_id = receipt_dto.id
     return [
         PaymentMethodEntity(
             purchase_id=purchase_id,
-            position=position,
-            method=str(payment_method.get("method") or ""),
-            network=payment_method.get("network"),
-            amount=payment_method.get("amount"),
+            position=payment_method.position,
+            method=payment_method.method,
+            network=payment_method.network,
+            amount=payment_method.amount,
         )
-        for position, payment_method in enumerate(receipt_data.get("payment_methods") or [], start=1)
+        for payment_method in receipt_dto.payment_methods
     ]
 
 
-def build_purchase_lidl_entity(receipt_data: dict[str, Any]) -> PurchaseLidlEntity:
+def build_purchase_lidl_entity(receipt_dto: ReceiptDTO) -> PurchaseLidlEntity:
     return PurchaseLidlEntity(
-        purchase_id=str(receipt_data["id"]),
-        lidlplus_amount_saved=receipt_data.get("lidlplus_amount_saved"),
-        sticker_discount_amount=receipt_data.get("sticker_discount_amount"),
+        purchase_id=receipt_dto.id,
+        lidlplus_amount_saved=receipt_dto.lidlplus_amount_saved,
+        sticker_discount_amount=receipt_dto.sticker_discount_amount,
     )
 
 
-def build_purchase_rewe_entity(receipt_data: dict[str, Any]) -> PurchaseReweEntity:
+def build_purchase_rewe_entity(receipt_dto: ReceiptDTO) -> PurchaseReweEntity:
     return PurchaseReweEntity(
-        purchase_id=str(receipt_data["id"]),
-        rewe_bonus_amount=receipt_data.get("rewe_bonus_amount") or 0.0,
-        rewe_bonus_total_amount=receipt_data.get("rewe_bonus_total_amount") or 0.0,
-        rewe_bonus_amount_saved=receipt_data.get("rewe_bonus_amount_saved") or 0.0,
+        purchase_id=receipt_dto.id,
+        rewe_bonus_amount=receipt_dto.rewe_bonus_amount or 0.0,
+        rewe_bonus_total_amount=receipt_dto.rewe_bonus_total_amount or 0.0,
+        rewe_bonus_amount_saved=receipt_dto.rewe_bonus_amount_saved or 0.0,
     )
 
 

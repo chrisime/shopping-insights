@@ -70,8 +70,8 @@ def print_lidl_existing_receipts_count(existing_receipts_count: int) -> None:
 
 
 def print_lidl_new_receipts_count(new_receipt_count: int) -> None:
-    """Print how many new or changed Lidl receipts will be processed."""
-    print(f"Neue/geänderte Kassenbons zu verarbeiten: {new_receipt_count}")
+    """Print how many new Lidl receipts will be processed."""
+    print(f"Neue Kassenbons zu verarbeiten: {new_receipt_count}")
 
 
 def print_lidl_checked_pages(checked_pages: int) -> None:
