@@ -17,8 +17,8 @@ JSON-Dateien sind ein **Exportformat** aus dem aktuellen DB-Stand.
 Zusätzlich gibt es für beide Händler einen Diagnosepfad für Cookie-/Request-Dateien:
 
 ```bash
-python get_data.py check --retailer lidl --cookies-file lidl_cookies.json
-python get_data.py check --retailer rewe --cookies-file rewe_cookies.json
+python fetch_tickets.py check --retailer lidl --cookies-file lidl_cookies.json
+python fetch_tickets.py check --retailer rewe --cookies-file rewe_cookies.json
 ```
 
 ## Voraussetzungen
@@ -49,7 +49,7 @@ venv\Scripts\activate
 ### Interaktives Menü
 
 ```bash
-python get_data.py
+python fetch_tickets.py
 ```
 
 Im Menü kannst du je nach Händler folgende Aktionen wählen:
@@ -60,21 +60,21 @@ Im Menü kannst du je nach Händler folgende Aktionen wählen:
 ### Direkte CLI-Aufrufe
 
 ```bash
-python get_data.py initial --retailer lidl --cookies-file lidl_cookies.json
-python get_data.py update --retailer lidl --cookies-file lidl_cookies.json
-python get_data.py check --retailer lidl --cookies-file lidl_cookies.json
-python get_data.py export --retailer lidl --output-file lidl_receipts.json
+python fetch_tickets.py initial --retailer lidl --cookies-file lidl_cookies.json
+python fetch_tickets.py update --retailer lidl --cookies-file lidl_cookies.json
+python fetch_tickets.py check --retailer lidl --cookies-file lidl_cookies.json
+python fetch_tickets.py export --retailer lidl --output-file lidl_receipts.json
 
-python get_data.py initial --retailer rewe --cookies-file rewe_cookies.json
-python get_data.py update --retailer rewe --output-dir tmp/rewe
-python get_data.py check --retailer rewe --cookies-file rewe_cookies.json
-python get_data.py export --retailer rewe --output-file rewe_receipts.json
+python fetch_tickets.py initial --retailer rewe --cookies-file rewe_cookies.json
+python fetch_tickets.py update --retailer rewe --output-dir tmp/rewe
+python fetch_tickets.py check --retailer rewe --cookies-file rewe_cookies.json
+python fetch_tickets.py export --retailer rewe --output-file rewe_receipts.json
 ```
 
 Optional kann für den Export ein alternativer DB-Pfad gesetzt werden:
 
 ```bash
-python get_data.py export --retailer rewe --db-path shopping_receipts.sqlite --output-file rewe_receipts.json
+python fetch_tickets.py export --retailer rewe --db-path shopping_receipts.sqlite --output-file rewe_receipts.json
 ```
 
 ## Händler-spezifische Anleitungen

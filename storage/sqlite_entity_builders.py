@@ -6,7 +6,7 @@ import hashlib
 import simplejson
 from typing import Any
 
-from config import get_retailer_runtime
+from shared.retailer_runtime import get_retailer_runtime
 from shared.receipt_dto import ReceiptDTO
 
 from .sqlite_entities import (
@@ -72,7 +72,7 @@ def build_purchase_entity(receipt_dto: ReceiptDTO, store_id: int | None, payload
         register_id=receipt_dto.register_id,
         cashier=receipt_dto.cashier,
         total_price=receipt_dto.total_price,
-        amount_saved=receipt_dto.amount_saved,
+        discount=receipt_dto.discount,
         saved_deposit=receipt_dto.saved_deposit,
         currency=receipt_dto.currency,
         source_file=receipt_dto.source_file,
@@ -112,8 +112,8 @@ def build_payment_method_entities(receipt_dto: ReceiptDTO) -> list[PaymentMethod
 def build_purchase_lidl_entity(receipt_dto: ReceiptDTO) -> PurchaseLidlEntity:
     return PurchaseLidlEntity(
         purchase_id=receipt_dto.id,
-        lidlplus_amount_saved=receipt_dto.lidlplus_amount_saved,
-        sticker_discount_amount=receipt_dto.sticker_discount_amount,
+        lidlplus_discount=receipt_dto.lidlplus_discount,
+        sticker_discount=receipt_dto.sticker_discount,
     )
 
 
@@ -122,7 +122,7 @@ def build_purchase_rewe_entity(receipt_dto: ReceiptDTO) -> PurchaseReweEntity:
         purchase_id=receipt_dto.id,
         rewe_bonus_amount=receipt_dto.rewe_bonus_amount or 0.0,
         rewe_bonus_total_amount=receipt_dto.rewe_bonus_total_amount or 0.0,
-        rewe_bonus_amount_saved=receipt_dto.rewe_bonus_amount_saved or 0.0,
+        rewe_bonus_discount=receipt_dto.rewe_bonus_discount or 0.0,
     )
 
 

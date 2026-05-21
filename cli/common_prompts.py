@@ -24,4 +24,3 @@ def print_invalid_choice(valid_options_text: str) -> None:
 def print_cancelled() -> None:
     """Print a normalized cancellation message for interactive menus."""
     print("\n\nAbgebrochen.")
-

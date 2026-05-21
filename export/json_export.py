@@ -8,7 +8,7 @@ from typing import Any, Optional
 
 import simplejson
 
-from config import get_retailer_runtime
+from shared.retailer_runtime import get_retailer_runtime
 from storage.sqlite_receipt_store import SqliteReceiptStore
 
 

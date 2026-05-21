@@ -65,7 +65,7 @@ Unterstützte Browser:
 Beispiel:
 
 ```bash
-python get_data.py initial --retailer lidl --browser firefox
+python fetch_tickets.py initial --retailer lidl --browser firefox
 ```
 
 Hinweis: Für LIDL führen `initial` und `update` aktuell intern beide denselben vollständigen Sync-Lauf aus.
@@ -79,7 +79,7 @@ Du kannst Cookies auch manuell exportieren, zum Beispiel mit einer Browser-Erwei
 Beispiel:
 
 ```bash
-python get_data.py initial --retailer lidl --cookies-file lidl_cookies.json
+python fetch_tickets.py initial --retailer lidl --cookies-file lidl_cookies.json
 ```
 
 ---
@@ -89,7 +89,7 @@ python get_data.py initial --retailer lidl --cookies-file lidl_cookies.json
 Bevor du den eigentlichen Import startest, kannst du eine exportierte Cookie-Datei prüfen:
 
 ```bash
-python get_data.py check --retailer lidl --cookies-file lidl_cookies.json
+python fetch_tickets.py check --retailer lidl --cookies-file lidl_cookies.json
 ```
 
 Die Diagnose prüft unter anderem:
@@ -106,19 +106,19 @@ Die Diagnose prüft unter anderem:
 Für einen vollständigen LIDL-Sync:
 
 ```bash
-python get_data.py initial --retailer lidl --cookies-file lidl_cookies.json
+python fetch_tickets.py initial --retailer lidl --cookies-file lidl_cookies.json
 ```
 
 Optional mit Browserprofil:
 
 ```bash
-python get_data.py initial --retailer lidl --browser firefox
+python fetch_tickets.py initial --retailer lidl --browser firefox
 ```
 
 Optional mit Länder-Override:
 
 ```bash
-python get_data.py initial --retailer lidl --cookies-file lidl_cookies.json --country de
+python fetch_tickets.py initial --retailer lidl --cookies-file lidl_cookies.json --country de
 ```
 
 ---
@@ -128,13 +128,13 @@ python get_data.py initial --retailer lidl --cookies-file lidl_cookies.json --co
 Die Kommandos `initial` und `update` stehen aus Kompatibilitätsgründen weiterhin zur Verfügung, führen für LIDL aber beide denselben Sync aus:
 
 ```bash
-python get_data.py update --retailer lidl --cookies-file lidl_cookies.json
+python fetch_tickets.py update --retailer lidl --cookies-file lidl_cookies.json
 ```
 
 Optional mit Browserprofil:
 
 ```bash
-python get_data.py update --retailer lidl --browser firefox
+python fetch_tickets.py update --retailer lidl --browser firefox
 ```
 
 Der LIDL-Sync prüft immer alle von der API gemeldeten Seiten und lädt nur neue Bons anhand stabiler `receipt_id` nach.
@@ -146,7 +146,7 @@ Der LIDL-Sync prüft immer alle von der API gemeldeten Seiten und lädt nur neue
 Alternativ kannst du den Workflow interaktiv starten:
 
 ```bash
-python get_data.py
+python fetch_tickets.py
 ```
 
 Im LIDL-Menü stehen aktuell zur Verfügung:
@@ -167,7 +167,7 @@ Der LIDL-Workflow schreibt die importierten Bons standardmäßig nach:
 Einen JSON-Export kannst du bei Bedarf separat erzeugen:
 
 ```bash
-python get_data.py export --retailer lidl --output-file lidl_receipts.json
+python fetch_tickets.py export --retailer lidl --output-file lidl_receipts.json
 ```
 
 Zusätzlich kann bei übersprungenen Bons ein Report mit Skip-Gründen geschrieben werden.

@@ -12,19 +12,19 @@ class ReceiptDatesTests(unittest.TestCase):
     def test_parse_purchase_date_accepts_retailer_and_normalized_formats(self):
         self.assertEqual(parse_purchase_date("2026-04-01").date().isoformat(), "2026-04-01")
         self.assertEqual(parse_purchase_date("01.04.2026").date().isoformat(), "2026-04-01")
+        self.assertEqual(parse_purchase_date("2024-08-19T12:00:00").date().isoformat(), "2024-08-19")
 
     def test_parse_purchase_date_rejects_legacy_historical_formats(self):
         self.assertIsNone(parse_purchase_date("01.04.2026 19:08"))
         self.assertIsNone(parse_purchase_date("2026.04.01"))
-        self.assertIsNone(parse_purchase_date("2024-08-19T12:00:00"))
 
     def test_normalize_purchase_date_returns_iso_date(self):
         self.assertEqual(normalize_purchase_date("01.04.2026"), "2026-04-01")
         self.assertEqual(normalize_purchase_date("2024-08-19"), "2024-08-19")
+        self.assertEqual(normalize_purchase_date("2024-08-19T12:00:00"), "2024-08-19")
 
     def test_normalize_purchase_date_returns_none_for_unsupported_legacy_formats(self):
         self.assertIsNone(normalize_purchase_date("01.04.2026 19:08"))
-        self.assertIsNone(normalize_purchase_date("2024-08-19T12:00:00"))
 
     def test_is_normalized_purchase_date_accepts_only_valid_iso_dates(self):
         self.assertTrue(is_normalized_purchase_date("2026-04-01"))

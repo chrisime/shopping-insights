@@ -96,11 +96,7 @@ def _parse_two_line_address(street_line: str, zip_city_line: str) -> Optional[di
     return normalize_address(payload)
 
 
-def _parse_three_line_address(
-    street_line: str,
-    house_number_line: str,
-    zip_city_line: str,
-) -> Optional[dict]:
+def _parse_three_line_address(street_line: str, house_number_line: str, zip_city_line: str) -> Optional[dict]:
     house_number_match = HOUSE_NUMBER_ONLY_RE.fullmatch(house_number_line)
     zip_city_match = ZIP_CITY_RE.fullmatch(zip_city_line)
     if not house_number_match or not zip_city_match:

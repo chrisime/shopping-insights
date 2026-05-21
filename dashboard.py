@@ -1,289 +1,222 @@
+"""Streamlit Dashboard – Phase 1 KPIs from SQLite database.
+
+Launch with:
+    streamlit run dashboard.py
+"""
+
 import streamlit as st
 import pandas as pd
-import json
-import os # Imported to check for file existence
+from pathlib import Path
 
-# --- Data Loading and Preparation ---
+from metrics import MetricsStore
 
-# Define the filename
-# DATA_FILE = "lidl_receipts.json"
-DATA_FILE = "rewe_receipts.json"
+# --- Page config ---
+st.set_page_config(layout="wide", page_title="Shopping Analyzer Dashboard", page_icon="🛒")
 
-# Function to load data from the JSON file
-def load_data(filename):
-    if not os.path.exists(filename):
-        st.error(f"Fehler: Die Datei '{filename}' wurde nicht gefunden. Bitte erstellen Sie sie im gleichen Verzeichnis wie das Skript.")
-        return None # Return None to stop the script from running further
+# --- Custom CSS ---
+st.markdown("""
+<style>
+.main .block-container { padding-top: 2rem; }
+</style>
+""", unsafe_allow_html=True)
 
-    try:
-        with open(filename, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return data
-    except json.JSONDecodeError:
-        st.error(f"Fehler: Die Datei '{filename}' ist keine gültige JSON-Datei. Bitte überprüfen Sie das Format.")
-        return None
-    except Exception as e:
-        st.error(f"Ein unerwarteter Fehler ist aufgetreten: {e}")
-        return None
+# --- Check DB exists ---
+DB_FILE = "shopping_receipts.sqlite"
+if not Path(DB_FILE).exists():
+    st.error(f"Datenbank '{DB_FILE}' nicht gefunden. Bitte zuerst Daten importieren.")
+    st.stop()
 
-# Load the data
-data = load_data(DATA_FILE)
+store = MetricsStore()
 
-# --- Main Application Logic ---
-# We only run the dashboard logic if the data was loaded successfully
-if data:
-    # Convert to a pandas DataFrame
-    df = pd.DataFrame(data)
+# --- Sidebar: Filters ---
+st.sidebar.header("Filter")
 
-    # --- Data Cleaning and Transformation ---
+# Retailer selection
+retailer_options = {"Alle": None, "Lidl": "lidl", "REWE": "rewe"}
+selected_retailer_label = st.sidebar.selectbox("Händler", list(retailer_options.keys()))
+selected_retailer = retailer_options[selected_retailer_label]
 
-    def has_non_empty_items(items):
-        return isinstance(items, list) and len(items) > 0
+# Date range – determine available range first
+all_kpis = store.basic_kpis(retailer=selected_retailer)
 
-    # Function to convert comma-decimal strings to floats
-    def to_float(x):
-        if x is None or x == '' or str(x).strip() == '':
-            return 0.0
-        return float(str(x).replace(',', '.'))
+if all_kpis.total_receipts == 0:
+    st.warning("Keine Kassenbons in der Datenbank gefunden.")
+    st.stop()
 
-    def format_total_quantity(row):
-        if row['unit'] == 'kg':
-            return f"{row['quantity']:.3f} {row['unit']}"
-        return f"{int(row['quantity'])} {row['unit']}"
+min_date = pd.to_datetime(all_kpis.min_date).date()
+max_date = pd.to_datetime(all_kpis.max_date).date()
 
-    # Apply conversions
-    purchase_dates = pd.to_datetime(df['purchase_date'], format='ISO8601', errors='coerce')
-    purchase_dates = purchase_dates.fillna(
-        pd.to_datetime(df['purchase_date'], format='%Y.%m.%d', errors='coerce')
-    )
-    purchase_dates = purchase_dates.fillna(
-        pd.to_datetime(df['purchase_date'], format='%d.%m.%Y %H:%M', errors='coerce')
-    )
-    purchase_dates = purchase_dates.fillna(
-        pd.to_datetime(df['purchase_date'], format='%d.%m.%Y', errors='coerce')
-    )
-    df['purchase_date'] = purchase_dates
-    df['total_price'] = df['total_price'].apply(to_float)
-    df["amount_saved"] = df['amount_saved'].apply(to_float)
-    # df['lidlplus_amount_saved'] = df['lidlplus_amount_saved'].apply(to_float) if 'lidlplus_amount_saved' in df.columns else 0.0
-    df['rewe_bonus_amount_saved'] = df['rewe_bonus_amount_saved'].apply(to_float) if 'rewe_bonus_amount_saved' in df.columns else 0.0
-    # Handle sticker discounts (RABATT X%) if present
-    # if 'sticker_discount_amount' in df.columns:
-    #     df['sticker_discount_amount'] = df['sticker_discount_amount'].apply(to_float)
-    # else:
-    #     df['sticker_discount_amount'] = 0.0
+start_date = st.sidebar.date_input("Startdatum", min_date, min_value=min_date, max_value=max_date)
+end_date = st.sidebar.date_input("Enddatum", max_date, min_value=min_date, max_value=max_date)
 
-    # --- Data Filtering ---
-    # Filter out entries with null/zero total_price or empty items array
-    initial_count = len(df)
+start_str = str(start_date)
+end_str = str(end_date)
 
-    # Remove entries where total_price is null, 0, or NaN
+# --- Filtered KPIs ---
+kpis = store.basic_kpis(retailer=selected_retailer, start_date=start_str, end_date=end_str)
+bonus_kpis = store.retailer_bonus_kpis(retailer=selected_retailer, start_date=start_str, end_date=end_str)
 
-    # Remove entries where items array is empty or null
-    df = df[df['items'].notna()]  # Remove null items
-    df = df[df['items'].apply(has_non_empty_items)]  # Remove empty arrays
+# --- Title ---
+st.title("🛒 Shopping Analyzer Dashboard")
 
-    filtered_count = len(df)
-    filtered_out = initial_count - filtered_count
+# --- Grundkennzahlen ---
+st.header("Kennzahlen")
+st.markdown("##### Grunddaten")
+total_before_discount = kpis.total_spent + kpis.total_discount + bonus_kpis.rewe_bonus_redeemed + bonus_kpis.lidlplus_discount + bonus_kpis.sticker_discount
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Ausgaben gesamt", f"€{kpis.total_spent:,.2f}")
+col2.metric("Ausgaben ohne Rabatte", f"€{total_before_discount:,.2f}")
+col3.metric("Kassenbons gesamt", f"{kpis.total_receipts}")
+col4.metric("Ø Bon-Betrag", f"€{kpis.avg_receipt:,.2f}")
 
-    if filtered_out > 0:
-        st.info(f"Info: Kassenbons ({filtered_out}) wurden herausgefiltert. Entweder hatten sie keinen Gesamtpreis oder keine Artikel. Kassenbons vor Februar 2023 sind möglicherweise betroffen.")
+st.markdown("##### Pfandrückgabe")
+col1, _ = st.columns(2)
+col1.metric("Pfand gespart", f"€{kpis.total_saved_deposit:,.2f}")
 
-    # --- Streamlit Dashboard ---
+st.markdown("##### Ersparnisse")
+# Rabatt-Sparquote (nur reguläre Rabatte, ohne Pfand)
+discount_pct = (kpis.total_discount / kpis.total_spent * 100) if kpis.total_spent > 0 else 0
+# Bonus-Sparquote (eingelöstes Bonus-Guthaben)
+total_bonus_redeemed = bonus_kpis.rewe_bonus_redeemed + bonus_kpis.lidlplus_discount + bonus_kpis.sticker_discount
+bonus_pct = (total_bonus_redeemed / kpis.total_spent * 100) if kpis.total_spent > 0 else 0
+# Gesamt-Sparquote (Rabatte + eingelöstes Bonus-Guthaben, ohne Pfand)
+total_savings_no_deposit = kpis.total_discount + total_bonus_redeemed
+total_savings_pct = (total_savings_no_deposit / kpis.total_spent * 100) if kpis.total_spent > 0 else 0
 
-    st.set_page_config(layout="wide", page_title="Lidl Kassenbons Dashboard", page_icon="🛒")
+col1, col2 = st.columns(2)
+col1.metric("Rabatte gespart", f"€{kpis.total_discount:,.2f}")
+col2.metric("Rabatt-Sparquote", f"{discount_pct:.1f}%")
 
-    # Custom CSS for better styling
-    st.markdown("""
-    <style>
-    .main .block-container {
-        padding-top: 2rem;
-    }
-    .metric-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #1f77b4;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.title("Lidl+ Dashboard")
-
-    # --- Sidebar for Filters ---
-    st.sidebar.header("Nach Datum filtern")
-    min_date = df['purchase_date'].min().date()
-    max_date = df['purchase_date'].max().date()
-
-    start_date = st.sidebar.date_input("Startdatum", min_date, min_value=min_date, max_value=max_date)
-    end_date = st.sidebar.date_input("Enddatum", max_date, min_value=min_date, max_value=max_date)
-
-    # Convert dates to datetime objects for comparison
-    start_datetime = pd.to_datetime(start_date)
-    end_datetime = pd.to_datetime(end_date) + pd.Timedelta(days=1)
-
-    # Filter dataframe based on date range
-    filtered_df = df[(df['purchase_date'] >= start_datetime) & (df['purchase_date'] < end_datetime)]
-
-    # --- Main Page ---
-
-    st.header("Kennzahlen")
-
-    # Calculate metrics from the filtered data
-    total_receipts = len(filtered_df)
-    total_spent = filtered_df['total_price'].sum()
-    total_saved = filtered_df['amount_saved'].sum()
-    saved_deposit = filtered_df['saved_deposit'].sum() if 'saved_deposit' in filtered_df.columns else 0.0
-    # Sticker discounts (separate from regular 'amount_saved')
-    # sticker_saved = filtered_df['sticker_discount_amount'].sum() if 'sticker_discount_amount' in filtered_df.columns else 0.0
-
-    # Handle Lidl Plus savings if available
-    # if 'lidlplus_amount_saved' in filtered_df.columns:
-    if 'rewe_bonus_amount_saved' in filtered_df.columns:
-        # lidlplus_saved = filtered_df['lidlplus_amount_saved'].sum()
-        lidlplus_saved = filtered_df['rewe_bonus_amount_saved'].sum()
-    else:
-        lidlplus_saved = 0
-
-    # First row: Basic metrics
-    st.markdown("##### Grunddaten")
+if total_bonus_redeemed > 0 and selected_retailer == "rewe":
+    st.markdown("##### Bonus")
     col1, col2 = st.columns(2)
-    col1.metric("Ausgaben gesamt", f"€{total_spent:,.2f}")
-    col2.metric("Kassenbons gesamt", f"{total_receipts}")
+    col1.metric("Bonus eingelöst", f"€{total_bonus_redeemed:,.2f}")
+    col2.metric("Bonus-Sparquote", f"{bonus_pct:.1f}%")
 
-    # Second row: Lidl Plus savings
-    # st.markdown("##### Lidl Plus Ersparnisse")
-    st.markdown("##### Rewe Bonus Ersparnisse")
-    col1, col2, col3 = st.columns(3)
-    lidlplus_percentage = (lidlplus_saved / total_spent * 100) if total_spent > 0 else 0
-    # col1.metric("Lidl Plus gespart", f"€{lidlplus_saved:,.2f}")
-    col1.metric("Rewe Bonus gespart", f"€{lidlplus_saved:,.2f}")
-    # col2.metric("Lidl Plus Sparquote", f"{lidlplus_percentage:.1f}%")
-    col2.metric("Rewe Bonus Sparquote", f"{lidlplus_percentage:.1f}%")
+# Retailer-specific bonus section
+show_rewe_bonus = selected_retailer is None or selected_retailer == "rewe"
+show_lidl_bonus = selected_retailer is None or selected_retailer == "lidl"
 
-    # Third row: Regular savings
-    st.markdown("##### Reguläre Rabatte")
-    col1, col2, col3 = st.columns(3)
-    regular_percentage = (total_saved / total_spent * 100) if total_spent > 0 else 0
-    col1.metric("Reguläre Rabatte gespart", f"€{total_saved:,.2f}")
-    col2.metric("Reguläre Sparquote", f"{regular_percentage:.1f}%")
-
-    st.markdown("##### Pfand Ersparnisse")
+if show_rewe_bonus and (bonus_kpis.rewe_bonus_collected > 0 or bonus_kpis.rewe_bonus_balance > 0):
+    st.markdown("##### REWE Bonus")
     col1, col2 = st.columns(2)
-    pfand_percentage = (saved_deposit / total_spent * 100) if total_spent > 0 else 0
-    col1.metric("Pfand gespart", f"€{saved_deposit:,.2f}")
-    col2.metric("Pfand Sparquote", f"{pfand_percentage:.1f}%")
-    # Fourth row: Sticker discounts (RABATT X%)
-    # st.markdown("##### Sticker Rabatte (RABATT X%)")
-    # col1, col2 = st.columns(2)
-    # sticker_percentage = (sticker_saved / total_spent * 100) if total_spent > 0 else 0
-    # col1.metric("Sticker Rabatte gespart", f"€{sticker_saved:,.2f}")
-    # col2.metric("Sticker Sparquote", f"{sticker_percentage:.1f}%")
+    col1.metric("Bonus gesammelt (Zeitraum)", f"€{bonus_kpis.rewe_bonus_collected:,.2f}")
+    col2.metric("Bonus Guthaben (aktuell)", f"€{bonus_kpis.rewe_bonus_balance:,.2f}")
 
-    st.markdown("---")
+if show_lidl_bonus and (bonus_kpis.lidlplus_discount > 0 or bonus_kpis.sticker_discount > 0):
+    st.markdown("##### Lidl Plus Ersparnisse")
+    col1, col2 = st.columns(2)
+    col1.metric("Lidl Plus gespart", f"€{bonus_kpis.lidlplus_discount:,.2f}")
+    lidlplus_pct = (bonus_kpis.lidlplus_discount / kpis.total_spent * 100) if kpis.total_spent > 0 else 0
+    col2.metric("Lidl Plus Sparquote", f"{lidlplus_pct:.1f}%")
 
-    # --- Spending Over Time ---
-    st.header("Ausgaben über Zeit")
+    col1, col2 = st.columns(2)
+    col1.metric("Sticker-Rabatte", f"€{bonus_kpis.sticker_discount:,.2f}")
+    sticker_pct = (bonus_kpis.sticker_discount / kpis.total_spent * 100) if kpis.total_spent > 0 else 0
+    col2.metric("Sticker-Sparquote", f"{sticker_pct:.1f}%")
 
-    if not filtered_df.empty:
-        # Create daily spending aggregation
-        spending_over_time = filtered_df.copy()
-        spending_over_time['date'] = spending_over_time['purchase_date'].dt.date
-        daily_spending = spending_over_time.groupby('date')['total_price'].sum().reset_index()
-        daily_spending.columns = ['Datum', 'Tägliche Ausgaben (€)']
+st.markdown("##### Gesamt")
+col1, col2 = st.columns(2)
+col1.metric("Gesamt-Ersparnis (ohne Pfand)", f"€{total_savings_no_deposit:,.2f}")
+col2.metric("Gesamt-Sparquote", f"{total_savings_pct:.1f}%")
 
-        # Calculate cumulative spending
-        daily_spending['Kumulative Ausgaben (€)'] = daily_spending['Tägliche Ausgaben (€)'].cumsum()
+st.markdown("---")
 
-        # Toggle for daily vs cumulative view
-        spending_view = st.radio("Ausgabenansicht:", ["Täglich", "Kumulativ"], horizontal=True, key="spending_view")
+# --- Ausgaben über Zeit ---
+st.header("Ausgaben über Zeit")
 
-        if spending_view == "Täglich":
-            st.bar_chart(daily_spending.set_index('Datum')['Tägliche Ausgaben (€)'])
+time_granularity = st.radio(
+    "Zeitgranularität:",
+    ["Täglich", "Monatlich", "Jährlich"],
+    horizontal=True,
+    key="time_granularity",
+)
 
-            # Show summary stats
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Durchschnittliche tägliche Ausgaben", f"€{daily_spending['Tägliche Ausgaben (€)'].mean():.2f}")
-            col2.metric("Höchste tägliche Ausgaben", f"€{daily_spending['Tägliche Ausgaben (€)'].max():.2f}")
-            col3.metric("Niedrigste tägliche Ausgaben", f"€{daily_spending['Tägliche Ausgaben (€)'].min():.2f}")
+if time_granularity == "Täglich":
+    ts_data = store.spending_by_day(retailer=selected_retailer, start_date=start_str, end_date=end_str)
+elif time_granularity == "Monatlich":
+    ts_data = store.spending_by_month(retailer=selected_retailer, start_date=start_str, end_date=end_str)
+else:
+    ts_data = store.spending_by_year(retailer=selected_retailer, start_date=start_str, end_date=end_str)
 
-        else:  # Cumulative view
-            st.bar_chart(daily_spending.set_index('Datum')['Kumulative Ausgaben (€)'])
+if ts_data:
+    ts_df = pd.DataFrame([{"Zeitraum": r.period, "Ausgaben (€)": r.total_spent, "Einkäufe": r.receipt_count} for r in ts_data])
+    ts_df = ts_df.set_index("Zeitraum")
 
-            # Show growth metrics
-            total_days = len(daily_spending)
-            avg_daily_growth = daily_spending['Kumulative Ausgaben (€)'].iloc[-1] / total_days if total_days > 0 else 0
+    spending_view = st.radio("Ansicht:", ["Absolut", "Kumulativ"], horizontal=True, key="spending_view")
 
-            col1, col2 = st.columns(2)
-            col1.metric("Tage gesamt", total_days)
-            col2.metric("Durchschnittliches tägliches Wachstum", f"€{avg_daily_growth:.2f}")
-    else:
-        st.write("Keine Ausgabendaten für den ausgewählten Datumsbereich verfügbar.")
+    if spending_view == "Kumulativ":
+        ts_df["Ausgaben (€)"] = ts_df["Ausgaben (€)"].cumsum()
 
-    st.markdown("---")
+    st.bar_chart(ts_df["Ausgaben (€)"])
 
-    # --- Top 10 Most Purchased Items ---
-    st.header("Top 10 der meistgekauften Artikel")
+    # Summary stats
+    if spending_view == "Absolut":
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Ø Ausgaben pro Zeitraum", f"€{ts_df['Ausgaben (€)'].mean():.2f}")
+        col2.metric("Maximum", f"€{ts_df['Ausgaben (€)'].max():.2f}")
+        col3.metric("Minimum", f"€{ts_df['Ausgaben (€)'].min():.2f}")
+else:
+    st.info("Keine Daten für den gewählten Zeitraum.")
 
-    if not filtered_df.empty:
-        # Toggle for quantity vs price
-        view_mode = st.radio("Anzeigen nach:", ["Menge", "Gesamtpreis"], horizontal=True)
+st.markdown("---")
 
-        # Extract all items from the filtered receipts
-        items_data = []
-        for _, row in filtered_df.iterrows():
-            if row.get('items') and isinstance(row['items'], list):
-                for item in row['items']:
-                    try:
-                        quantity = float(item.get('quantity', 1) or 1)
-                        price = to_float(item.get('price', 0))
-                        unit = item.get('unit', 'stk')  # Default to 'stk' if no unit specified
-                    except (ValueError, TypeError):
-                        quantity = 1.0
-                        price = 0
-                        unit = 'stk'
+# --- Wochentag-Analyse ---
+st.header("Einkaufsverhalten nach Wochentag")
 
-                    items_data.append({
-                        'name': item['name'],
-                        'quantity': quantity,
-                        'price': price,
-                        'unit': unit,
-                        'total_value': quantity * price
-                    })
+weekday_data = store.weekday_analysis(retailer=selected_retailer, start_date=start_str, end_date=end_str)
 
-        if items_data:
-            items_df = pd.DataFrame(items_data)
+if weekday_data:
+    weekday_order = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+    wd_df = pd.DataFrame([
+        {"Wochentag": r.weekday_name, "Einkäufe": r.trip_count, "Ø Ausgaben (€)": round(r.avg_spent, 2), "Gesamt (€)": round(r.total_spent, 2)}
+        for r in weekday_data
+    ])
+    wd_df["Wochentag"] = pd.Categorical(wd_df["Wochentag"], categories=weekday_order, ordered=True)
+    wd_df = wd_df.sort_values("Wochentag").set_index("Wochentag")
 
-            # Filter out Pfand items (deposit bottles/cans)
-            items_df = items_df[~items_df['name'].str.contains('Pfand', case=False, na=False)]
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("##### Anzahl Einkäufe")
+        st.bar_chart(wd_df["Einkäufe"])
+    with col2:
+        st.markdown("##### Ø Ausgaben pro Einkauf")
+        st.bar_chart(wd_df["Ø Ausgaben (€)"])
+else:
+    st.info("Keine Daten für die Wochentag-Analyse.")
 
-            if view_mode == "Menge":
-                # Group by item name and sum quantities, keeping track of units
-                grouped = items_df.groupby('name').agg({
-                    'quantity': 'sum',
-                    'unit': 'first'  # Take the first unit (should be consistent for same item)
-                }).reset_index()
-                grouped = grouped.sort_values('quantity', ascending=False).head(10)
+st.markdown("---")
 
-                # Format quantities nicely and add units
-                grouped['Gesamtmenge'] = grouped.apply(format_total_quantity, axis=1)
+# --- Top-Artikel ---
+st.header("Top-Artikel")
 
-                # Select only the columns we want to display
-                display_df = grouped[['name', 'Gesamtmenge']].copy()
-                display_df.columns = ['Artikel', 'Gesamtmenge']
+top_view = st.radio("Sortieren nach:", ["Menge", "Ausgaben"], horizontal=True, key="top_view")
+top_limit = st.slider("Anzahl anzeigen", min_value=5, max_value=50, value=20, step=5)
 
-                st.dataframe(display_df, width='stretch', hide_index=True)
+if top_view == "Menge":
+    top_data = store.top_items_by_quantity(retailer=selected_retailer, start_date=start_str, end_date=end_str, limit=top_limit)
+else:
+    top_data = store.top_items_by_spend(retailer=selected_retailer, start_date=start_str, end_date=end_str, limit=top_limit)
 
-            else:  # Total Price view
-                # Group by item name and sum total values
-                grouped = items_df.groupby('name')['total_value'].sum().reset_index()
-                grouped = grouped.sort_values('total_value', ascending=False).head(10)
-                grouped.columns = ['Artikel', 'Ausgaben gesamt (€)']
-                grouped['Ausgaben gesamt (€)'] = grouped['Ausgaben gesamt (€)'].round(2)
+if top_data:
+    def format_qty(row):
+        if row["Einheit"] == "kg":
+            return f"{row['Menge']:.3f} {row['Einheit']}"
+        return f"{int(row['Menge'])} {row['Einheit']}"
 
-                st.dataframe(grouped, width='stretch', hide_index=True)
-        else:
-            st.write("Keine Artikel im ausgewählten Datumsbereich gefunden.")
+    top_df = pd.DataFrame([
+        {
+            "Artikel": r.name,
+            "Menge": r.total_quantity,
+            "Einheit": r.unit,
+            "Ausgaben (€)": round(r.total_spent, 2),
+            "Einkäufe": r.purchase_count,
+        }
+        for r in top_data
+    ])
+    top_df["Gesamtmenge"] = top_df.apply(format_qty, axis=1)
 
-    else:
-        st.write("Keine Daten für den ausgewählten Datumsbereich verfügbar.")
+    display_cols = ["Artikel", "Gesamtmenge", "Ausgaben (€)", "Einkäufe"]
+    st.dataframe(top_df[display_cols], use_container_width=True, hide_index=True)
+else:
+    st.info("Keine Artikeldaten für den gewählten Zeitraum.")

@@ -4,22 +4,28 @@ import re
 from typing import Any, Dict, Optional
 from bs4 import BeautifulSoup
 
-from config import get_receipt_schema_profile
 from shared.receipt_schema import build_receipt_schema
-from shared.addresses import normalize_address
-from shared.receipt_dates import parse_purchase_date
+from shared.addresses import empty_address, normalize_address
 from shared.payment_methods import normalize_payment_method_entry
 
 from .address_extractor import extract_address_from_lines
 
+_LIDL_HEADER_LINES_LIMIT = 8
+_LIDL_STORE_NAME = "lidl"
 
-LIDL_POS_LINE_RE = re.compile(
+_LIDL_POS_LINE_RE = re.compile(
     r"(?P<market>\d{4})\s+(?P<cashier>\d{5,6})/(?P<register>\d{2,3})\s+"
     r"(?P<date>\d{2}\.\d{2}\.\d{2})\s+(?P<time>\d{2}:\d{2})"
 )
-LIDL_SERIAL_LINE_RE = re.compile(r"LDL-\d{3}-(?P<market>\d{4})-(?P<register>\d{2,3})")
-LIDL_STORE_NAME = "lidl"
+_LIDL_SERIAL_LINE_RE = re.compile(r"LDL-\d{3}-(?P<market>\d{4})-(?P<register>\d{2,3})")
 
+_LIDL_RECEIPT_ID_RE = re.compile(
+    r"^2300"
+    r"(?P<market>\d{4})"
+    r"(?P<register>\d{1,3}?)"
+    r"(?P<date>20\d{6})"
+    r"(?P<cashier>\d+)$"
+)
 
 def extract_lidl_receipt_info(
     soup: BeautifulSoup,
@@ -33,19 +39,13 @@ def extract_lidl_receipt_info(
         receipt_id=receipt_id,
         retailer="lidl",
         purchase_date=receipt_date,
-        store=LIDL_STORE_NAME,
-        profile=get_receipt_schema_profile("lidl"),
-        address=_extract_lidl_address(soup, address),
+        store=store or _LIDL_STORE_NAME,
+        address=normalize_address(address) if address else _extract_lidl_address_from_html(soup),
     )
 
     _apply_lidl_payment_methods(receipt_data, soup)
 
-    _apply_lidl_pos_metadata(
-        receipt_data,
-        soup,
-        receipt_id=receipt_id,
-        receipt_date=receipt_date,
-    )
+    _apply_lidl_pos_metadata(receipt_data, soup, receipt_id)
 
     _apply_lidl_total_price(receipt_data, soup)
 
@@ -68,7 +68,7 @@ def _apply_lidl_plus_discount(receipt_data, soup):
                     # Extract the amount before "EUR gespart"
                     amount_match = re.search(r"(\d+,\d+)\s+EUR gespart", element_text)
                     if amount_match:
-                        receipt_data["lidlplus_amount_saved"] = float(
+                        receipt_data["lidlplus_discount"] = float(
                             amount_match.group(1).replace(",", ".")
                         )
                         break
@@ -78,7 +78,7 @@ def _apply_lidl_plus_discount(receipt_data, soup):
                 page_text = soup.get_text()
                 gespart_match = re.search(r"(\d+,\d+)\s+EUR gespart", page_text)
                 if gespart_match:
-                    receipt_data["lidlplus_amount_saved"] = float(
+                    receipt_data["lidlplus_discount"] = float(
                         gespart_match.group(1).replace(",", ".")
                     )
             except:
@@ -86,16 +86,15 @@ def _apply_lidl_plus_discount(receipt_data, soup):
     except:
         pass
 
-    if receipt_data.get("lidlplus_amount_saved") is None:
-        receipt_data["lidlplus_amount_saved"] = 0.0
+    if receipt_data.get("lidlplus_discount") is None:
+        receipt_data["lidlplus_discount"] = 0.0
 
 
-def _extract_lidl_address(soup: BeautifulSoup, fallback_address: Optional[dict] = None,) -> dict:
-    """Extract Lidl address data from visible header lines, with API fallback."""
-    parsed_address = extract_address_from_lines(list(soup.stripped_strings)[:20])
-    if parsed_address:
-        return parsed_address
-    return normalize_address(fallback_address)
+
+def _extract_lidl_address_from_html(soup: BeautifulSoup) -> dict:
+    """Fallback: extract address from visible HTML header lines when API provides none."""
+    header_lines = list(soup.stripped_strings)[:_LIDL_HEADER_LINES_LIMIT]
+    return extract_address_from_lines(header_lines) or empty_address()
 
 
 def _apply_lidl_total_price(receipt_data: Dict[str, Any], soup: BeautifulSoup) -> None:
@@ -146,11 +145,11 @@ def _apply_lidl_discount_fields(receipt_data: Dict[str, Any], soup: BeautifulSou
                 total_sticker_savings += parsed_line["amount"]
 
         if total_regular_savings > 0:
-            receipt_data["amount_saved"] = round(total_regular_savings, 2)
+            receipt_data["discount"] = round(total_regular_savings, 2)
         if sticker_percentages:
             receipt_data["sticker_discount_pct"] = sticker_percentages
         if total_sticker_savings > 0:
-            receipt_data["sticker_discount_amount"] = round(total_sticker_savings, 2)
+            receipt_data["sticker_discount"] = round(total_sticker_savings, 2)
     except Exception:
         pass
 
@@ -276,47 +275,34 @@ def _extract_numeric_payment_amount(value: object) -> Optional[float]:
     return float(f"{integer}.{decimals.ljust(2, '0')}")
 
 
-def _is_meaningful_payment_network(network: Optional[str]) -> bool:
-    """Return True for non-placeholder payment network values."""
-    return bool(network)
+def infer_lidl_pos_metadata_from_receipt_id(receipt_id: str = "") -> Optional[dict]:
+    """Infer market/register/cashier from the Lidl receipt id structure.
 
+    The Lidl receipt id follows the pattern:
+        2300 <market:4> <register:2-3> <YYYYMMDD:8> <cashier:5-6>
 
-
-def infer_lidl_pos_metadata_from_receipt_id(receipt_id: str, receipt_date: str) -> Optional[dict]:
-    """Infer market/register/cashier from the Lidl receipt id when it matches the known pattern."""
-    receipt_id = str(receipt_id or "")
-    parsed_receipt_date = parse_purchase_date(receipt_date)
-    date_token = parsed_receipt_date.strftime("%Y%m%d") if parsed_receipt_date else ""
-    if not receipt_id.startswith("2300") or not date_token:
+    The date embedded in the id is used as a structural anchor to separate
+    register from date digits. The external receipt_date is no longer required.
+    """
+    match = _LIDL_RECEIPT_ID_RE.match(receipt_id)
+    if not match:
         return None
 
-    date_index = receipt_id.find(date_token)
-    if date_index == -1:
-        return None
+    market = match.group("market")
+    register = match.group("register")
+    cashier = match.group("cashier")
 
-    prefix = receipt_id[4:date_index]
-    suffix = receipt_id[date_index + len(date_token):]
-    if len(prefix) < 5:
-        return None
-
-    market = prefix[:4]
-    register = prefix[4:]
-    if not (market.isdigit() and register.isdigit() and suffix.isdigit()):
+    if not cashier:
         return None
 
     return {
         "market": market,
         "register": register.zfill(2),
-        "cashier": suffix.zfill(6),
+        "cashier": cashier.zfill(6),
     }
 
 
-def _apply_lidl_pos_metadata(
-    receipt_data: Dict[str, Any],
-    soup: BeautifulSoup,
-    receipt_id: Optional[str] = None,
-    receipt_date: Optional[str] = None,
-) -> None:
+def _apply_lidl_pos_metadata(receipt_data: Dict[str, Any], soup: BeautifulSoup, receipt_id: Optional[str] = None) -> None:
     """Apply market/register/cashier metadata from Lidl HTML with a receipt-id fallback."""
     pos_line = _extract_text_from_repeated_id(soup, "return_code_line_13")
     serial_line = _extract_text_from_repeated_id(soup, "return_code_line_3")
@@ -327,7 +313,7 @@ def _apply_lidl_pos_metadata(
         "cashier": None,
     }
 
-    pos_match = LIDL_POS_LINE_RE.search(pos_line)
+    pos_match = _LIDL_POS_LINE_RE.search(pos_line)
     if pos_match:
         metadata["market"] = pos_match.group("market")
         metadata["register"] = pos_match.group("register")
@@ -336,15 +322,12 @@ def _apply_lidl_pos_metadata(
         receipt_data.update(metadata)
         return
 
-    serial_match = LIDL_SERIAL_LINE_RE.search(serial_line)
+    serial_match = _LIDL_SERIAL_LINE_RE.search(serial_line)
     if serial_match:
         metadata["market"] = serial_match.group("market")
         metadata["register"] = serial_match.group("register")
 
-    inferred_metadata = infer_lidl_pos_metadata_from_receipt_id(
-        receipt_id or "",
-        receipt_date or "",
-    )
+    inferred_metadata = infer_lidl_pos_metadata_from_receipt_id(receipt_id or "")
     if inferred_metadata:
         for field, value in inferred_metadata.items():
             if not metadata.get(field):

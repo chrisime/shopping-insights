@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from api.lidl_client import get_lidl_ticket
 from parsing.lidl_receipt_parser import parse_lidl_ticket
 from parsing.lidl_validator import LidlReceiptValidationError, validate_lidl_receipt_data
-from parsing.lidl_totals_preprocessor import extract_lidl_totals_input
+from parsing.lidl_totals_extractor import extract_lidl_totals
 from result_types import ReceiptParseResult
 from workflows.error_mapping import render_exception_reason, render_validation_reason
 from workflows.workflow_constants import REASON_KIND_LIDL_FETCH
@@ -40,24 +40,24 @@ def _fetch_lidl_receipt_parse_result(session, receipt_id: str) -> ReceiptParseRe
 
 
 class LidlReceiptParserTests(unittest.TestCase):
-    def test_extract_lidl_totals_input_preprocesses_values_before_totals_extractor(self):
+    def test_extract_lidl_totals_preprocesses_values_and_returns_result(self):
         html = """
         <html><body>
             <span class="purchase_list">Pfandrückgabe -0,25</span>
         </body></html>
         """.strip()
 
-        totals_input = extract_lidl_totals_input(
+        result = extract_lidl_totals(
             soup=BeautifulSoup(html, "html.parser"),
-            amount_saved=0.5,
-            lidlplus_amount_saved=0.25,
-            sticker_discount_amount=0.1,
+            discount=0.5,
+            lidlplus_discount=0.25,
+            sticker_discount=0.1,
         )
 
-        self.assertEqual(totals_input.amount_saved, 0.5)
-        self.assertEqual(totals_input.lidlplus_amount_saved, 0.25)
-        self.assertEqual(totals_input.sticker_discount_amount, 0.1)
-        self.assertEqual(totals_input.saved_deposit, 0.25)
+        self.assertEqual(result.discount, 0.5)
+        self.assertEqual(result.additional_savings["lidlplus_discount"], 0.25)
+        self.assertEqual(result.additional_savings["sticker_discount"], 0.1)
+        self.assertEqual(result.saved_deposit, 0.25)
 
     def test_fetch_lidl_receipt_parse_result_returns_skip_reason_for_invalid_receipt(self):
         session = Mock()
@@ -163,7 +163,7 @@ class LidlReceiptParserTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(receipt_data)
-        self.assertEqual(receipt_data["store"], "lidl")
+        self.assertEqual(receipt_data["store"], "Fürth-Südstadt")
         self.assertEqual(
             receipt_data["address"],
             {

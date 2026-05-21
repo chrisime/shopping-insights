@@ -1,10 +1,9 @@
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
-from config import get_receipt_schema_profile
-from parsing.rewe_pdf_parser import parse_rewe_receipt_pdf
+from parsing.rewe_ebons_parser import parse_rewe_receipt_pdf
 from parsing.rewe_validator import (
     ReweReceiptValidationError,
     ReweValidationIssue,
@@ -14,6 +13,17 @@ from result_types import ReceiptParseResult
 from shared.receipt_schema import normalize_receipt_schema
 from workflows.error_mapping import render_exception_reason, render_validation_reason
 from workflows.workflow_constants import REASON_KIND_REWE_PDF_PARSE
+
+
+def _mock_pdf(text: str):
+    """Create a mock pdfplumber context manager that returns the given text."""
+    page = MagicMock()
+    page.extract_text.return_value = text
+    pdf = MagicMock()
+    pdf.pages = [page]
+    pdf.__enter__ = lambda self: pdf
+    pdf.__exit__ = lambda self, *args: None
+    return pdf
 
 
 def _parse_rewe_receipt_pdf_with_result(pdf_path: Path) -> ReceiptParseResult:
@@ -128,7 +138,7 @@ Bon-Nr.:1845
         with tempfile.TemporaryDirectory() as tmp_dir:
             pdf_path = Path(tmp_dir) / "invalid-rewe.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
-            with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=invalid_text):
+            with patch("parsing.rewe_ebons_parser.pdfplumber.open", return_value=_mock_pdf(invalid_text)):
                 receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNone(receipt)
@@ -149,7 +159,7 @@ Bon-Nr.:1845
         with tempfile.TemporaryDirectory() as tmp_dir:
             pdf_path = Path(tmp_dir) / "invalid-rewe.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
-            with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=invalid_text):
+            with patch("parsing.rewe_ebons_parser.pdfplumber.open", return_value=_mock_pdf(invalid_text)):
                 parse_result = _parse_rewe_receipt_pdf_with_result(pdf_path)
 
         self.assertIsNone(parse_result.receipt_data)
@@ -179,7 +189,7 @@ Einfach beim nächsten Einkauf einlösen!
         with tempfile.TemporaryDirectory() as tmp_dir:
             pdf_path = Path(tmp_dir) / "valid-rewe.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
-            with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
+            with patch("parsing.rewe_ebons_parser.pdfplumber.open", return_value=_mock_pdf(valid_text)):
                 receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
@@ -194,7 +204,7 @@ Einfach beim nächsten Einkauf einlösen!
         )
         self.assertEqual(receipt["rewe_bonus_amount"], 0.30)
         self.assertEqual(receipt["rewe_bonus_total_amount"], 15.93)
-        self.assertEqual(receipt["rewe_bonus_amount_saved"], 0.0)
+        self.assertEqual(receipt["rewe_bonus_discount"], 0.0)
 
     def test_parse_rewe_receipt_pdf_extracts_redeemed_bonus_and_corrects_total_price(self):
         valid_text = """
@@ -217,12 +227,12 @@ Aktuelles Bonus-Guthaben: 0,14 EUR
         with tempfile.TemporaryDirectory() as tmp_dir:
             pdf_path = Path(tmp_dir) / "rewe-bonus-redeemed.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
-            with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
+            with patch("parsing.rewe_ebons_parser.pdfplumber.open", return_value=_mock_pdf(valid_text)):
                 receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt["total_price"], 5.97)
-        self.assertEqual(receipt["rewe_bonus_amount_saved"], 5.0)
+        self.assertEqual(receipt["rewe_bonus_discount"], 5.0)
         self.assertEqual(
             receipt["payment_methods"],
             [
@@ -249,7 +259,7 @@ Markt:0605 Kasse:8 Bed.:432108
         with tempfile.TemporaryDirectory() as tmp_dir:
             pdf_path = Path(tmp_dir) / "rewe-quantity.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
-            with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
+            with patch("parsing.rewe_ebons_parser.pdfplumber.open", return_value=_mock_pdf(valid_text)):
                 receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
@@ -274,7 +284,7 @@ Markt:5802 Kasse:4 Bed.: 4646
         with tempfile.TemporaryDirectory() as tmp_dir:
             pdf_path = Path(tmp_dir) / "rewe-12102025.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
-            with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
+            with patch("parsing.rewe_ebons_parser.pdfplumber.open", return_value=_mock_pdf(valid_text)):
                 receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
@@ -300,7 +310,7 @@ Markt : 5802   Kasse : 4   Bed. : 4646
         with tempfile.TemporaryDirectory() as tmp_dir:
             pdf_path = Path(tmp_dir) / "rewe-12102025-spaces.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
-            with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
+            with patch("parsing.rewe_ebons_parser.pdfplumber.open", return_value=_mock_pdf(valid_text)):
                 receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
@@ -327,12 +337,12 @@ Einfach beim nächsten Einkauf einlösen!
         with tempfile.TemporaryDirectory() as tmp_dir:
             pdf_path = Path(tmp_dir) / "valid-rewe-no-bonus-earned.pdf"
             pdf_path.write_bytes(b"%PDF-1.4\n")
-            with patch("parsing.rewe_pdf_parser.extract_text_from_pdf", return_value=valid_text):
+            with patch("parsing.rewe_ebons_parser.pdfplumber.open", return_value=_mock_pdf(valid_text)):
                 receipt = _parse_rewe_receipt_pdf_with_result(pdf_path).receipt_data
 
         self.assertIsNotNone(receipt)
         self.assertEqual(receipt["rewe_bonus_amount"], 0.0)
-        self.assertEqual(receipt["rewe_bonus_amount_saved"], 0.0)
+        self.assertEqual(receipt["rewe_bonus_discount"], 0.0)
         self.assertEqual(receipt["rewe_bonus_total_amount"], 15.93)
 
     def test_normalize_receipt_schema_keeps_rewe_bonus_fields_neutral_and_converts_strings(self):
@@ -357,11 +367,16 @@ Einfach beim nächsten Einkauf einlösen!
             }
         )
 
-        self.assertNotIn("rewe_bonus_amount", normalized)
-        self.assertNotIn("rewe_bonus_amount_saved", normalized)
-        self.assertNotIn("rewe_bonus_total_amount", normalized)
-        self.assertNotIn("lidlplus_amount_saved", normalized)
-        self.assertNotIn("sticker_discount_amount", normalized)
+        # REWE-specific fields are present with defaults
+        self.assertIn("rewe_bonus_amount", normalized)
+        self.assertIsNone(normalized["rewe_bonus_amount"])
+        self.assertIn("rewe_bonus_discount", normalized)
+        self.assertIsNone(normalized["rewe_bonus_discount"])
+        self.assertIn("rewe_bonus_total_amount", normalized)
+        self.assertIsNone(normalized["rewe_bonus_total_amount"])
+        # Lidl fields must NOT be present for rewe
+        self.assertNotIn("lidlplus_discount", normalized)
+        self.assertNotIn("sticker_discount", normalized)
         self.assertNotIn("sticker_discount_pct", normalized)
         self.assertEqual(
             normalized["address"],
@@ -388,11 +403,11 @@ Einfach beim nächsten Einkauf einlösen!
                 "purchase_date": "2026-04-01",
                 "rewe_bonus_amount": "1,25",
             },
-            profile=get_receipt_schema_profile("rewe"),
+            
         )
 
         self.assertEqual(normalized["rewe_bonus_amount"], 1.25)
-        self.assertIsNone(normalized["rewe_bonus_amount_saved"])
+        self.assertIsNone(normalized["rewe_bonus_discount"])
         self.assertIsNone(normalized["rewe_bonus_total_amount"])
 
     def test_normalize_receipt_schema_assigns_rewe_network_to_bonus_guthaben(self):

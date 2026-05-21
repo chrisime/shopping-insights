@@ -6,10 +6,11 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
-from config import LidlConfig, get_retailer_runtime
+from config import LidlConfig
 from config import storage_config
 from export.json_export import export_receipts_from_db, resolve_receipts_export_path
 from shared.receipt_schema import normalize_receipt_schema
+from shared.retailer_runtime import get_retailer_runtime
 from storage import (
     SqliteReceiptStore,
     create_receipt_store,
@@ -170,8 +171,6 @@ class ReceiptStoreTests(unittest.TestCase):
             applied_migrations,
             [
                 ("V001", "V001__core_schema.sql"),
-                ("V002", "V002__purchase_lidl.sql"),
-                ("V003", "V003__purchase_rewe.sql"),
             ],
         )
 
@@ -291,7 +290,7 @@ class ReceiptStoreTests(unittest.TestCase):
                 "total_price": "1,00",
                 "rewe_bonus_amount": 0.5,
                 "rewe_bonus_total_amount": 10.17,
-                "rewe_bonus_amount_saved": 0.0,
+                "rewe_bonus_discount": 0.0,
                 "payment_methods": [{"method": "Karte", "network": "VISA", "amount": "1,00"}],
                 "items": [{"name": "Banane", "price": "1,00", "quantity": "1", "unit": "stk"}],
         }
@@ -307,8 +306,8 @@ class ReceiptStoreTests(unittest.TestCase):
                     "city": "Fürth",
                 },
                 "total_price": 19.23,
-                "lidlplus_amount_saved": 1.5,
-                "sticker_discount_amount": 0.8,
+                "lidlplus_discount": 1.5,
+                "sticker_discount": 0.8,
                 "payment_methods": [{"method": "Karte", "network": "VISA", "amount": 19.23}],
                 "items": [{"name": "Tomaten", "price": "3,99", "quantity": "0,696", "unit": "kg"}],
         }
@@ -501,7 +500,10 @@ class ReceiptStoreTests(unittest.TestCase):
 
         self.assertEqual(normalized_shared["purchase_date"], "2024-08-28")
         self.assertEqual(normalized_shared["address"]["zip"], 90762)
-        self.assertNotIn("lidlplus_amount_saved", normalized_shared)
+        # Lidl-specific fields are present with defaults when retailer is lidl
+        self.assertIn("lidlplus_discount", normalized_shared)
+        self.assertIsNone(normalized_shared["lidlplus_discount"])
+        # REWE fields are NOT present for lidl retailer
         self.assertNotIn("rewe_bonus_amount", normalized_shared)
         self.assertEqual(normalized_shared["items"][0]["quantity"], 0.696)
 

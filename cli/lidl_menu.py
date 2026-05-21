@@ -103,4 +103,3 @@ def _prompt_lidl_cookies_file() -> str:
         "Pfad zur LIDL-Cookie-Datei",
         "lidl_cookies.json",
     )
-

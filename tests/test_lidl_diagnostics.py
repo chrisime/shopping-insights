@@ -85,7 +85,7 @@ class LidlDiagnosticsTests(unittest.TestCase):
             ).receipt_data
 
         self.assertIsNotNone(receipt_data)
-        self.assertEqual(receipt_data["store"], "lidl")
+        self.assertEqual(receipt_data["store"], "Fürth-Südstadt")
         self.assertEqual(
             receipt_data["address"],
             {

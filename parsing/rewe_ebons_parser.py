@@ -12,7 +12,6 @@ from typing import Any, Dict, List
 
 import pdfplumber
 
-from config import get_receipt_schema_profile
 from shared.receipt_schema import build_receipt_schema
 from .rewe_info_extractor import (
 	extract_rewe_receipt_info,
@@ -20,30 +19,15 @@ from .rewe_info_extractor import (
 	extract_payment_methods_from_lines,
 )
 from .rewe_items_extractor import extract_rewe_receipt_items
-from .rewe_totals_extractor import extract_rewe_totals
+from .rewe_parser_common import to_rewe_float
 
-
-def extract_text_from_pdf(pdf_path: Path) -> str:
-	"""Extract plain text from all pages of a REWE PDF."""
-	with pdfplumber.open(pdf_path) as pdf:
-		return "\n".join((page.extract_text() or "") for page in pdf.pages)
-
-
-def extract_rewe_receipt_metadata_from_pdf(pdf_path: str | Path) -> Dict[str, Any]:
-	"""Extract only the lightweight REWE receipt metadata required for update filtering."""
-	path = Path(pdf_path)
-	text = extract_text_from_pdf(path)
-
-	lines = [line.strip() for line in text.splitlines() if line.strip()]
-	if not lines:
-		raise ValueError("PDF enthält keinen lesbaren Text")
-
-	return extract_rewe_receipt_info(text, lines)
 
 def parse_rewe_receipt_pdf(pdf_path: str | Path) -> Dict[str, Any]:
 	"""Parse a REWE eBon PDF into the normalized receipt structure."""
 	path = Path(pdf_path)
-	text = extract_text_from_pdf(path)
+
+	with pdfplumber.open(path) as pdf:
+		text = "\n".join((page.extract_text() or "") for page in pdf.pages)
 
 	lines = [line.strip() for line in text.splitlines() if line.strip()]
 	if not lines:
@@ -64,29 +48,23 @@ def _build_receipt_data(path: Path, text: str, lines: List[str]) -> Dict[str, An
 	payment_methods, rewe_bonus_saved_amount = extract_payment_methods_from_lines(lines)
 
 	items = items_result.items
-	totals_result = extract_rewe_totals(
-		raw_total_price=metadata.get("total_price"),
-		saved_amount=items_result.saved_amount,
-		saved_deposit=items_result.saved_deposit,
-		rewe_bonus_saved_amount=rewe_bonus_saved_amount,
-	)
-	resolved_rewe_bonus_saved_amount = totals_result.additional_savings.get(
-		"rewe_bonus_amount_saved",
-		0.0,
-	)
+
+	total_price = _calculate_total_price(metadata.get("total_price"), rewe_bonus_saved_amount)
+	discount = round(items_result.saved_amount, 2) if items_result.saved_amount > 0 else None
+	saved_deposit = round(items_result.saved_deposit, 2) if items_result.saved_deposit > 0 else None
+	rewe_bonus_discount = round(rewe_bonus_saved_amount, 2) if rewe_bonus_saved_amount >= 0 else 0.0
 
 	return build_receipt_schema(
 		receipt_id=receipt_id,
 		retailer="rewe",
 		purchase_date=purchase_date,
 		store=metadata.get("store"),
-		profile=get_receipt_schema_profile("rewe"),
 		address=metadata.get("address"),
-		total_price=totals_result.total_price,
-		amount_saved=totals_result.amount_saved,
-		saved_deposit=totals_result.saved_deposit,
+		total_price=total_price,
+		discount=discount,
+		saved_deposit=saved_deposit,
 		rewe_bonus_amount=rewe_bonus_amount,
-		rewe_bonus_amount_saved=resolved_rewe_bonus_saved_amount,
+		rewe_bonus_discount=rewe_bonus_discount,
 		rewe_bonus_total_amount=rewe_total_bonus_amount,
 		market=metadata.get("market"),
 		register=metadata.get("register"),
@@ -96,3 +74,12 @@ def _build_receipt_data(path: Path, text: str, lines: List[str]) -> Dict[str, An
 		items=items,
 	)
 
+
+def _calculate_total_price(raw_total_price: object, rewe_bonus_saved_amount: float) -> float | None:
+	"""Calculate the final total price after applying rewe bonus deductions."""
+	if raw_total_price is None:
+		return None
+	total = to_rewe_float(raw_total_price)
+	if total is None:
+		return None
+	return round(max(total - rewe_bonus_saved_amount, 0.0), 2)

@@ -2,7 +2,6 @@ import unittest
 
 from bs4 import BeautifulSoup
 
-from config import get_receipt_schema_profile
 from parsing.lidl_info_extractor import (
     extract_lidl_receipt_info,
     infer_lidl_pos_metadata_from_receipt_id,
@@ -13,10 +12,7 @@ from shared.receipt_schema import normalize_receipt_schema
 
 class LidlInfoExtractorTests(unittest.TestCase):
     def test_infer_lidl_pos_metadata_from_receipt_id(self):
-        metadata = infer_lidl_pos_metadata_from_receipt_id(
-            "230058821020240819725516",
-            "2024-08-19",
-        )
+        metadata = infer_lidl_pos_metadata_from_receipt_id("230058821020240819725516")
 
         self.assertEqual(
             metadata,
@@ -46,7 +42,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
             "Fürth-Südstadt",
         )
 
-        self.assertEqual(receipt_data["store"], "lidl")
+        self.assertEqual(receipt_data["store"], "Fürth-Südstadt")
         self.assertEqual(
             receipt_data["address"],
             {
@@ -75,7 +71,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
             "Fürth-Südstadt",
         )
 
-        self.assertEqual(receipt_data["store"], "lidl")
+        self.assertEqual(receipt_data["store"], "Fürth-Südstadt")
         self.assertEqual(receipt_data["market"], "4426")
         self.assertEqual(receipt_data["register"], "83")
         self.assertEqual(receipt_data["cashier"], "067583")
@@ -167,8 +163,8 @@ class LidlInfoExtractorTests(unittest.TestCase):
         )
 
         self.assertEqual(receipt_data["sticker_discount_pct"], [20])
-        self.assertEqual(receipt_data["sticker_discount_amount"], 0.4)
-        self.assertIsNone(receipt_data.get("amount_saved"))
+        self.assertEqual(receipt_data["sticker_discount"], 0.4)
+        self.assertIsNone(receipt_data.get("discount"))
 
     def test_extract_basic_receipt_info_treats_preisvorteil_as_regular_saved_amount(self):
         html = """
@@ -187,8 +183,8 @@ class LidlInfoExtractorTests(unittest.TestCase):
             "Fürth-Südstadt",
         )
 
-        self.assertEqual(receipt_data["amount_saved"], 0.4)
-        self.assertIsNone(receipt_data.get("sticker_discount_amount"))
+        self.assertEqual(receipt_data["discount"], 0.4)
+        self.assertIsNone(receipt_data.get("sticker_discount"))
         self.assertEqual(receipt_data.get("sticker_discount_pct"), [])
 
     def test_extract_basic_receipt_info_ignores_rabatt_amount_without_percent_for_sticker_field(self):
@@ -208,9 +204,9 @@ class LidlInfoExtractorTests(unittest.TestCase):
             "Fürth-Südstadt",
         )
 
-        self.assertIsNone(receipt_data.get("sticker_discount_amount"))
+        self.assertIsNone(receipt_data.get("sticker_discount"))
         self.assertEqual(receipt_data.get("sticker_discount_pct"), [])
-        self.assertIsNone(receipt_data.get("amount_saved"))
+        self.assertIsNone(receipt_data.get("discount"))
 
     def test_extract_basic_receipt_info_defaults_lidlplus_saved_amount_to_zero(self):
         soup = BeautifulSoup("<html><body></body></html>", "html.parser")
@@ -222,7 +218,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
             "Fürth-Südstadt",
         )
 
-        self.assertEqual(receipt_data["lidlplus_amount_saved"], 0.0)
+        self.assertEqual(receipt_data["lidlplus_discount"], 0.0)
 
     def test_extract_basic_receipt_info_applies_total_price_from_zu_zahlen_summary(self):
         html = """
@@ -266,12 +262,14 @@ class LidlInfoExtractorTests(unittest.TestCase):
             }
         )
 
-        self.assertNotIn("lidlplus_amount_saved", normalized)
-        self.assertNotIn("sticker_discount_amount", normalized)
-        self.assertNotIn("sticker_discount_pct", normalized)
-        self.assertEqual(normalized["store"], "Fürth-Südstadt")
+        self.assertIn("lidlplus_discount", normalized)
+        self.assertIsNone(normalized["lidlplus_discount"])
+        self.assertIn("sticker_discount", normalized)
+        self.assertIsNone(normalized["sticker_discount"])
+        self.assertIn("sticker_discount_pct", normalized)
+        # REWE fields must NOT be present for lidl
         self.assertNotIn("rewe_bonus_amount", normalized)
-        self.assertNotIn("rewe_bonus_amount_saved", normalized)
+        self.assertNotIn("rewe_bonus_discount", normalized)
         self.assertNotIn("rewe_bonus_total_amount", normalized)
         self.assertEqual(normalized["purchase_date"], "2024-08-28")
         self.assertEqual(
@@ -295,14 +293,13 @@ class LidlInfoExtractorTests(unittest.TestCase):
                 "retailer": "lidl",
                 "purchase_date": "28.08.2024",
                 "store": "Fürth-Südstadt",
-                "lidlplus_amount_saved": "2,78",
+                "lidlplus_discount": "2,78",
             },
-            profile=get_receipt_schema_profile("lidl"),
         )
 
-        self.assertEqual(normalized["lidlplus_amount_saved"], 2.78)
+        self.assertEqual(normalized["lidlplus_discount"], 2.78)
         self.assertEqual(normalized["sticker_discount_pct"], [])
-        self.assertIsNone(normalized["sticker_discount_amount"])
+        self.assertIsNone(normalized["sticker_discount"])
 
 
 if __name__ == "__main__":

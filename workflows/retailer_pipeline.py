@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from parsing.lidl_receipt_parser import parse_lidl_ticket
 from parsing.lidl_validator import LidlReceiptValidationError, validate_lidl_receipt_data
-from parsing.rewe_pdf_parser import parse_rewe_receipt_pdf
+from parsing.rewe_ebons_parser import parse_rewe_receipt_pdf
 from parsing.rewe_validator import ReweReceiptValidationError, validate_rewe_receipt_data
 
 from .pipeline_types import RawReceiptRecord

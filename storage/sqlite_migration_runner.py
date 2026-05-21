@@ -19,20 +19,15 @@ create table if not exists schema_migration (
 
 def apply_sqlite_migrations(connection: sqlite3.Connection) -> None:
     """Apply all pending SQL migration files in version order."""
-    _ensure_migration_table(connection)
+    connection.execute(MIGRATION_TABLE_SQL)
     applied_versions = _load_applied_migration_versions(connection)
 
     for migration_file in _list_migration_files():
-        version = _extract_migration_version(migration_file.name)
+        version = migration_file.name.split("__", 1)[0]
         if version in applied_versions:
             continue
         _apply_migration(connection, migration_file, version)
         applied_versions.add(version)
-
-
-
-def _ensure_migration_table(connection: sqlite3.Connection) -> None:
-    connection.execute(MIGRATION_TABLE_SQL)
 
 
 
@@ -46,12 +41,6 @@ def _list_migration_files() -> list[Path]:
     if not MIGRATIONS_DIR.exists():
         return []
     return sorted(path for path in MIGRATIONS_DIR.glob("V*.sql") if path.is_file())
-
-
-
-def _extract_migration_version(file_name: str) -> str:
-    return file_name.split("__", 1)[0]
-
 
 
 def _apply_migration(connection: sqlite3.Connection, migration_file: Path, version: str) -> None:
@@ -68,5 +57,3 @@ def _apply_migration(connection: sqlite3.Connection, migration_file: Path, versi
         """,
         (version, migration_file.name),
     )
-
-

@@ -141,7 +141,6 @@ def validate_lidl_receipt_data(receipt_data: Dict[str, Any]) -> None:
 
     inferred_metadata = infer_lidl_pos_metadata_from_receipt_id(
         str(receipt_data.get("id") or receipt_data.get("url") or ""),
-        str(receipt_data.get("purchase_date") or ""),
     )
     if inferred_metadata:
         for field, inferred_value in inferred_metadata.items():

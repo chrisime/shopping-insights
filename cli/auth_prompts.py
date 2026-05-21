@@ -15,19 +15,12 @@ _BROWSER_CHOICES = {
 }
 
 
-def prompt_cookies_file(
-    prompt_text: str,
-    default_path: str,
-) -> str:
+def prompt_cookies_file(prompt_text: str, default_path: str) -> str:
     """Prompt for a cookies/request file path with a default value."""
     return prompt_with_default(prompt_text, default_path)
 
 
-def prompt_auth_source(
-    retailer_label: str,
-    file_option_label: str,
-    default_file_path: str,
-) -> Dict[str, str]:
+def prompt_auth_source(retailer_label: str, file_option_label: str, default_file_path: str) -> Dict[str, str]:
     """Ask the user whether to use a file or a local browser profile."""
     print(f"\n=== {retailer_label} Authentifizierung ===")
     print(f"1. {file_option_label} (empfohlen)")
@@ -48,4 +41,3 @@ def prompt_auth_source(
         if choice in _BROWSER_CHOICES:
             return {"browser": _BROWSER_CHOICES[choice]}
         print_invalid_choice("1-5")
-

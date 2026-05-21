@@ -35,7 +35,7 @@ create table if not exists purchase
     register_id   varchar,
     cashier       varchar,
     total_price   real,
-    amount_saved  real    not null default 0,
+    discount      real    not null default 0,
     saved_deposit real    not null default 0,
     currency      varchar not null default 'EUR',
     source_file   varchar,
@@ -50,7 +50,6 @@ create table if not exists purchase
 
 create index if not exists idx_purchase__store_id
     on purchase (store_id);
-
 
 create table if not exists purchase_item
 (
@@ -77,9 +76,71 @@ create table if not exists payment_method
     network     varchar,
     amount      real,
 
-
     constraint fk_payment_method__purchase
         foreign key (purchase_id) references purchase (id) on delete cascade,
 
     constraint uq_payment_method__purchase_position unique (purchase_id, position)
 );
+
+create table if not exists purchase_lidl
+(
+    purchase_id       text primary key,
+    lidlplus_discount real,
+    sticker_discount  real,
+
+    constraint fk_purchase_lidl__purchase
+        foreign key (purchase_id) references purchase (id) on delete cascade
+);
+
+create table if not exists purchase_rewe
+(
+    purchase_id             text primary key,
+    rewe_bonus_amount       real not null default 0,
+    rewe_bonus_total_amount real not null default 0,
+    rewe_bonus_discount     real not null default 0,
+
+    constraint fk_purchase_rewe__purchase
+        foreign key (purchase_id) references purchase (id) on delete cascade
+);
+
+-- Cascade DELETE triggers as fallback for tools that don't enable PRAGMA foreign_keys.
+
+create trigger if not exists trg_store_delete_purchases
+    after delete
+    on store
+    for each row
+begin
+    delete from purchase where store_id = old.id;
+end;
+
+create trigger if not exists trg_purchase_delete_items
+    after delete
+    on purchase
+    for each row
+begin
+    delete from purchase_item where purchase_id = old.id;
+end;
+
+create trigger if not exists trg_purchase_delete_payments
+    after delete
+    on purchase
+    for each row
+begin
+    delete from payment_method where purchase_id = old.id;
+end;
+
+create trigger if not exists trg_purchase_delete_lidl
+    after delete
+    on purchase
+    for each row
+begin
+    delete from purchase_lidl where purchase_id = old.id;
+end;
+
+create trigger if not exists trg_purchase_delete_rewe
+    after delete
+    on purchase
+    for each row
+begin
+    delete from purchase_rewe where purchase_id = old.id;
+end;

@@ -9,7 +9,7 @@ Siehe ergänzend: `docs/architecture/workflow-overview.md`
 Das Projekt folgt einer einfachen, expliziten Schichtung:
 
 1. **Entry Points**
-   - `get_data.py`
+   - `fetch_tickets.py`
    - `dashboard.py`
    - `cli/*`
 2. **Workflows / Use Cases**
@@ -27,7 +27,7 @@ Das Projekt folgt einer einfachen, expliziten Schichtung:
 
 ## Verantwortungen pro Paket
 
-### Entry Points (`get_data.py`, `dashboard.py`, `cli/*`)
+### Entry Points (`fetch_tickets.py`, `dashboard.py`, `cli/*`)
 - starten nur öffentliche Use Cases oder Menüs
 - enthalten Argument-/Menü-Verkabelung, aber keine fachliche Parsing-/Persistenzlogik
 - verwenden wenige explizite öffentliche Einstiege (`main()`, Menüfunktionen)

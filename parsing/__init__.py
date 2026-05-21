@@ -6,7 +6,7 @@ from .lidl_receipt_parser import parse_lidl_ticket
 from .lidl_validator import validate_lidl_receipt_data
 from .rewe_info_extractor import extract_rewe_receipt_info
 from .rewe_items_extractor import extract_rewe_receipt_items
-from .rewe_pdf_parser import extract_text_from_pdf, parse_rewe_receipt_pdf
+from .rewe_ebons_parser import parse_rewe_receipt_pdf
 from .rewe_validator import validate_rewe_receipt_data
 
 __all__ = [
@@ -17,6 +17,5 @@ __all__ = [
     "extract_rewe_receipt_info",
     "validate_lidl_receipt_data",
     "validate_rewe_receipt_data",
-    "extract_text_from_pdf",
     "parse_rewe_receipt_pdf",
 ]

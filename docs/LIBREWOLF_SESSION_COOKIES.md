@@ -70,7 +70,7 @@ Falls du die LibreWolf-Einstellungen nicht ändern willst:
 Nach der Änderung (Option A/B):
 
 ```bash
-python3 get_data.py rewe --browser librewolf
+python3 fetch_tickets.py rewe --browser librewolf
 ```
 
 Wenn `rstp` jetzt aus `recovery.jsonlz4` gelesen wird, erscheint:

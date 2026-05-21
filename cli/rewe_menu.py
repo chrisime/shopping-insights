@@ -126,4 +126,3 @@ def _prompt_rewe_cookies_file() -> str:
         "Pfad zur REWE-Cookie-/Request-Datei",
         "rewe_cookies.json",
     )
-

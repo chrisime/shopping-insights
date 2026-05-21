@@ -1,9 +1,10 @@
 """Main receipt HTML parser."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from bs4 import BeautifulSoup
 
+from shared.lidl_ticket_dto import LidlTicketDTO
 from shared.receipt_dates import normalize_purchase_date
 
 from .lidl_info_extractor import extract_lidl_receipt_info
@@ -13,67 +14,34 @@ from .lidl_totals_extractor import extract_lidl_totals
 
 def parse_lidl_ticket(ticket_data: Dict[str, Any], receipt_id: str) -> Dict[str, Any]:
     """Parse a raw Lidl ticket payload into the normalized receipt structure."""
-    receipt_date = normalize_purchase_date(ticket_data["date"])
+    ticket = LidlTicketDTO.from_api_response(ticket_data, receipt_id)
+
+    receipt_date = normalize_purchase_date(ticket.date)
     if receipt_date is None:
         raise ValueError("Kein gültiges Kaufdatum im Ticket vorhanden")
 
-    address = None
-    if isinstance(ticket_data.get("store"), dict):
-        store = ticket_data["store"].get("name", "Unknown")
-        address = _extract_lidl_store_address(ticket_data["store"])
-    else:
-        store = ticket_data.get("store", "Unknown")
-
-    html_content = ticket_data.get("htmlPrintedReceipt", "")
-    if not html_content:
+    if not ticket.html_receipt:
         raise ValueError("Kein HTML-Inhalt im Ticket vorhanden")
 
-    soup = BeautifulSoup(html_content, "html.parser")
+    address = ticket.store.to_address_dict() if ticket.store.has_address() else None
+
+    soup = BeautifulSoup(ticket.html_receipt, "html.parser")
     receipt_data = extract_lidl_receipt_info(
-        soup, receipt_id, receipt_date, store, address
+        soup, ticket.id, receipt_date, ticket.store.name, address
     )
     receipt_data["items"] = extract_lidl_receipt_items(soup)
-    totals_result = extract_lidl_totals(
+
+    totals = extract_lidl_totals(
         soup,
-        amount_saved=receipt_data.get("amount_saved"),
-        lidlplus_amount_saved=receipt_data.get("lidlplus_amount_saved"),
-        sticker_discount_amount=receipt_data.get("sticker_discount_amount"),
+        discount=receipt_data.get("discount"),
+        lidlplus_discount=receipt_data.get("lidlplus_discount"),
+        sticker_discount=receipt_data.get("sticker_discount"),
     )
-    if totals_result.amount_saved is not None:
-        receipt_data["amount_saved"] = totals_result.amount_saved
-    if totals_result.saved_deposit is not None:
-        receipt_data["saved_deposit"] = totals_result.saved_deposit
-    for field_name, value in totals_result.additional_savings.items():
+
+    if totals.discount is not None:
+        receipt_data["discount"] = totals.discount
+    if totals.saved_deposit is not None:
+        receipt_data["saved_deposit"] = totals.saved_deposit
+    for field_name, value in totals.additional_savings.items():
         receipt_data[field_name] = value
     return receipt_data
-
-
-def _extract_lidl_store_address(store_payload: Dict[str, Any],) -> Optional[Dict[str, Any]]:
-    """Build a best-effort structured address from the Lidl API store payload."""
-    street = (
-        store_payload.get("street")
-        or store_payload.get("streetName")
-        or store_payload.get("addressLine1")
-    )
-    street_no = (
-        store_payload.get("street_no")
-        or store_payload.get("streetNo")
-        or store_payload.get("houseNumber")
-        or store_payload.get("house_no")
-    )
-    zip_code = (
-        store_payload.get("zip")
-        or store_payload.get("zipCode")
-        or store_payload.get("postalCode")
-    )
-    city = store_payload.get("city") or store_payload.get("town")
-
-    if not any((street, street_no, zip_code, city)):
-        return None
-
-    return {
-        "street": street,
-        "street_no": street_no,
-        "zip": zip_code,
-        "city": city,
-    }

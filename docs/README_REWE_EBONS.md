@@ -78,7 +78,7 @@ Unterstützte Browser:
 Beispiel:
 
 ```bash
-python3 get_data.py initial --retailer rewe --browser firefox
+python3 fetch_tickets.py initial --retailer rewe --browser firefox
 ```
 
 Das ist ein optionaler Best-Effort-Pfad.
@@ -113,7 +113,7 @@ Zusätzliche Cookies wie `cf_clearance`, `__cf_bm`, `_cfuvid`, `consentSettings`
 Vor dem eigentlichen Abruf kannst du die Datei jetzt mit einem Diagnosebefehl pruefen:
 
 ```bash
-python3 get_data.py check --retailer rewe --cookies-file rewe_test_cookies.json
+python3 fetch_tickets.py check --retailer rewe --cookies-file rewe_test_cookies.json
 ```
 
 Der Diagnosebefehl meldet dir u. a.:
@@ -142,14 +142,14 @@ Der aktuelle Workflow versucht die REWE-`customerId` automatisch in dieser Reihe
 Empfohlener produktiver Standardpfad:
 
 ```bash
-python3 get_data.py check --retailer rewe --cookies-file rewe_test_cookies.json
-python3 get_data.py initial --retailer rewe --cookies-file rewe_test_cookies.json
+python3 fetch_tickets.py check --retailer rewe --cookies-file rewe_test_cookies.json
+python3 fetch_tickets.py initial --retailer rewe --cookies-file rewe_test_cookies.json
 ```
 
 Alternative Browserprofil-Pfade gibt es zwar weiterhin, aber sie sind weniger verlässlich. Browserprofil-Pfad:
 
 ```bash
-python3 get_data.py initial --retailer rewe --browser firefox
+python3 fetch_tickets.py initial --retailer rewe --browser firefox
 ```
 
 Wenn der Browserprofil-Pfad `rstp` nicht liefern kann, wechsle bitte auf den weiterhin empfohlenen Datei-Pfad.
@@ -157,7 +157,7 @@ Wenn der Browserprofil-Pfad `rstp` nicht liefern kann, wechsle bitte auf den wei
 Der weiterhin empfohlene Datei-Pfad ist:
 
 ```bash
-python3 get_data.py initial --retailer rewe --cookies-file rewe_test_cookies.json
+python3 fetch_tickets.py initial --retailer rewe --cookies-file rewe_test_cookies.json
 ```
 
 Falls die Session-basierte Ermittlung nicht greift, kannst du die `customerId` weiterhin manuell übergeben.
@@ -194,26 +194,26 @@ Wenn du eine reine Cookie-Datei verwendest, ist die `customerId` dort meist **ni
 Im Projektordner bevorzugt ausführbar:
 
 ```bash
-python3 get_data.py check --retailer rewe --cookies-file rewe_test_cookies.json
-python3 get_data.py initial --retailer rewe --cookies-file rewe_test_cookies.json
+python3 fetch_tickets.py check --retailer rewe --cookies-file rewe_test_cookies.json
+python3 fetch_tickets.py initial --retailer rewe --cookies-file rewe_test_cookies.json
 ```
 
 Beispiel:
 
 ```bash
-python3 get_data.py initial --retailer rewe --cookies-file rewe_test_cookies.json --customer-id 12345678-1234-1234-1234-123456789abc
+python3 fetch_tickets.py initial --retailer rewe --cookies-file rewe_test_cookies.json --customer-id 12345678-1234-1234-1234-123456789abc
 ```
 
 Oft reicht inzwischen bereits ohne `--customer-id`:
 
 ```bash
-python3 get_data.py initial --retailer rewe --cookies-file rewe_test_cookies.json
+python3 fetch_tickets.py initial --retailer rewe --cookies-file rewe_test_cookies.json
 ```
 
 Für spätere Läufe kannst du auch `update` verwenden:
 
 ```bash
-python3 get_data.py update --retailer rewe --output-dir tmp/rewe
+python3 fetch_tickets.py update --retailer rewe --output-dir tmp/rewe
 ```
 
 Wichtig: REWE bietet aktuell keinen echten serverseitigen Delta-Endpunkt. `update` arbeitet deshalb rein lokal auf bereits vorhandenen PDFs in `tmp/rewe/pdfs` (bzw. im gewählten `--output-dir`) und importiert diese erneut per Upsert in die SQLite-Datenbank. Bereits bekannte Bons werden also nicht vorab ausgesiebt, sondern beim Persistieren aktualisiert bzw. unverändert belassen.
@@ -221,7 +221,7 @@ Wichtig: REWE bietet aktuell keinen echten serverseitigen Delta-Endpunkt. `updat
 Optional kannst du ein anderes Ausgabeverzeichnis setzen:
 
 ```bash
-python3 get_data.py initial --retailer rewe --cookies-file rewe_test_cookies.json --output-dir tmp/rewe_export
+python3 fetch_tickets.py initial --retailer rewe --cookies-file rewe_test_cookies.json --output-dir tmp/rewe_export
 ```
 
 ---
@@ -237,7 +237,7 @@ Standardmäßig erzeugt der Workflow folgende Dateien und Ordner:
 Bei Bedarf kannst du zusätzlich einen JSON-Export aus dem aktuellen DB-Stand erzeugen:
 
 ```bash
-python3 get_data.py export --retailer rewe --output-file rewe_receipts.json
+python3 fetch_tickets.py export --retailer rewe --output-file rewe_receipts.json
 ```
 
 In `tmp/rewe/pdfs/` liegen anschließend alle entpackten eBon-PDFs.
@@ -340,13 +340,13 @@ Wenn du schnell starten willst:
 3. Diesen Befehl ausführen:
 
 ```bash
-python3 get_data.py initial --retailer rewe --cookies-file rewe_test_cookies.json
+python3 fetch_tickets.py initial --retailer rewe --cookies-file rewe_test_cookies.json
 ```
 
 Wenn nötig, ergänze als Fallback:
 
 ```bash
-python3 get_data.py initial --retailer rewe --cookies-file rewe_test_cookies.json --customer-id <REWE_CUSTOMER_ID>
+python3 fetch_tickets.py initial --retailer rewe --cookies-file rewe_test_cookies.json --customer-id <REWE_CUSTOMER_ID>
 ```
 
 Danach findest du die PDFs in:

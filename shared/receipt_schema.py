@@ -3,8 +3,6 @@
 import re
 from typing import Any, Dict, List, Optional
 
-from config.receipt_schema_profiles import ReceiptSchemaProfile
-
 from shared.addresses import empty_address, normalize_address
 from shared.receipt_dates import normalize_purchase_date
 from shared.payment_methods import normalize_payment_method_entry
@@ -12,14 +10,32 @@ from shared.payment_methods import normalize_payment_method_entry
 
 SHARED_MONEY_FIELDS = {
     "total_price",
-    "amount_saved",
+    "discount",
     "saved_deposit",
+}
+
+_RETAILER_EXTRA_DEFAULTS: Dict[str, Dict[str, Any]] = {
+    "lidl": {
+        "sticker_discount": None,
+        "sticker_discount_pct": [],
+        "lidlplus_discount": None,
+    },
+    "rewe": {
+        "rewe_bonus_amount": None,
+        "rewe_bonus_discount": None,
+        "rewe_bonus_total_amount": None,
+    },
+}
+
+_RETAILER_EXTRA_MONEY_FIELDS: Dict[str, set[str]] = {
+    "lidl": {"sticker_discount", "lidlplus_discount"},
+    "rewe": {"rewe_bonus_amount", "rewe_bonus_discount", "rewe_bonus_total_amount"},
 }
 
 
 SHARED_RECEIPT_FIELDS = {
     "total_price": None,
-    "amount_saved": None,
+    "discount": None,
     "saved_deposit": None,
     "address": empty_address(),
     "market": None,
@@ -36,7 +52,6 @@ def build_receipt_schema(
     retailer: str,
     purchase_date: Optional[str],
     store: Optional[str],
-    profile: Optional[ReceiptSchemaProfile] = None,
     **overrides: Any,
 ) -> Dict[str, Any]:
     """Create a normalized receipt dict with shared core and optional fields."""
@@ -50,9 +65,9 @@ def build_receipt_schema(
     for key, value in SHARED_RECEIPT_FIELDS.items():
         receipt_data[key] = _copy_default_value(value)
 
-    if profile:
-        for key, value in profile.extra_defaults.items():
-            receipt_data[key] = _copy_default_value(value)
+    extra_defaults = _RETAILER_EXTRA_DEFAULTS.get(retailer.lower(), {})
+    for key, value in extra_defaults.items():
+        receipt_data[key] = _copy_default_value(value)
 
     receipt_data.update(overrides)
     return receipt_data
@@ -74,27 +89,21 @@ def build_receipt_item(
     }
 
 
-def normalize_receipt_schema(
-    receipt_data: Dict[str, Any],
-    retailer: Optional[str] = None,
-    profile: Optional[ReceiptSchemaProfile] = None,
-) -> Dict[str, Any]:
+def normalize_receipt_schema(receipt_data: Dict[str, Any], retailer: Optional[str] = None) -> Dict[str, Any]:
     """Merge an existing receipt dict into the shared schema defaults."""
     resolved_retailer = _resolve_receipt_retailer(receipt_data, retailer)
-    normalized = _build_normalized_receipt_base(receipt_data, resolved_retailer, profile)
+    normalized = _build_normalized_receipt_base(receipt_data, resolved_retailer)
     normalized.update(receipt_data)
     _normalize_receipt_metadata_fields(normalized, resolved_retailer)
-    _restore_mutable_defaults(normalized, profile)
+    _restore_mutable_defaults(normalized, resolved_retailer)
     _normalize_receipt_address(normalized)
-    _normalize_receipt_money_fields(normalized, profile)
+    _normalize_receipt_money_fields(normalized, resolved_retailer)
     _normalize_receipt_collection_fields(normalized)
     return normalized
 
 
 def _normalize_optional_text(value: str | None) -> Optional[str]:
-    if value is None:
-        return None
-    return value.strip() or None
+    return None if value is None else value.strip()
 
 
 def _resolve_receipt_retailer(receipt_data: Dict[str, Any], retailer: Optional[str] = None) -> str:
@@ -104,17 +113,12 @@ def _resolve_receipt_retailer(receipt_data: Dict[str, Any], retailer: Optional[s
     return resolved_retailer
 
 
-def _build_normalized_receipt_base(
-    receipt_data: Dict[str, Any],
-    retailer: str,
-    profile: Optional[ReceiptSchemaProfile] = None,
-) -> Dict[str, Any]:
+def _build_normalized_receipt_base(receipt_data: Dict[str, Any], retailer: str) -> Dict[str, Any]:
     return build_receipt_schema(
         receipt_id=receipt_data.get("id") or receipt_data.get("url") or "",
         retailer=retailer,
         purchase_date=receipt_data.get("purchase_date"),
         store=receipt_data.get("store"),
-        profile=profile,
     )
 
 
@@ -124,13 +128,14 @@ def _normalize_receipt_metadata_fields(normalized: Dict[str, Any], retailer: str
     normalized.pop("total_price_no_saving", None)
 
 
-def _restore_mutable_defaults(normalized: Dict[str, Any], profile: Optional[ReceiptSchemaProfile] = None) -> None:
+def _restore_mutable_defaults(normalized: Dict[str, Any], retailer: Optional[str] = None) -> None:
     for field_name, default_value in SHARED_RECEIPT_FIELDS.items():
         if normalized.get(field_name) is None:
             normalized[field_name] = _copy_default_value(default_value)
 
-    if profile:
-        for field_name, default_value in profile.extra_defaults.items():
+    if retailer:
+        extra_defaults = _RETAILER_EXTRA_DEFAULTS.get(retailer.lower(), {})
+        for field_name, default_value in extra_defaults.items():
             if normalized.get(field_name) is None:
                 normalized[field_name] = _copy_default_value(default_value)
 
@@ -147,13 +152,14 @@ def _normalize_receipt_address(normalized: Dict[str, Any]) -> None:
     normalized["address"] = normalize_address(normalized.get("address"))
 
 
-def _normalize_receipt_money_fields(normalized: Dict[str, Any], profile: Optional[ReceiptSchemaProfile] = None) -> None:
+def _normalize_receipt_money_fields(normalized: Dict[str, Any], retailer: Optional[str] = None) -> None:
     for field_name in SHARED_MONEY_FIELDS:
         if field_name in normalized:
             normalized[field_name] = _normalize_money_value(normalized.get(field_name))
 
-    if profile:
-        for field_name in profile.extra_money_fields:
+    if retailer:
+        extra_money_fields = _RETAILER_EXTRA_MONEY_FIELDS.get(retailer.lower(), set())
+        for field_name in extra_money_fields:
             if field_name in normalized:
                 normalized[field_name] = _normalize_money_value(normalized.get(field_name))
 

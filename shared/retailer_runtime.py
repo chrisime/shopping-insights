@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional, TypedDict
 
-from .lidl_config import LidlConfig
-from .rewe_config import ReweConfig
+from config.lidl_config import LidlConfig
+from config.rewe_config import ReweConfig
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,13 @@ class RetailerRuntime:
     receipts_json_file: str
 
 
-_RUNTIME_DEFINITIONS = {
+class _RetailerDefinition(TypedDict):
+    name: str
+    country_getter: Callable[[], str]
+    receipts_json_file: str
+
+
+_RUNTIME_DEFINITIONS: dict[str, _RetailerDefinition] = {
     "lidl": {
         "name": "LIDL",
         "country_getter": LidlConfig.get_country_code,
@@ -32,6 +38,7 @@ _RUNTIME_DEFINITIONS = {
     },
 }
 
+RETAILERS: tuple[str, ...] = tuple(_RUNTIME_DEFINITIONS.keys())
 
 
 def get_retailer_runtime(retailer: str) -> Optional[RetailerRuntime]:

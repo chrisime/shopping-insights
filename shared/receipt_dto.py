@@ -42,18 +42,18 @@ class ReceiptDTO:
     register_id: str | None
     cashier: str | None
     total_price: float | None
-    amount_saved: float
+    discount: float
     saved_deposit: float
     currency: str
     source_file: str | None
     payload_hash: str
     items: tuple[ReceiptItemDTO, ...] = field(default_factory=tuple)
     payment_methods: tuple[PaymentMethodDTO, ...] = field(default_factory=tuple)
-    lidlplus_amount_saved: float | None = None
-    sticker_discount_amount: float | None = None
+    lidlplus_discount: float | None = None
+    sticker_discount: float | None = None
     rewe_bonus_amount: float | None = None
     rewe_bonus_total_amount: float | None = None
-    rewe_bonus_amount_saved: float | None = None
+    rewe_bonus_discount: float | None = None
 
 
 def receipt_dict_to_dto(receipt_data: Mapping[str, Any], retailer: str | None = None) -> ReceiptDTO:
@@ -76,24 +76,28 @@ def receipt_dict_to_dto(receipt_data: Mapping[str, Any], retailer: str | None = 
         register_id=_to_optional_text(receipt_data.get("register")),
         cashier=_to_optional_text(receipt_data.get("cashier")),
         total_price=_to_optional_float(receipt_data.get("total_price")),
-        amount_saved=_to_float_or_default(receipt_data.get("amount_saved"), 0.0),
+        discount=_to_float_or_default(receipt_data.get("discount"), 0.0),
         saved_deposit=_to_float_or_default(receipt_data.get("saved_deposit"), 0.0),
         currency=_to_text(receipt_data.get("currency") or "EUR"),
         source_file=_to_optional_text(receipt_data.get("source_file")),
         payload_hash=_to_text(receipt_data.get("payload_hash")),
         items=_build_items(receipt_data.get("items")),
         payment_methods=_build_payment_methods(receipt_data.get("payment_methods")),
-        lidlplus_amount_saved=_to_optional_float(receipt_data.get("lidlplus_amount_saved")),
-        sticker_discount_amount=_to_optional_float(receipt_data.get("sticker_discount_amount")),
+        lidlplus_discount=_to_optional_float(receipt_data.get("lidlplus_discount")),
+        sticker_discount=_to_optional_float(receipt_data.get("sticker_discount")),
         rewe_bonus_amount=_to_optional_float(receipt_data.get("rewe_bonus_amount")),
         rewe_bonus_total_amount=_to_optional_float(receipt_data.get("rewe_bonus_total_amount")),
-        rewe_bonus_amount_saved=_to_optional_float(receipt_data.get("rewe_bonus_amount_saved")),
+        rewe_bonus_discount=_to_optional_float(receipt_data.get("rewe_bonus_discount")),
     )
 
 
 def receipt_dto_to_dict(receipt: ReceiptDTO) -> dict[str, Any]:
-    """Convert a receipt DTO into a schema-compatible dictionary."""
-    return {
+    """Convert a receipt DTO into a schema-compatible dictionary.
+
+    Retailer-specific fields are only included for the matching retailer:
+    lidl receipts omit rewe_ fields, rewe receipts omit lidl_ fields.
+    """
+    result: dict[str, Any] = {
         "id": receipt.id,
         "retailer": receipt.retailer,
         "purchase_date": receipt.purchase_date,
@@ -108,16 +112,11 @@ def receipt_dto_to_dict(receipt: ReceiptDTO) -> dict[str, Any]:
         "register": receipt.register_id,
         "cashier": receipt.cashier,
         "total_price": receipt.total_price,
-        "amount_saved": receipt.amount_saved,
+        "discount": receipt.discount,
         "saved_deposit": receipt.saved_deposit,
         "currency": receipt.currency,
         "source_file": receipt.source_file,
         "payload_hash": receipt.payload_hash,
-        "lidlplus_amount_saved": receipt.lidlplus_amount_saved,
-        "sticker_discount_amount": receipt.sticker_discount_amount,
-        "rewe_bonus_amount": receipt.rewe_bonus_amount,
-        "rewe_bonus_total_amount": receipt.rewe_bonus_total_amount,
-        "rewe_bonus_amount_saved": receipt.rewe_bonus_amount_saved,
         "items": [
             {
                 "name": item.name,
@@ -136,6 +135,17 @@ def receipt_dto_to_dict(receipt: ReceiptDTO) -> dict[str, Any]:
             for payment in receipt.payment_methods
         ],
     }
+
+    retailer = receipt.retailer.lower()
+    if retailer == "lidl":
+        result["lidlplus_discount"] = receipt.lidlplus_discount
+        result["sticker_discount"] = receipt.sticker_discount
+    elif retailer == "rewe":
+        result["rewe_bonus_amount"] = receipt.rewe_bonus_amount
+        result["rewe_bonus_total_amount"] = receipt.rewe_bonus_total_amount
+        result["rewe_bonus_discount"] = receipt.rewe_bonus_discount
+
+    return result
 
 
 def _build_items(raw_items: Any) -> tuple[ReceiptItemDTO, ...]:

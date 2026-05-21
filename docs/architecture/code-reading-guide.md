@@ -18,7 +18,7 @@ Siehe ergänzend:
 Das Projekt besteht im Kern aus **drei Ebenen**:
 
 1. **Einstieg / Auslösen**
-   - `get_data.py`
+   - `fetch_tickets.py`
    - `cli/*`
    - `dashboard.py`
 
@@ -48,7 +48,7 @@ Wenn du verstehen willst, **wie ein Detail technisch umgesetzt ist**, springe da
 Benutzer / CLI / Menü
         |
         v
-   get_data.py / cli/*
+   fetch_tickets.py / cli/*
         |
         v
      workflows/*
@@ -81,7 +81,7 @@ Wichtig dabei:
 2. `docs/architecture/code-reading-guide.md` *(dieses Dokument)*
 3. `docs/architecture/package-layer-rules.md`
 4. `docs/architecture/workflow-overview.md`
-5. `get_data.py`
+5. `fetch_tickets.py`
 6. `workflows/pipeline_runner.py`
 7. `workflows/lidl_workflow.py`
 8. `workflows/rewe_workflow.py`
@@ -115,11 +115,11 @@ Wichtig dabei:
 
 ---
 
-## 4. Der wichtigste Ablauf: Was passiert bei `python get_data.py ...`?
+## 4. Der wichtigste Ablauf: Was passiert bei `python fetch_tickets.py ...`?
 
-## 4.1 Einstieg über `get_data.py`
+## 4.1 Einstieg über `fetch_tickets.py`
 
-`get_data.py` ist der zentrale CLI-Einstieg.
+`fetch_tickets.py` ist der zentrale CLI-Einstieg.
 
 Seine Aufgabe ist **nicht**, fachliche Arbeit zu erledigen, sondern nur:
 
@@ -130,7 +130,7 @@ Seine Aufgabe ist **nicht**, fachliche Arbeit zu erledigen, sondern nur:
 
 Merksatz:
 
-> `get_data.py` beantwortet die Frage: **Welcher Use Case soll laufen?**
+> `fetch_tickets.py` beantwortet die Frage: **Welcher Use Case soll laufen?**
 
 Nicht:
 
@@ -143,7 +143,7 @@ Nicht:
 Beispiel LIDL:
 
 ```text
-get_data.py
+fetch_tickets.py
   -> workflows.lidl_workflow.run_lidl_initial()
      -> Session vorbereiten
      -> Receipt-IDs sammeln
@@ -156,7 +156,7 @@ get_data.py
 Beispiel REWE:
 
 ```text
-get_data.py
+fetch_tickets.py
   -> workflows.rewe_workflow.run_rewe_initial()
      -> Session + customerId vorbereiten
      -> ZIP herunterladen
@@ -348,7 +348,7 @@ Diese kleinen Typen machen den Code oft verständlicher als lange lose Dict-Kett
 ## 8. LIDL-Ende-zu-Ende: Welche Datei ist wofür zuständig?
 
 ```text
-get_data.py
+fetch_tickets.py
   -> workflows/lidl_workflow.py
        -> auth/session_manager.py
        -> api/lidl_client.py
@@ -396,7 +396,7 @@ Hier wird das normalisierte Ergebnis gespeichert.
 ## 9. REWE-Ende-zu-Ende: Welche Datei ist wofür zuständig?
 
 ```text
-get_data.py
+fetch_tickets.py
   -> workflows/rewe_workflow.py
        -> auth/session_manager.py
        -> auth/rewe_customer_id.py
@@ -480,7 +480,7 @@ Nutze diese Startpunkte:
 
 ### „Import klappt nicht“
 
-1. `get_data.py`
+1. `fetch_tickets.py`
 2. passender Workflow in `workflows/*`
 3. `auth/*` oder `api/*`
 4. `reporting/*` für sichtbare Fehlermeldungen
@@ -513,7 +513,7 @@ Wenn du das Projekt wirklich verstehen möchtest, würde ich **nicht** mit allen
 
 ### Runde 1: Nur Ablauf verstehen
 
-- `get_data.py`
+- `fetch_tickets.py`
 - `workflows/pipeline_runner.py`
 - `workflows/lidl_workflow.py`
 - `workflows/rewe_workflow.py`
@@ -543,7 +543,7 @@ Ziel: verstehen, **wie die Arbeit innerhalb der Bausteine passiert**.
 
 ## 14. Kurzfassung in einem Satz pro Hauptpaket
 
-- `get_data.py` → startet den passenden Use Case
+- `fetch_tickets.py` → startet den passenden Use Case
 - `cli/*` → interaktive Benutzerführung
 - `workflows/*` → steuert komplette Abläufe
 - `auth/*` → baut Sessions und liest Auth-Quellen

@@ -33,7 +33,7 @@ class PurchaseEntity:
     register_id: str | None
     cashier: str | None
     total_price: float | None
-    amount_saved: float
+    discount: float
     saved_deposit: float
     currency: str
     source_file: str | None
@@ -64,8 +64,8 @@ class PaymentMethodEntity:
 @dataclass(frozen=True)
 class PurchaseLidlEntity:
     purchase_id: str
-    lidlplus_amount_saved: float | None
-    sticker_discount_amount: float | None
+    lidlplus_discount: float | None
+    sticker_discount: float | None
 
 
 @dataclass(frozen=True)
@@ -73,4 +73,4 @@ class PurchaseReweEntity:
     purchase_id: str
     rewe_bonus_amount: float
     rewe_bonus_total_amount: float
-    rewe_bonus_amount_saved: float
+    rewe_bonus_discount: float

@@ -218,7 +218,7 @@ class PurchaseDomain:
                     PURCHASE_TABLE.register_id,
                     PURCHASE_TABLE.cashier,
                     PURCHASE_TABLE.total_price,
-                    PURCHASE_TABLE.amount_saved,
+                    PURCHASE_TABLE.discount,
                     PURCHASE_TABLE.saved_deposit,
                     PURCHASE_TABLE.currency,
                     PURCHASE_TABLE.source_file,
@@ -238,7 +238,7 @@ class PurchaseDomain:
             register_id=None if row["register_id"] is None else str(row["register_id"]),
             cashier=None if row["cashier"] is None else str(row["cashier"]),
             total_price=None if row["total_price"] is None else float(row["total_price"]),
-            amount_saved=float(row["amount_saved"]),
+            discount=float(row["discount"]),
             saved_deposit=float(row["saved_deposit"]),
             currency=str(row["currency"]),
             source_file=None if row["source_file"] is None else str(row["source_file"]),
@@ -268,7 +268,7 @@ class PurchaseDomain:
                     PURCHASE_TABLE.register_id,
                     PURCHASE_TABLE.cashier,
                     PURCHASE_TABLE.total_price,
-                    PURCHASE_TABLE.amount_saved,
+                    PURCHASE_TABLE.discount,
                     PURCHASE_TABLE.saved_deposit,
                     PURCHASE_TABLE.currency,
                     PURCHASE_TABLE.source_file,
@@ -297,7 +297,7 @@ class PurchaseDomain:
                 entity.register_id,
                 entity.cashier,
                 entity.total_price,
-                entity.amount_saved,
+                entity.discount,
                 entity.saved_deposit,
                 entity.currency,
                 entity.source_file,
@@ -306,51 +306,40 @@ class PurchaseDomain:
         )
 
     def replace(self, entity: PurchaseEntity) -> None:
+        """Update an existing purchase row without triggering ON DELETE CASCADE.
+
+        Using UPDATE instead of INSERT OR REPLACE because REPLACE internally
+        does DELETE + INSERT, which triggers CASCADE and destroys child rows.
+        """
         self.connection.execute(
             (
-                SQLLiteQuery.into(PURCHASE_TABLE)
-                .columns(
-                    PURCHASE_TABLE.id,
-                    PURCHASE_TABLE.store_id,
-                    PURCHASE_TABLE.purchase_date,
-                    PURCHASE_TABLE.market,
-                    PURCHASE_TABLE.register_id,
-                    PURCHASE_TABLE.cashier,
-                    PURCHASE_TABLE.total_price,
-                    PURCHASE_TABLE.amount_saved,
-                    PURCHASE_TABLE.saved_deposit,
-                    PURCHASE_TABLE.currency,
-                    PURCHASE_TABLE.source_file,
-                    PURCHASE_TABLE.hash,
-                )
-                .replace(
-                    Parameter("?"),
-                    Parameter("?"),
-                    Parameter("?"),
-                    Parameter("?"),
-                    Parameter("?"),
-                    Parameter("?"),
-                    Parameter("?"),
-                    Parameter("?"),
-                    Parameter("?"),
-                    Parameter("?"),
-                    Parameter("?"),
-                    Parameter("?"),
-                )
+                SQLLiteQuery.update(PURCHASE_TABLE)
+                .set(PURCHASE_TABLE.store_id, Parameter("?"))
+                .set(PURCHASE_TABLE.purchase_date, Parameter("?"))
+                .set(PURCHASE_TABLE.market, Parameter("?"))
+                .set(PURCHASE_TABLE.register_id, Parameter("?"))
+                .set(PURCHASE_TABLE.cashier, Parameter("?"))
+                .set(PURCHASE_TABLE.total_price, Parameter("?"))
+                .set(PURCHASE_TABLE.discount, Parameter("?"))
+                .set(PURCHASE_TABLE.saved_deposit, Parameter("?"))
+                .set(PURCHASE_TABLE.currency, Parameter("?"))
+                .set(PURCHASE_TABLE.source_file, Parameter("?"))
+                .set(PURCHASE_TABLE.hash, Parameter("?"))
+                .where(PURCHASE_TABLE.id == Parameter("?"))
             ).get_sql(),
             (
-                entity.id,
                 entity.store_id,
                 entity.purchase_date,
                 entity.market,
                 entity.register_id,
                 entity.cashier,
                 entity.total_price,
-                entity.amount_saved,
+                entity.discount,
                 entity.saved_deposit,
                 entity.currency,
                 entity.source_file,
                 entity.hash,
+                entity.id,
             ),
         )
 
@@ -391,7 +380,7 @@ class PurchaseDomain:
                     PURCHASE_TABLE.register_id,
                     PURCHASE_TABLE.cashier,
                     PURCHASE_TABLE.total_price,
-                    PURCHASE_TABLE.amount_saved,
+                    PURCHASE_TABLE.discount,
                     PURCHASE_TABLE.saved_deposit,
                     PURCHASE_TABLE.currency,
                     PURCHASE_TABLE.source_file,
@@ -412,7 +401,7 @@ class PurchaseDomain:
                 register_id=None if row["register_id"] is None else str(row["register_id"]),
                 cashier=None if row["cashier"] is None else str(row["cashier"]),
                 total_price=None if row["total_price"] is None else float(row["total_price"]),
-                amount_saved=float(row["amount_saved"]),
+                discount=float(row["discount"]),
                 saved_deposit=float(row["saved_deposit"]),
                 currency=str(row["currency"]),
                 source_file=None if row["source_file"] is None else str(row["source_file"]),
@@ -584,15 +573,15 @@ class PurchaseLidlDomain:
                 SQLLiteQuery.into(PURCHASE_LIDL_TABLE)
                 .columns(
                     PURCHASE_LIDL_TABLE.purchase_id,
-                    PURCHASE_LIDL_TABLE.lidlplus_amount_saved,
-                    PURCHASE_LIDL_TABLE.sticker_discount_amount,
+                    PURCHASE_LIDL_TABLE.lidlplus_discount,
+                    PURCHASE_LIDL_TABLE.sticker_discount,
                 )
                 .insert(Parameter("?"), Parameter("?"), Parameter("?"))
             ).get_sql(),
             (
                 entity.purchase_id,
-                entity.lidlplus_amount_saved,
-                entity.sticker_discount_amount,
+                entity.lidlplus_discount,
+                entity.sticker_discount,
             ),
         )
 
@@ -602,8 +591,8 @@ class PurchaseLidlDomain:
                 SQLLiteQuery.from_(PURCHASE_LIDL_TABLE)
                 .select(
                     PURCHASE_LIDL_TABLE.purchase_id,
-                    PURCHASE_LIDL_TABLE.lidlplus_amount_saved,
-                    PURCHASE_LIDL_TABLE.sticker_discount_amount,
+                    PURCHASE_LIDL_TABLE.lidlplus_discount,
+                    PURCHASE_LIDL_TABLE.sticker_discount,
                 )
                 .where(PURCHASE_LIDL_TABLE.purchase_id == Parameter("?"))
             ).get_sql(),
@@ -613,8 +602,8 @@ class PurchaseLidlDomain:
             return None
         return PurchaseLidlEntity(
             purchase_id=str(row["purchase_id"]),
-            lidlplus_amount_saved=None if row["lidlplus_amount_saved"] is None else float(row["lidlplus_amount_saved"]),
-            sticker_discount_amount=None if row["sticker_discount_amount"] is None else float(row["sticker_discount_amount"]),
+            lidlplus_discount=None if row["lidlplus_discount"] is None else float(row["lidlplus_discount"]),
+            sticker_discount=None if row["sticker_discount"] is None else float(row["sticker_discount"]),
         )
 
 
@@ -630,7 +619,7 @@ class PurchaseReweDomain:
                     PURCHASE_REWE_TABLE.purchase_id,
                     PURCHASE_REWE_TABLE.rewe_bonus_amount,
                     PURCHASE_REWE_TABLE.rewe_bonus_total_amount,
-                    PURCHASE_REWE_TABLE.rewe_bonus_amount_saved,
+                    PURCHASE_REWE_TABLE.rewe_bonus_discount,
                 )
                 .insert(Parameter("?"), Parameter("?"), Parameter("?"), Parameter("?"))
             ).get_sql(),
@@ -638,7 +627,7 @@ class PurchaseReweDomain:
                 entity.purchase_id,
                 entity.rewe_bonus_amount,
                 entity.rewe_bonus_total_amount,
-                entity.rewe_bonus_amount_saved,
+                entity.rewe_bonus_discount,
             ),
         )
 
@@ -650,7 +639,7 @@ class PurchaseReweDomain:
                     PURCHASE_REWE_TABLE.purchase_id,
                     PURCHASE_REWE_TABLE.rewe_bonus_amount,
                     PURCHASE_REWE_TABLE.rewe_bonus_total_amount,
-                    PURCHASE_REWE_TABLE.rewe_bonus_amount_saved,
+                    PURCHASE_REWE_TABLE.rewe_bonus_discount,
                 )
                 .where(PURCHASE_REWE_TABLE.purchase_id == Parameter("?"))
             ).get_sql(),
@@ -662,5 +651,5 @@ class PurchaseReweDomain:
             purchase_id=str(row["purchase_id"]),
             rewe_bonus_amount=float(row["rewe_bonus_amount"]),
             rewe_bonus_total_amount=float(row["rewe_bonus_total_amount"]),
-            rewe_bonus_amount_saved=float(row["rewe_bonus_amount_saved"]),
+            rewe_bonus_discount=float(row["rewe_bonus_discount"]),
         )

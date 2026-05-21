@@ -48,4 +48,3 @@ def _dispatch_main_menu_choice(choice: str) -> bool:
 
     print("Ungültige Eingabe. Bitte wähle 1, 2 oder 3.")
     return True
-

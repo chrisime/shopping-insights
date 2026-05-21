@@ -15,13 +15,13 @@ from .rewe_parser_common import to_rewe_float
 
 SUM_RE = re.compile(r"SUMME EUR\s+(?P<amount>\d+,\d{2})")
 DATETIME_AND_BON_RE = re.compile(
-    r"(?P<date>\d{2}\.\d{2}\.\d{4})\s+"
-    r"(?P<time>\d{2}:\d{2})(?::\d{2})?\s+"
+    r"(?P<date>\d{1,2}\.\d{1,2}\.\d{4})\s+"
+    r"(?P<time>\d{1,2}:\d{2})(?::\d{2})?\s+"
     r"Bon-Nr\.\s*:\s*(?P<bon>\d+)"
 )
 BON_RE = re.compile(r"Bon-Nr\.\s*:\s*(?P<bon>\d+)")
-DATE_RE = re.compile(r"Datum\s*:\s*(?P<date>\d{2}\.\d{2}\.\d{4})")
-TIME_RE = re.compile(r"Uhrzeit\s*:\s*(?P<time>\d{2}:\d{2})(?::\d{2})?\s*Uhr")
+DATE_RE = re.compile(r"Datum\s*:\s*(?P<date>\d{1,2}\.\d{1,2}\.\d{4})")
+TIME_RE = re.compile(r"Uhrzeit\s*:\s*(?P<time>\d{1,2}:\d{2})(?::\d{2})?\s*Uhr")
 MARKET_RE = re.compile(
     r"Markt\s*:\s*(?P<market>\d+)\s+"
     r"Kasse\s*:\s*(?P<register>\d+)\s+"

@@ -7,7 +7,6 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
-from config import get_receipt_schema_profile
 from config import storage_config
 from result_types import PersistResult
 from shared.receipt_dto import (
@@ -51,6 +50,7 @@ def _connect_sqlite() -> sqlite3.Connection:
     connection.row_factory = sqlite3.Row
     connection.execute("pragma foreign_keys = on")
     _ensure_schema(connection)
+    connection.execute("pragma foreign_keys = on")
     return connection
 
 
@@ -78,6 +78,9 @@ def _persist_receipt_row(receipt: ReceiptDTO, payload_hash: str, connection: sql
     if action is None:
         return None
 
+    if action == "updated":
+        _delete_purchase_children(connection, receipt.id)
+
     if retailer_code == "lidl":
         purchase_lidl_domain.insert(build_purchase_lidl_entity(receipt))
     elif retailer_code == "rewe":
@@ -86,6 +89,18 @@ def _persist_receipt_row(receipt: ReceiptDTO, payload_hash: str, connection: sql
     purchase_item_domain.insert_many(build_purchase_item_entities(receipt))
     payment_method_domain.insert_many(build_payment_method_entities(receipt))
     return action
+
+
+def _delete_purchase_children(connection: sqlite3.Connection, purchase_id: str) -> None:
+    """Delete all child rows of a purchase before re-inserting updated data.
+
+    This replaces the old INSERT OR REPLACE pattern which triggered
+    ON DELETE CASCADE unexpectedly (SQLite REPLACE = DELETE + INSERT).
+    """
+    connection.execute("DELETE FROM purchase_item WHERE purchase_id = ?", (purchase_id,))
+    connection.execute("DELETE FROM payment_method WHERE purchase_id = ?", (purchase_id,))
+    connection.execute("DELETE FROM purchase_lidl WHERE purchase_id = ?", (purchase_id,))
+    connection.execute("DELETE FROM purchase_rewe WHERE purchase_id = ?", (purchase_id,))
 
 
 def _map_purchase_to_receipt_dict(
@@ -132,7 +147,7 @@ def _map_purchase_to_receipt_dict(
         register_id=purchase.register_id,
         cashier=purchase.cashier,
         total_price=purchase.total_price,
-        amount_saved=purchase.amount_saved,
+        discount=purchase.discount,
         saved_deposit=purchase.saved_deposit,
         currency=purchase.currency,
         source_file=purchase.source_file,
@@ -156,11 +171,11 @@ def _map_purchase_to_receipt_dict(
             )
             for payment_method in payment_methods
         ),
-        lidlplus_amount_saved=None if lidl_extension is None else lidl_extension.lidlplus_amount_saved,
-        sticker_discount_amount=None if lidl_extension is None else lidl_extension.sticker_discount_amount,
+        lidlplus_discount=None if lidl_extension is None else lidl_extension.lidlplus_discount,
+        sticker_discount=None if lidl_extension is None else lidl_extension.sticker_discount,
         rewe_bonus_amount=None if rewe_extension is None else rewe_extension.rewe_bonus_amount,
         rewe_bonus_total_amount=None if rewe_extension is None else rewe_extension.rewe_bonus_total_amount,
-        rewe_bonus_amount_saved=None if rewe_extension is None else rewe_extension.rewe_bonus_amount_saved,
+        rewe_bonus_discount=None if rewe_extension is None else rewe_extension.rewe_bonus_discount,
     )
     return receipt_dto_to_dict(receipt_dto)
 
@@ -195,7 +210,6 @@ class SqliteReceiptStore(ReceiptStore):
         updated_count = 0
 
         retailer_code = retailer.lower()
-        receipt_schema_profile = get_receipt_schema_profile(retailer_code)
         retailer_entity = build_retailer_entity(retailer_code)
 
         with closing(_connect_sqlite()) as connection:
@@ -206,7 +220,7 @@ class SqliteReceiptStore(ReceiptStore):
                 retailer_domain.upsert(retailer_entity)
 
                 for receipt in receipts:
-                    normalized_receipt = normalize_receipt_schema(receipt, retailer_code, receipt_schema_profile)
+                    normalized_receipt = normalize_receipt_schema(receipt, retailer_code)
                     receipt_id = normalized_receipt.get("id") or normalized_receipt.get("url")
 
                     if not receipt_id:
