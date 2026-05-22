@@ -1,6 +1,6 @@
 # Workflow-Überblick
 
-Stand: 2026-05-19
+Stand: 2026-05-21
 
 Dieses Dokument beschreibt die fachlichen Hauptabläufe in `workflows/*` in einer kompakteren Form als Einstieg für Wartung und Refactoring.
 
@@ -10,7 +10,7 @@ Dieses Dokument beschreibt die fachlichen Hauptabläufe in `workflows/*` in eine
 
 Öffentlich gemacht werden dort nur echte Einstiegspunkte:
 
-- Use Cases wie `run_lidl_sync(...)`, `run_rewe_initial(...)` oder `run_rewe_update(...)`
+- Use Cases wie `run_lidl_initial(...)`, `run_rewe_initial(...)` oder `run_rewe_update(...)`
 
 Alle übrigen Orchestrierungshelfer bleiben privat und beginnen mit `_`.
 
@@ -81,18 +81,49 @@ Externe Formate werden nicht mehr als Write-Backend ausgewaehlt, sondern ueber E
 
 ### Oeffentliche LIDL-API
 
-- `run_lidl_sync(...)`
+- `run_lidl_initial(...)`
+- `run_lidl_update(...)`
 
 Nicht oeffentlich sind die internen Session-/Collection-/Pipeline-Helper.
 
-### `run_lidl_sync(...)`
+### `run_lidl_initial(...)`
 Ablauf:
 1. Session vorbereiten und prüfen
 2. alle Ticket-Seiten der LIDL-API sammeln
 3. bestehende Receipt-IDs aus dem Store laden
 4. nur neue Receipts ueber stabile `receipt_id` bestimmen
-5. gemeinsame LIDL-Pipeline ausführen
-6. Skip-Report + Summary + Abschlussausgabe
+5. Ticket-JSONs herunterladen und lokal speichern
+6. gemeinsame LIDL-Pipeline ausführen
+7. Skip-Report + Summary + Abschlussausgabe
+
+### `run_lidl_update(...)`
+Ablauf:
+1. keine API-Abfrage – vorhandene lokale JSONs per Upsert reimportieren
+2. gemeinsame LIDL-Pipeline ausführen
+3. Skip-Report + Summary + Abschlussausgabe
+
+### Gemeinsame `DownloadImportWorkflow`-Superklasse
+
+Beide LIDL-Workflows (`run_lidl_initial`, `run_lidl_update`) delegieren an
+`_LidlDownloadImportWorkflow`, das von `DownloadImportWorkflow` (ABC in
+`workflows/download_import_workflow.py`) erbt.
+
+Das ABC stellt zwei Template-Methoden bereit:
+
+- `run_initial(output_dir, store)` – Download → Import → Summary
+- `run_update(output_dir, store)` – Kein-Download-Info → Vorbedingungsprüfung → Import → Summary
+
+Abstrakte Schritte, die Unterklassen implementieren müssen:
+
+- `_download_sources(output_dir, store) → bool`
+- `_run_local_import(output_dir, store) → WorkflowResult`
+- `_print_import_summary(result)`
+- `_print_no_download_info()`
+
+Optionale Hooks (default: no-op):
+
+- `_validate_update_preconditions(output_dir) → bool`
+- `_post_import(result, output_dir)`
 
 ### `_run_lidl_receipt_pipeline(...)`
 Verantwortung:
@@ -126,10 +157,9 @@ Ablauf:
 5. PDFs entpacken
 6. gemeinsame PDF-Importpipeline ausführen
 7. Summary ausgeben
+8. Customer-ID cachen (Post-Import-Hook)
 
-Wichtige Helfer:
-- `_prepare_rewe_import_context(...)`
-- `_download_and_extract_rewe_zip(...)`
+Delegiert intern an `_ReweDownloadImportWorkflow(DownloadImportWorkflow)`.
 
 ### `run_rewe_update(...)`
 Ablauf:
@@ -174,6 +204,21 @@ Das Ziel ist daher nicht "extrem kleine Dateien um jeden Preis", sondern:
 - kleine, benannte Hilfsfunktionen für wiederkehrende Teilabläufe
 - injizierbare gemeinsame Pipeline-Bausteine
 - dokumentierte Paketgrenzen
+
+## Einheitliches Import-Summary-Format
+
+`reporting/shared_reporting.py` stellt zwei retailer-unabhängige Helfer bereit:
+
+- `write_skipped_receipts_report(skipped_details, report_path)` – schreibt den Skip-Report
+- `print_import_summary(summary, label)` – druckt die Zusammenfassung im einheitlichen Format:
+
+```
+✓ <label>: X neu/aktualisiert, Y übersprungen, Z Artikel, N insgesamt in FILE
+```
+
+Beide LIDL- und REWE-Reporting-Module delegieren an diese gemeinsamen Funktionen.
+Die händlerspezifischen Wrapper (`print_lidl_import_summary`, `print_rewe_import_summary`) bleiben erhalten,
+aber ihr Ausgabeformat ist jetzt identisch.
 
 ## Einheitliche Dateistruktur in `workflows/*`
 

@@ -22,10 +22,7 @@ def _build_receipts_zip_url(customer_id: Optional[str] = None) -> str:
     return f"{ReweConfig.get_receipts_zip_url()}?{query}"
 
 
-def test_rewe_session(
-    session: requests.Session,
-    customer_id: Optional[str] = None,
-) -> bool:
+def test_rewe_session(session: requests.Session, customer_id: Optional[str]) -> bool:
     """Perform a lightweight session test against the ZIP endpoint.
 
     The request is streamed and immediately closed to avoid downloading the full body.

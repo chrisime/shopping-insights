@@ -1,271 +1,176 @@
 """Central REWE workflows for eBon download, PDF import and diagnostics."""
 
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional
 import zipfile
 
-import requests
+from requests import Session
 
 from api.rewe_client import download_receipts_zip, test_rewe_session
 from auth.rewe_customer_id import cache_customer_id, resolve_rewe_customer_id
 from auth.session_manager import setup_session
-from config import storage_config
-from reporting.rewe_api_reporting import (
-    print_rewe_session_test_start, print_rewe_session_test_success,
-    print_rewe_zip_saved
-)
-from reporting.rewe_workflow_reporting import (
-    print_rewe_missing_auth_source,
-    print_rewe_no_pdfs_found,
-    print_rewe_import_summary,
-    print_rewe_skipped_receipts,
-    print_rewe_update_no_delta,
-    print_rewe_zip_extracted,
-    write_rewe_skipped_receipts_report,
-)
+from config import storage_config, ReweConfig
+from reporting.shared_reporting import write_skipped_receipts_report
 from result_types import WorkflowSummary
 from shared.receipt_store import ReceiptStore
 from storage import create_receipt_store
 
-from .pipeline_runner import parse_receipts, validate_receipts
-from .pipeline_types import RawReceiptRecord, ReceiptIssue, WorkflowResult
+from .import_workflow import ImportWorkflow
+from .import_pipeline import ImportPipeline
+from .pipeline_types import WorkflowResult
 from .workflow_constants import RETAILER_REWE, REASON_KIND_REWE_PDF_PARSE
 
-REWE_DEFAULT_OUTPUT_DIR = "tmp/rewe"
 
 __all__ = [
     "run_rewe_initial",
     "run_rewe_update",
 ]
 
+
+class _ReweImportPipeline(ImportPipeline):
+    load_error_reason_kind = REASON_KIND_REWE_PDF_PARSE
+
+    def write_skipped_receipts_report(self, source_dir: Path, skipped_details: list[dict[str, str]]) -> Path | None:
+        report_path = source_dir.parent / ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE
+        return write_skipped_receipts_report(skipped_details, report_path)
+
+    def print_skipped_receipts(self, skipped_details: list[dict[str, str]], report_path: Path | None) -> None:
+        if not skipped_details:
+            return
+        print("ℹ Übersprungene REWE-Bons:")
+        for skipped in skipped_details:
+            print(f"  - {skipped['file']}: {skipped['reason']}")
+        if report_path:
+            print(f"ℹ Skip-Report geschrieben: {report_path}")
+
+
+class _ReweImportWorkflow(ImportWorkflow):
+    """Concrete REWE workflow: ZIP download and PDF extraction followed by local import."""
+
+    def __init__(self, customer_id: Optional[str], browser: Optional[str], cookies_file: Optional[str]) -> None:
+        self._customer_id = customer_id
+        self._browser = browser
+        self._cookies_file = cookies_file
+        self._resolved_customer_id: Optional[str] = None
+
+    def _source_subdir_name(self) -> str:
+        return "pdfs"
+
+    def _download_sources(self, output_dir: Path, store: ReceiptStore) -> bool:
+        session_and_customer_id = _prepare_rewe_session(self._customer_id, self._browser, self._cookies_file, output_dir)
+        if not session_and_customer_id:
+            return False
+        session, self._resolved_customer_id = session_and_customer_id
+
+        zip_path = output_dir / "receipts.zip"
+
+        target_dir = self._source_dir(output_dir)
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        return _download_and_extract_rewe_zip(session, self._resolved_customer_id, zip_path, target_dir)
+
+    def _run_local_import(self, output_dir: Path, store: ReceiptStore) -> WorkflowResult:
+        return _run_rewe_pdf_import_pipeline(self._source_dir(output_dir), store)
+
+    def _import_summary_label(self) -> str:
+        return "REWE-eBons importiert"
+
+    def _print_no_download_info(self) -> None:
+        print("ℹ REWE: importiere alle vorhandenen lokalen PDFs.")
+
+    def _post_import(self, result: WorkflowResult, output_dir: Path) -> None:
+        if self._resolved_customer_id:
+            cache_customer_id(self._resolved_customer_id, output_dir)
+
+
 def run_rewe_initial(
         customer_id: Optional[str] = None,
         browser: Optional[str] = None,
         cookies_file: Optional[str] = None,
-        output_dir: str = REWE_DEFAULT_OUTPUT_DIR,
+        output_dir: str = ReweConfig.REWE_DEFAULT_OUTPUT_DIR,
 ) -> bool:
-    """Run the full REWE eBon workflow: download ZIP, extract PDFs, import JSON."""
-
-    store = create_receipt_store()
-    prepared_session = _prepare_rewe_import_session(
-        customer_id=customer_id,
-        browser=browser,
-        cookies_file=cookies_file,
-        output_dir=output_dir,
-    )
-    if not prepared_session:
-        return False
-
-    session, resolved_customer_id = prepared_session
+    """Run the full REWE eBon workflow: download ZIP, extract PDFs, import into DB."""
     base_output_dir = Path(output_dir)
-    zip_path = base_output_dir / "receipts.zip"
-    pdf_output_dir = base_output_dir / "pdfs"
-
-    if not _download_and_extract_rewe_zip(session, resolved_customer_id, zip_path, pdf_output_dir):
-        return False
-
-    workflow_result = _run_rewe_pdf_import_pipeline(
-        pdf_output_dir,
-        retailer=RETAILER_REWE,
-        store=store,
-        receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
-    )
-    print_rewe_import_summary(workflow_result.summary)
-
-    if resolved_customer_id:
-        cache_customer_id(resolved_customer_id, str(base_output_dir))
-    return workflow_result.success
-
-
-
-def run_rewe_update(
-        customer_id: Optional[str] = None,
-        browser: Optional[str] = None,
-        cookies_file: Optional[str] = None,
-        output_dir: str = REWE_DEFAULT_OUTPUT_DIR,
-) -> bool:
-    """Re-import all locally downloaded REWE PDFs into the configured store via upsert."""
-    _ = customer_id, browser, cookies_file
-    print_rewe_update_no_delta()
     store = create_receipt_store()
-    pdf_output_dir = Path(output_dir) / "pdfs"
-    workflow_result = _run_rewe_pdf_import_pipeline(
-        pdf_output_dir,
-        retailer=RETAILER_REWE,
-        store=store,
-        receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
-    )
-
-    print_rewe_import_summary(workflow_result.summary)
-    return workflow_result.success
+    return _ReweImportWorkflow(customer_id, browser, cookies_file).run_initial(base_output_dir, store)
 
 
+def run_rewe_update(output_dir: str = ReweConfig.REWE_DEFAULT_OUTPUT_DIR) -> bool:
+    """Re-import all locally downloaded REWE PDFs into the configured store via upsert."""
+    store = create_receipt_store()
+    return _ReweImportWorkflow(None, None, None).run_update(Path(output_dir), store)
 
-def _run_rewe_pdf_import_pipeline(
-        pdf_dir: Path,
-        store: ReceiptStore,
-        receipts_file: str,
-        retailer: str = RETAILER_REWE,
-        pdf_paths: Optional[Sequence[Path]] = None,
-        prefilter_issues: Optional[Sequence[ReceiptIssue]] = None,
-        existing_total_receipts: Optional[int] = None,
-) -> WorkflowResult:
+
+def _run_rewe_pdf_import_pipeline(pdf_dir: Path, store: ReceiptStore) -> WorkflowResult:
     """Parse, validate and persist extracted REWE PDFs and return a normalized workflow result."""
-    active_pdf_paths = list(pdf_paths) if pdf_paths is not None else sorted(pdf_dir.glob("*.pdf"))
-    initial_issues = list(prefilter_issues or [])
+    active_pdf_paths = sorted(pdf_dir.glob("*.pdf"))
     if not active_pdf_paths:
-        if pdf_paths is None:
-            print_rewe_no_pdfs_found(pdf_dir)
-            return WorkflowResult(
-                success=False,
-                summary=WorkflowSummary(
-                    retailer=retailer,
-                    processed_count=0,
-                    skipped_count=0,
-                    total_receipts=0,
-                    receipts_file=receipts_file,
-                    total_items=0,
-                ),
-                skipped_issues=[],
-                skipped_report_path=None,
-            )
-
-        return _build_rewe_prefilter_only_result(
-            pdf_dir=pdf_dir,
-            receipts_file=receipts_file,
-            retailer=retailer,
-            initial_issues=initial_issues,
-            existing_total_receipts=existing_total_receipts,
+        print(f"\u26a0 Keine REWE-PDFs zum Importieren gefunden in: {pdf_dir}")
+        return WorkflowResult(
+            success=False,
+            summary=WorkflowSummary(
+                retailer=RETAILER_REWE,
+                processed_count=0,
+                skipped_count=0,
+                total_receipts=0,
+                receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
+                total_items=0,
+            ),
+            skipped_issues=[],
+            skipped_report_path=None,
         )
 
-    raw_pdf_records = [
-        RawReceiptRecord(source_id=pdf_path.name, payload=pdf_path)
-        for pdf_path in active_pdf_paths
-    ]
-    parse_result = parse_receipts(
-        raw_pdf_records,
+    return _ReweImportPipeline().run(
+        source_paths=active_pdf_paths,
+        source_dir=pdf_dir,
         retailer=RETAILER_REWE,
-        detail_key="file",
-        unexpected_error_kind=REASON_KIND_REWE_PDF_PARSE,
-    )
-    validation_result = validate_receipts(
-        parse_result.records,
-        retailer=RETAILER_REWE,
-        detail_key="file",
-    )
-    persist_result = store.persist_receipts(validation_result.records, retailer=retailer)
-    skipped_issues = [*initial_issues, *parse_result.issues, *validation_result.issues]
-    skipped_details = [issue.as_detail() for issue in skipped_issues]
-    skip_report_path = write_rewe_skipped_receipts_report(pdf_dir, skipped_details)
-    print_rewe_skipped_receipts(skipped_details, skip_report_path)
-    return WorkflowResult(
-        success=True,
-        summary=WorkflowSummary(
-            retailer=retailer,
-            processed_count=persist_result.processed_count,
-            skipped_count=len(skipped_issues),
-            total_receipts=persist_result.total_receipts,
-            receipts_file=receipts_file,
-            total_items=validation_result.total_items,
-        ),
-        skipped_issues=skipped_issues,
-        skipped_report_path=skip_report_path,
+        receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
+        store=store,
     )
 
 
-def _build_rewe_prefilter_only_result(
-        pdf_dir: Path,
-        receipts_file: str,
-        retailer: str,
-        initial_issues: Sequence[ReceiptIssue],
-        existing_total_receipts: Optional[int],
-) -> WorkflowResult:
-    """Build the workflow result when only already known or rejected PDFs remain."""
-    skipped_details = [issue.as_detail() for issue in initial_issues]
-    skip_report_path = write_rewe_skipped_receipts_report(pdf_dir, skipped_details)
-    print_rewe_skipped_receipts(skipped_details, skip_report_path)
-    return WorkflowResult(
-        success=True,
-        summary=WorkflowSummary(
-            retailer=retailer,
-            processed_count=0,
-            skipped_count=len(initial_issues),
-            total_receipts=existing_total_receipts or 0,
-            receipts_file=receipts_file,
-            total_items=0,
-        ),
-        skipped_issues=list(initial_issues),
-        skipped_report_path=skip_report_path,
-    )
-
-
-def _prepare_rewe_import_session(
+def _prepare_rewe_session(
         customer_id: Optional[str],
         browser: Optional[str],
         cookies_file: Optional[str],
-        output_dir: str,
-) -> Optional[tuple[requests.Session, Optional[str]]]:
+        output_dir: Path,
+) -> Optional[tuple[Session, Optional[str]]]:
     """Load the REWE session and resolve the customer id for the initial import."""
-    session = _load_rewe_session(
-        browser=browser,
-        cookies_file=cookies_file,
-    )
-    if not session:
-        return None
-
-    resolved_customer_id = resolve_rewe_customer_id(
-        customer_id,
-        session,
-        cookies_file,
-        output_dir,
-    )
-    print_rewe_session_test_start()
-    if not test_rewe_session(session, resolved_customer_id):
-        return None
-    print_rewe_session_test_success()
-    return session, resolved_customer_id
-
-
-def _download_and_extract_rewe_zip(
-        session: requests.Session,
-        customer_id: Optional[str],
-        zip_path: Path,
-        pdf_output_dir: Path,
-) -> bool:
-    """Download the REWE ZIP and extract the PDFs locally."""
-    downloaded_zip = download_receipts_zip(
-        session,
-        customer_id,
-        zip_path,
-    )
-    if not downloaded_zip:
-        return False
-    print_rewe_zip_saved(downloaded_zip)
-    _extract_rewe_receipts_zip(downloaded_zip, pdf_output_dir)
-    return True
-
-
-def _load_rewe_session(browser: Optional[str], cookies_file: Optional[str]):
-    """Authenticate a REWE session for workflow execution."""
     if browser:
         auth_method = browser
     elif cookies_file:
         auth_method = "file"
     else:
-        print_rewe_missing_auth_source()
+        print("\u2717 REWE benötigt --cookies-file oder --browser.")
         return None
 
-    return setup_session(
-        retailer=RETAILER_REWE,
-        auth_method=auth_method,
-        cookies_file=cookies_file,
-    )
+    session = setup_session(RETAILER_REWE, auth_method, cookies_file)
+    if not session:
+        return None
+
+    resolved_customer_id = resolve_rewe_customer_id(customer_id, session, cookies_file, output_dir)
+    print("Teste REWE-Session...")
+    if not test_rewe_session(session, resolved_customer_id):
+        return None
+    print("✓ REWE-Session erfolgreich getestet")
+    return session, resolved_customer_id
 
 
-def _extract_rewe_receipts_zip(zip_path: Path, output_dir: Path) -> Path:
-    """Extract a downloaded REWE receipts ZIP archive."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_path, "r") as archive:
-        archive.extractall(output_dir)
-    print_rewe_zip_extracted(output_dir)
-    return output_dir
+def _download_and_extract_rewe_zip(
+        session: Session,
+        customer_id: Optional[str],
+        zip_path: Path,
+        pdf_output_dir: Path,
+) -> bool:
+    """Download the REWE ZIP and extract the PDFs locally."""
+    downloaded_zip = download_receipts_zip(session, customer_id, zip_path)
+
+    if not downloaded_zip:
+        return False
+    print(f"✓ REWE-eBons ZIP gespeichert: {downloaded_zip}")
+
+    with zipfile.ZipFile(downloaded_zip, "r") as archive:
+        archive.extractall(pdf_output_dir)
+        print(f"✓ REWE-eBons entpackt nach: {pdf_output_dir}")
+
+    return True

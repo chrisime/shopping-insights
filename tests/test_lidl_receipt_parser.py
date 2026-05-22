@@ -11,6 +11,7 @@ from parsing.lidl_receipt_parser import parse_lidl_ticket
 from parsing.lidl_validator import LidlReceiptValidationError, validate_lidl_receipt_data
 from parsing.lidl_totals_extractor import extract_lidl_totals
 from result_types import ReceiptParseResult
+from shared.lidl_ticket_dto import LidlTicketDTO
 from workflows.error_mapping import render_exception_reason, render_validation_reason
 from workflows.workflow_constants import REASON_KIND_LIDL_FETCH
 
@@ -67,7 +68,7 @@ class LidlReceiptParserTests(unittest.TestCase):
             "htmlPrintedReceipt": "<html><body></body></html>",
         }
 
-        with patch.object(sys.modules[__name__], "get_lidl_ticket", return_value=ticket_data):
+        with patch.object(sys.modules[__name__], "get_lidl_ticket", return_value=LidlTicketDTO.from_api_response(ticket_data, "230058821020240819725516")):
             result = _fetch_lidl_receipt_parse_result(
                 session,
                 "230058821020240819725516",
@@ -96,7 +97,7 @@ class LidlReceiptParserTests(unittest.TestCase):
             """.strip(),
         }
 
-        with patch.object(sys.modules[__name__], "get_lidl_ticket", return_value=ticket_data):
+        with patch.object(sys.modules[__name__], "get_lidl_ticket", return_value=LidlTicketDTO.from_api_response(ticket_data, "230058821020240819725516")):
             receipt_data = _fetch_lidl_receipt_parse_result(
                 session,
                 "230058821020240819725516",
@@ -158,8 +159,7 @@ class LidlReceiptParserTests(unittest.TestCase):
         }
 
         receipt_data = parse_lidl_ticket(
-            ticket_data,
-            "230058821020240819725516",
+            LidlTicketDTO.from_api_response(ticket_data, "230058821020240819725516")
         )
 
         self.assertIsNotNone(receipt_data)
@@ -194,8 +194,7 @@ class LidlReceiptParserTests(unittest.TestCase):
         }
 
         receipt_data = parse_lidl_ticket(
-            ticket_data,
-            "230058821020240819725516",
+            LidlTicketDTO.from_api_response(ticket_data, "230058821020240819725516")
         )
 
         self.assertEqual(

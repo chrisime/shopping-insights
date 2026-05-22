@@ -6,10 +6,10 @@ from .common_prompts import (
     print_invalid_choice,
     prompt_optional_value,
     prompt_with_default,
+    run_retailer_export_json,
 )
 from auth.rewe_file_auth import diagnose_rewe_cookie_file
 from config import ReweConfig
-from workflows.export_workflow import run_export_json_from_db
 from workflows.rewe_workflow import run_rewe_initial, run_rewe_update
 
 
@@ -54,11 +54,7 @@ def _run_rewe_update() -> None:
 
 def _run_rewe_export_json() -> None:
     """Export REWE receipts from SQLite into JSON."""
-
-    output_file = prompt_with_default("Zielpfad für JSON-Export", ReweConfig.RECEIPTS_JSON_FILE)
-    success = run_export_json_from_db(retailer="rewe", output_file=output_file)
-    if not success:
-        print("✗ REWE-JSON-Export fehlgeschlagen!")
+    run_retailer_export_json("rewe", ReweConfig.RECEIPTS_JSON_FILE)
 
 
 def _run_rewe_check() -> None:

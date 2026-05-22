@@ -1,9 +1,10 @@
 """Utilities for resolving and caching the REWE customerId used by the ZIP endpoint."""
 
 import re
-from uuid import UUID
 from pathlib import Path
 from typing import Optional
+
+from pyarrow.lib import UUID
 
 import requests
 
@@ -23,7 +24,7 @@ def resolve_rewe_customer_id(
     customer_id: Optional[str],
     session: Optional[requests.Session],
     cookies_file: Optional[str],
-    output_dir: str,
+    output_dir: Path,
 ) -> Optional[str]:
     """Resolve a usable REWE customerId from explicit input, session, local files or cache."""
     if customer_id:
@@ -67,20 +68,20 @@ def _read_customer_id_from_session(session: Optional[requests.Session]) -> Optio
             response.close()
 
 
-def cache_customer_id(customer_id: str, output_dir: str) -> None:
+def cache_customer_id(customer_id: str, output_dir: Path) -> None:
     """Persist the last successful REWE customerId for future runs."""
     normalized = _normalize_customer_id(customer_id)
     if not normalized:
         return
 
-    cache_path = _get_cache_path(output_dir)
+    cache_path = output_dir / CACHE_FILE_NAME
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     cache_path.write_text(normalized, encoding="utf-8")
 
 
-def _load_cached_customer_id(output_dir: str) -> Optional[str]:
+def _load_cached_customer_id(output_dir: Path) -> Optional[str]:
     """Load a previously cached REWE customerId if present."""
-    cache_path = _get_cache_path(output_dir)
+    cache_path = output_dir / CACHE_FILE_NAME
     if not cache_path.exists():
         return None
 
@@ -113,6 +114,3 @@ def _normalize_customer_id(value: str) -> Optional[str]:
         return None
 
 
-def _get_cache_path(output_dir: str) -> Path:
-    """Return the cache file path for the customerId."""
-    return Path(output_dir) / CACHE_FILE_NAME

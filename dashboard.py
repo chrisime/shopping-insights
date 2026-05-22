@@ -63,15 +63,12 @@ st.title("🛒 Shopping Analyzer Dashboard")
 st.header("Kennzahlen")
 st.markdown("##### Grunddaten")
 total_before_discount = kpis.total_spent + kpis.total_discount + bonus_kpis.rewe_bonus_redeemed + bonus_kpis.lidlplus_discount + bonus_kpis.sticker_discount
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Ausgaben gesamt", f"€{kpis.total_spent:,.2f}")
 col2.metric("Ausgaben ohne Rabatte", f"€{total_before_discount:,.2f}")
 col3.metric("Kassenbons gesamt", f"{kpis.total_receipts}")
 col4.metric("Ø Bon-Betrag", f"€{kpis.avg_receipt:,.2f}")
-
-st.markdown("##### Pfandrückgabe")
-col1, _ = st.columns(2)
-col1.metric("Pfand gespart", f"€{kpis.total_saved_deposit:,.2f}")
+col5.metric("Pfandrückgabe", f"€{kpis.total_saved_deposit:,.2f}")
 
 st.markdown("##### Ersparnisse")
 # Rabatt-Sparquote (nur reguläre Rabatte, ohne Pfand)
@@ -217,6 +214,6 @@ if top_data:
     top_df["Gesamtmenge"] = top_df.apply(format_qty, axis=1)
 
     display_cols = ["Artikel", "Gesamtmenge", "Ausgaben (€)", "Einkäufe"]
-    st.dataframe(top_df[display_cols], use_container_width=True, hide_index=True)
+    st.dataframe(top_df[display_cols], width='stretch', hide_index=True)
 else:
     st.info("Keine Artikeldaten für den gewählten Zeitraum.")

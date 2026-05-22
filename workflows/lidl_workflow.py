@@ -1,142 +1,178 @@
 """Central LIDL workflow for synchronizing receipt state from the Lidl API."""
 
-import simplejson
 import time
-from typing import Dict, List, Optional, Sequence, Tuple
+from pathlib import Path
+from typing import Any, List, Optional, Sequence, Tuple
 
-import requests
-from bs4 import BeautifulSoup
-
+import simplejson
 from api.lidl_client import get_lidl_ticket, get_tickets_page, test_lidl_session
 from auth.session_manager import setup_session
+from bs4 import BeautifulSoup
 from config import LidlConfig
 from config import storage_config
 from parsing.lidl_items_extractor import extract_lidl_receipt_items
-from reporting.lidl_api_reporting import (
-    print_lidl_session_test_request_error,
-    print_lidl_session_test_start,
-    print_lidl_session_test_success,
-)
-from reporting.lidl_reporting import (
-    print_lidl_checked_pages,
-    print_lidl_existing_receipts_count,
-    print_lidl_import_summary,
-    print_lidl_missing_auth_source,
-    print_lidl_new_receipts_count,
-    print_lidl_processed_items,
-    print_lidl_processed_pages,
-    print_lidl_receipt_collection_result,
-    print_lidl_receipt_collection_start,
-    print_lidl_skipped_receipts,
-    print_lidl_workflow_header,
-    write_lidl_skipped_receipts_report,
-)
-from result_types import WorkflowSummary
-from shared.receipt_hashes import calculate_receipt_payload_hash
-from shared.receipt_store import ReceiptStore
-from storage import create_receipt_store
 
-from .error_mapping import (
-    render_exception_reason,
-)
+from reporting.shared_reporting import write_skipped_receipts_report
+from requests import Session
+from shared.receipt_store import ReceiptStore
+from shared.lidl_ticket_dto import LidlTicketDTO
+from storage import create_receipt_store
+from .import_workflow import ImportWorkflow
+from .import_pipeline import ImportPipeline
+from .pipeline_types import WorkflowResult
 from .progress_display import ProgressState, ReceiptProgressDisplay
-from .pipeline_runner import parse_receipts, validate_receipts
-from .pipeline_types import RawReceiptRecord, ReceiptIssue, WorkflowResult
 from .workflow_constants import RETAILER_LIDL, REASON_KIND_LIDL_FETCH
 
-
 __all__ = [
-    "run_lidl_sync",
+    "run_lidl_initial",
+    "run_lidl_update",
 ]
 
 
-def run_lidl_sync(
+class _LidlImportPipeline(ImportPipeline):
+    detail_key = "receipt_id"
+    load_error_reason_kind = REASON_KIND_LIDL_FETCH
+
+    def load_payload(self, source_path: Path) -> Any:
+        ticket_data = simplejson.loads(source_path.read_text(encoding="utf-8"))
+        receipt_id = source_path.stem
+        if isinstance(ticket_data, dict):
+            return LidlTicketDTO.from_api_response(ticket_data, receipt_id)
+        raise ValueError("Ungültiges LIDL-Ticketformat: erwartetes JSON-Objekt")
+
+    def write_skipped_receipts_report(self, source_dir: Path, skipped_details: list[dict[str, str]]) -> Path | None:
+        return write_skipped_receipts_report(
+            skipped_details,
+            report_path=source_dir.parent / LidlConfig.SKIPPED_RECEIPTS_REPORT_FILE,
+        )
+
+    def print_skipped_receipts(self, skipped_details: list[dict[str, str]], report_path: Path | None) -> None:
+        if not skipped_details:
+            return
+        print("✓ Übersprungene LIDL-Bons:")
+        for skipped in skipped_details:
+            source_id = skipped.get("receipt_id") or skipped.get("file") or "unbekannt"
+            print(f"  - {source_id}: {skipped['reason']}")
+        if report_path:
+            print(f"✓ Skip-Report geschrieben: {report_path}")
+
+
+class _LidlImportWorkflow(ImportWorkflow):
+    """Concrete LIDL workflow: API download of ticket JSONs followed by local import."""
+
+    def __init__(self, browser: Optional[str], cookies_file: Optional[str], country: Optional[str]) -> None:
+        self._browser = browser
+        self._cookies_file = cookies_file
+        self._country = country
+        self._checked_pages: Optional[int] = None
+
+    def _source_subdir_name(self) -> str:
+        return "tickets"
+
+    def _download_sources(self, output_dir: Path, store: ReceiptStore) -> bool:
+        session = _prepare_lidl_session(self._browser, self._cookies_file, self._country)
+        if not session:
+            return False
+
+        tickets_dir = self._source_dir(output_dir)
+        tickets_dir.mkdir(parents=True, exist_ok=True)
+        discovered_ids, page_count = _collect_lidl_receipt_ids(session)
+        self._checked_pages = page_count
+
+        existing_ids = store.find_existing_ids(retailer=RETAILER_LIDL)
+        local_ids = {path.stem for path in tickets_dir.glob("*.json")}
+        receipt_ids = _filter_new_lidl_receipt_ids(discovered_ids, existing_ids | local_ids)
+
+        print(f"ℹ Bereits vorhandene Kassenbons: {len(existing_ids)}")
+        print(f"ℹ Geprüfte Seiten: {page_count}")
+        print(f"ℹ Neue Kassenbons zu verarbeiten: {len(receipt_ids)}")
+
+        if receipt_ids:
+            _download_lidl_tickets(session, receipt_ids, tickets_dir)
+        return True
+
+    def _validate_update_preconditions(self, output_dir: Path) -> bool:
+        tickets_dir = self._source_dir(output_dir)
+        if not tickets_dir.exists() or not any(tickets_dir.glob("*.json")):
+            print(f"\u26a0 Keine LIDL-JSONs zum Importieren gefunden in: {tickets_dir}")
+            return False
+        return True
+
+    def _run_local_import(self, output_dir: Path, store: ReceiptStore) -> WorkflowResult:
+        tickets_dir = self._source_dir(output_dir)
+        return _LidlImportPipeline().run(
+            source_paths=sorted(tickets_dir.glob("*.json")),
+            source_dir=tickets_dir,
+            retailer=RETAILER_LIDL,
+            receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
+            store=store,
+            checked_pages=self._checked_pages,
+        )
+
+    def _import_summary_label(self) -> str:
+        return "LIDL-Kassenbons importiert"
+
+    def _print_import_summary_details(self, result: WorkflowResult) -> None:
+        if self._checked_pages is not None:
+            print(f"ℹ Verarbeitete Seiten: {self._checked_pages}")
+            print(f"ℹ Geprüfte Seiten: {self._checked_pages}")
+        print(f"ℹ Verarbeitete Artikel: {result.summary.total_items}")
+
+    def _print_no_download_info(self) -> None:
+        print("ℹ LIDL: importiere alle vorhandenen JSONs.")
+
+
+def run_lidl_initial(
     browser: Optional[str] = None,
     cookies_file: Optional[str] = None,
     country: Optional[str] = None,
+    output_dir: str = LidlConfig.DEFAULT_OUTPUT_DIR,
 ) -> bool:
-    """Synchronize Lidl receipts by scanning all pages and importing only new receipts."""
-    start_title = "=== SYNC: Synchronisiere LIDL-Kassenbons ==="
-    completion_title = "\n=== SYNC ABGESCHLOSSEN ==="
-    print_lidl_workflow_header(start_title)
-    session = _prepare_lidl_session(browser, cookies_file, country)
-    if not session:
-        return False
-
+    """Download new Lidl ticket JSONs and import them into the DB."""
+    base_output_dir = Path(output_dir)
     store = create_receipt_store()
-    discovered_receipt_ids, page_count = _collect_lidl_receipt_ids(session)
-    existing_receipt_ids = store.find_existing_ids(retailer=RETAILER_LIDL)
-    receipt_ids = _filter_new_lidl_receipt_ids(discovered_receipt_ids, existing_receipt_ids)
-
-    print_lidl_existing_receipts_count(len(existing_receipt_ids))
-    print_lidl_checked_pages(page_count)
-    print_lidl_new_receipts_count(len(receipt_ids))
-
-    workflow_result = _run_lidl_receipt_pipeline(
-        session=session,
-        receipt_ids=receipt_ids,
-        checked_pages=page_count,
-        store=store,
-        receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
-    )
-    _print_lidl_pipeline_result(workflow_result)
-    _print_lidl_completion(
-        title=completion_title,
-        total_items=workflow_result.summary.total_items,
-        checked_pages=page_count,
-    )
-    return workflow_result.success
+    return _LidlImportWorkflow(browser, cookies_file, country).run_initial(base_output_dir, store)
 
 
+def run_lidl_update(output_dir: str = LidlConfig.DEFAULT_OUTPUT_DIR) -> bool:
+    """Re-import all locally downloaded Lidl JSONs into the configured store via upsert."""
+    base_output_dir = Path(output_dir)
+    store = create_receipt_store()
+    return _LidlImportWorkflow(None, None, None).run_update(base_output_dir, store)
 
-def _collect_lidl_receipt_ids(
-    session: requests.Session,
-    max_pages: Optional[int] = None,
-) -> Tuple[List[str], int]:
+
+def _collect_lidl_receipt_ids(session: Session, max_pages: Optional[int] = None) -> Tuple[List[str], int]:
     """Collect LIDL receipt ids from all pages or only a limited number."""
     all_receipt_ids: List[str] = []
-    page = 1
+    current_page = 1
     processed_pages = 0
 
-    print_lidl_receipt_collection_start(max_pages)
+    if max_pages is None:
+        print("ℹ Sammle alle LIDL-Kassenbon-IDs mit digitalem Kassenbon über API...")
+    else:
+        print(f"ℹ Sammle LIDL-Kassenbon-IDs der ersten {max_pages} Seiten über API...")
 
-    while True:
-        if max_pages is not None and page > max_pages:
+    while max_pages is None or current_page <= max_pages:
+        tickets_page = get_tickets_page(session, current_page)
+        if not tickets_page or not tickets_page.receipt_ids:
             break
 
-        tickets_data = get_tickets_page(session, page)
-        if not tickets_data or "items" not in tickets_data:
+        all_receipt_ids.extend(tickets_page.receipt_ids)
+        processed_pages = current_page
+        current_page += 1
+
+        # Check if we've reached the end of all pages
+        page_size = len(tickets_page.receipt_ids)
+        total_pages = (tickets_page.total_count + page_size - 1) // page_size if page_size > 0 else 1
+        if current_page > total_pages:
             break
 
-        tickets = tickets_data["items"]
-        if not tickets:
-            break
-
-        all_receipt_ids.extend(_extract_receipt_ids_from_tickets(tickets))
-        processed_pages = page
-
-        if max_pages is not None and page >= max_pages:
-            break
-
-        total_count = tickets_data.get("totalCount", 0)
-        page_size = tickets_data.get("size", 10)
-        total_pages = (total_count + page_size - 1) // page_size
-        if page >= total_pages:
-            break
-
-        page += 1
-
-    print_lidl_receipt_collection_result(len(all_receipt_ids))
+    print(f"ℹ Gefunden: {len(all_receipt_ids)} LIDL-Kassenbon-IDs")
     return all_receipt_ids, processed_pages
 
 
-
-def _setup_lidl_session(
-    browser: Optional[str],
-    cookies_file: Optional[str],
-    country: Optional[str],
-) -> Optional[requests.Session]:
-    """Configure country and authenticate a LIDL session."""
+def _prepare_lidl_session(browser: Optional[str], cookies_file: Optional[str], country: Optional[str]) -> Optional[Session]:
+    """Configure, authenticate and verify the LIDL session."""
     if country:
         LidlConfig.set_country(country)
 
@@ -145,227 +181,81 @@ def _setup_lidl_session(
     elif cookies_file:
         auth_method = "file"
     else:
-        print_lidl_missing_auth_source()
+        print("\u2717 LIDL ben\u00f6tigt --cookies-file oder --browser.")
         return None
 
-    return setup_session(
-        retailer=RETAILER_LIDL,
-        auth_method=auth_method,
-        cookies_file=cookies_file,
-    )
-
-
-def _prepare_lidl_session(
-    browser: Optional[str],
-    cookies_file: Optional[str],
-    country: Optional[str],
-) -> Optional[requests.Session]:
-    """Build and verify the LIDL session required by initial/update workflows."""
-    session = _setup_lidl_session(browser, cookies_file, country)
+    session = setup_session(RETAILER_LIDL, auth_method, cookies_file)
     if not session:
         return None
+
     if not _test_lidl_workflow_session(session):
         return None
+
     return session
 
 
-def _test_lidl_workflow_session(session: requests.Session) -> bool:
+def _test_lidl_workflow_session(session: Session) -> bool:
     """Run the workflow-level LIDL session test including reporting side effects."""
-    print_lidl_session_test_start()
+    print("ℹ Teste LIDL-Session...")
     if not test_lidl_session(session):
-        print_lidl_session_test_request_error(RuntimeError("LIDL-Session konnte nicht geprüft werden"))
+        print(f"✗ API-Verbindungsfehler: LIDL-Session konnte nicht geprüft werden")
         return False
-    print_lidl_session_test_success()
+    print("✓ LIDL-Session erfolgreich getestet")
     return True
 
 
-def _print_lidl_pipeline_result(workflow_result: WorkflowResult) -> None:
-    """Print skipped receipt details and the compact import summary."""
-    skipped_details = [issue.as_detail() for issue in workflow_result.skipped_issues]
-    print_lidl_skipped_receipts(skipped_details, workflow_result.skipped_report_path)
-    print_lidl_import_summary(workflow_result.summary)
-
-
-def _print_lidl_completion(
-    title: str,
-    total_items: int,
-    checked_pages: Optional[int] = None,
-    processed_pages: Optional[int] = None,
-) -> None:
-    """Print the workflow-specific completion footer for LIDL runs."""
-    print_lidl_workflow_header(title)
-    if processed_pages is not None:
-        print_lidl_processed_pages(processed_pages)
-    if checked_pages is not None:
-        print_lidl_checked_pages(checked_pages)
-    print_lidl_processed_items(total_items)
-
-
-def _fetch_lidl_tickets(
-    session: requests.Session,
-    receipt_ids: List[str],
-) -> Tuple[List[RawReceiptRecord], List[ReceiptIssue]]:
-    """Fetch raw Lidl ticket payloads for all candidate receipt ids."""
-    fetched_tickets: List[RawReceiptRecord] = []
-    issues: List[ReceiptIssue] = []
-    total_items = 0
+def _download_lidl_tickets(session: Session, receipt_ids: List[str], tickets_dir: Path) -> None:
+    """Download Lidl ticket JSONs and save them to the local tickets directory."""
     progress = ReceiptProgressDisplay(
-        added_label="Abgerufen",
+        added_label="Gespeichert",
         items_label="Artikel",
     )
     total_receipts = len(receipt_ids)
+    saved_count = 0
+    error_count = 0
+    total_items = 0
 
     progress.render(ProgressState(0, total_receipts, 0, 0, 0, 0, "-"))
 
     for index, receipt_id in enumerate(receipt_ids, 1):
-        current = index - 1
-        progress.render(
-            ProgressState(
-                current=current,
-                total=total_receipts,
-                added=len(fetched_tickets),
-                skipped=len(issues),
-                errors=len(issues),
-                items=total_items,
-                current_receipt=receipt_id,
-            )
-        )
+        progress.render(ProgressState(
+            current=index - 1, total=total_receipts,
+            added=saved_count, skipped=error_count, errors=error_count,
+            items=total_items, current_receipt=receipt_id,
+        ))
         try:
-            ticket_data = get_lidl_ticket(session, receipt_id)
-            fetched_tickets.append(RawReceiptRecord(source_id=receipt_id, payload=ticket_data))
-            total_items += _count_lidl_ticket_items(ticket_data)
-        except (requests.exceptions.HTTPError, requests.exceptions.RequestException, simplejson.JSONDecodeError) as exc:
-            issues.append(_build_lidl_fetch_issue(receipt_id, exc, fetch_related=True))
-        except (KeyError, TypeError, ValueError) as exc:
-            issues.append(_build_lidl_fetch_issue(receipt_id, exc))
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            issues.append(_build_lidl_fetch_issue(receipt_id, exc, fetch_related=True))
-
-        progress.render(
-            ProgressState(
-                current=index,
-                total=total_receipts,
-                added=len(fetched_tickets),
-                skipped=len(issues),
-                errors=len(issues),
-                items=total_items,
-                current_receipt=receipt_id,
+            ticket_dto = get_lidl_ticket(session, receipt_id)
+            ticket_path = tickets_dir / f"{receipt_id}.json"
+            ticket_path.write_text(
+                simplejson.dumps(ticket_dto.to_api_dict(), ensure_ascii=False, indent=2),
+                encoding="utf-8",
             )
-        )
+            saved_count += 1
+            total_items += _count_lidl_ticket_items(ticket_dto)
+        except Exception:
+            error_count += 1
+
+        progress.render(ProgressState(
+            current=index, total=total_receipts,
+            added=saved_count, skipped=error_count, errors=error_count,
+            items=total_items, current_receipt=receipt_id,
+        ))
         if LidlConfig.REQUEST_DELAY > 0:
             time.sleep(LidlConfig.REQUEST_DELAY)
 
     progress.close()
-    return fetched_tickets, issues
+    print(f"✓ {saved_count} Ticket-JSONs gespeichert nach: {tickets_dir}")
 
 
-def _build_lidl_fetch_issue(receipt_id: str, exc: Exception, fetch_related: bool = False) -> ReceiptIssue:
-    """Build a normalized workflow issue for LIDL ticket fetch failures."""
-    reason_kind = REASON_KIND_LIDL_FETCH if fetch_related else None
-    return ReceiptIssue(source_id=receipt_id, reason=render_exception_reason(exc, reason_kind))
-
-
-def _count_lidl_ticket_items(ticket_data: Dict[str, object]) -> int:
-    """Return the number of extractable items in a raw Lidl ticket payload."""
-    html_content = ticket_data.get("htmlPrintedReceipt")
-    if not isinstance(html_content, str) or not html_content.strip():
+def _count_lidl_ticket_items(ticket: LidlTicketDTO) -> int:
+    """Return the number of extractable items in a Lidl ticket."""
+    if not ticket.html_receipt or not ticket.html_receipt.strip():
         return 0
 
-    soup = BeautifulSoup(html_content, "html.parser")
+    soup = BeautifulSoup(ticket.html_receipt, "html.parser")
     return len(extract_lidl_receipt_items(soup))
 
 
-
-def _run_lidl_receipt_pipeline(
-    session: requests.Session,
-    receipt_ids: List[str],
-    store: ReceiptStore,
-    receipts_file: str,
-    checked_pages: Optional[int] = None,
-    processed_pages: Optional[int] = None,
-) -> WorkflowResult:
-    """Run the shared LIDL fetch/parse/validate/persist pipeline and return a normalized result."""
-    fetched_tickets, fetch_issues = _fetch_lidl_tickets(session, receipt_ids)
-    parse_result = parse_receipts(fetched_tickets, retailer=RETAILER_LIDL)
-    validation_result = validate_receipts(parse_result.records, retailer=RETAILER_LIDL)
-    receipts_to_persist = _prepare_lidl_receipts_for_persistence(validation_result.records)
-    persist_result = store.persist_receipts(receipts_to_persist, retailer=RETAILER_LIDL)
-
-    skipped_issues = [
-        *fetch_issues,
-        *parse_result.issues,
-        *validation_result.issues,
-    ]
-    skipped_details = [issue.as_detail() for issue in skipped_issues]
-    report_path = write_lidl_skipped_receipts_report(skipped_details)
-
-    return WorkflowResult(
-        success=True,
-        summary=WorkflowSummary(
-            retailer=RETAILER_LIDL,
-            processed_count=persist_result.processed_count,
-            skipped_count=len(skipped_issues),
-            total_receipts=persist_result.total_receipts,
-            receipts_file=receipts_file,
-            total_items=validation_result.total_items,
-            checked_pages=checked_pages,
-            processed_pages=processed_pages,
-        ),
-        skipped_issues=skipped_issues,
-        skipped_report_path=report_path,
-    )
-
-
-
-def _extract_receipt_ids_from_tickets(tickets: List[Dict[str, object]]) -> List[str]:
-    """Extract receipt ids for tickets that have an HTML receipt representation."""
-    receipt_ids: List[str] = []
-    for ticket in tickets:
-        ticket_data = _extract_lidl_ticket_data(ticket)
-        if ticket_data is None:
-            continue
-
-        receipt_id = ticket_data.get("id", "")
-        has_html = ticket_data.get("isHtml", False)
-        if receipt_id and has_html:
-            receipt_ids.append(str(receipt_id))
-
-    return receipt_ids
-
-
-def _extract_lidl_ticket_data(ticket: object) -> Optional[Dict[str, object]]:
-    if not isinstance(ticket, dict):
-        return None
-    if "ticket" not in ticket:
-        return ticket
-    nested_ticket = ticket.get("ticket")
-    if not isinstance(nested_ticket, dict):
-        return None
-    return nested_ticket
-
-
-def _filter_new_lidl_receipt_ids(
-    discovered_receipt_ids: Sequence[str],
-    existing_receipt_ids: set[str],
-) -> List[str]:
+def _filter_new_lidl_receipt_ids(discovered_receipt_ids: Sequence[str], existing_receipt_ids: set[str]) -> List[str]:
     """Return only new receipt ids and keep their original discovery order."""
-    new_receipt_ids: List[str] = []
-    seen_receipt_ids: set[str] = set()
-    for receipt_id in discovered_receipt_ids:
-        if receipt_id in existing_receipt_ids or receipt_id in seen_receipt_ids:
-            continue
-        seen_receipt_ids.add(receipt_id)
-        new_receipt_ids.append(receipt_id)
-    return new_receipt_ids
-
-
-def _prepare_lidl_receipts_for_persistence(
-    receipts: Sequence[Dict[str, object]],
-) -> List[Dict[str, object]]:
-    """Attach payload_hash to validated Lidl receipts before persistence."""
-    prepared_receipts: List[Dict[str, object]] = []
-    for receipt in receipts:
-        prepared_receipt = dict(receipt)
-        prepared_receipt["payload_hash"] = calculate_receipt_payload_hash(prepared_receipt)
-        prepared_receipts.append(prepared_receipt)
-    return prepared_receipts
+    return [receipt_id for receipt_id in dict.fromkeys(discovered_receipt_ids) if receipt_id not in existing_receipt_ids]

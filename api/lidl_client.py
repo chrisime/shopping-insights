@@ -1,15 +1,16 @@
 """Lidl API client for fetching receipt data."""
 
 import simplejson
-from typing import Optional, Dict, Any
+from typing import Optional
 import requests
 
 from config import LidlConfig
+from shared.lidl_ticket_dto import LidlTicketDTO, LidlTicketsPageDTO
 
 
 def get_tickets_page(
     session: requests.Session, page: int = 1
-) -> Optional[Dict[str, Any]]:
+) -> Optional[LidlTicketsPageDTO]:
     """
     Fetch tickets for a specific page using the API.
 
@@ -18,7 +19,7 @@ def get_tickets_page(
         page: Page number to fetch
 
     Returns:
-        dict: API response data or None if error
+        LidlTicketsPageDTO: Structured pagination response with typed ticket previews, or None if error
     """
     try:
         response = session.get(
@@ -31,16 +32,19 @@ def get_tickets_page(
 
         # Handle different response structures
         if isinstance(data, list):
-            # Direct array of tickets
-            return {
-                "items": data,
-                "page": page,
-                "size": len(data),
-                "totalCount": len(data),
-            }
+            # Direct array of tickets - wrap in standard pagination format
+            return LidlTicketsPageDTO.from_api_response(
+                {
+                    "items": data,
+                    "page": page,
+                    "size": len(data),
+                    "totalCount": len(data),
+                },
+                page=page,
+            )
         elif isinstance(data, dict):
             # Structured response with metadata
-            return data
+            return LidlTicketsPageDTO.from_api_response(data, page=page)
         else:
             return None
 
@@ -52,18 +56,16 @@ def get_tickets_page(
         return None
 
 
-def get_lidl_ticket(
-    session: requests.Session, receipt_id: str
-) -> Dict[str, Any]:
+def get_lidl_ticket(session: requests.Session, receipt_id: str) -> LidlTicketDTO:
     """
-    Fetch the raw Lidl ticket payload for a specific receipt.
+    Fetch the Lidl ticket for a specific receipt and return it as a structured DTO.
 
     Args:
         session: requests.Session with authentication
         receipt_id: Receipt ID to fetch
 
     Returns:
-        dict: Raw ticket payload from the Lidl API
+        LidlTicketDTO: Structured ticket data
     """
     url = LidlConfig.get_receipt_url(receipt_id)
     full_url = f"{url}?country={LidlConfig.get_country_code()}&languageCode={LidlConfig.get_language_code()}"
@@ -72,7 +74,8 @@ def get_lidl_ticket(
     response.raise_for_status()
 
     data = response.json()
-    return data["ticket"] if "ticket" in data else data
+    ticket_data = data["ticket"] if "ticket" in data else data
+    return LidlTicketDTO.from_api_response(ticket_data, receipt_id)
 
 
 def test_lidl_session(session: requests.Session) -> bool:

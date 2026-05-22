@@ -21,6 +21,7 @@ class ReweConfig:
     REWE_COOKIES_JSON_FILE = "rewe_cookies.json"
     RECEIPTS_JSON_FILE = "rewe_receipts.json"
     SKIPPED_RECEIPTS_REPORT_FILE = "rewe_skipped_receipts.json"
+    REWE_DEFAULT_OUTPUT_DIR = "tmp/rewe"
 
     DEFAULT_USER_AGENT = (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:148.0) "

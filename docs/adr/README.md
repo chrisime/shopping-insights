@@ -17,7 +17,7 @@ Dieses Verzeichnis enthält die dokumentierten Architekturentscheidungen des Pro
 - [`0002-shared-receipt-normalization-layer.md`](./0002-shared-receipt-normalization-layer.md)
   - führt die gemeinsame Receipt-Normalisierung über `shared.receipt_schema` und `shared.addresses` ein
 - [`0003-package-layer-rules-and-wrapper-removal.md`](./0003-package-layer-rules-and-wrapper-removal.md)
-  - dokumentiert die Zielarchitektur ohne Wrapper, die kanonischen Importpfade und die Entkopplung des Pipeline-Runners
+  - dokumentiert die Zielarchitektur ohne Wrapper, die kanonischen Importpfade und die Entkopplung bzw. Zusammenführung des Pipeline-Runners
 
 ## Aktuell maßgeblich für neue Beiträge
 

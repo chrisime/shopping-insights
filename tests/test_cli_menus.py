@@ -53,12 +53,19 @@ class CliMenuTests(unittest.TestCase):
         self.assertFalse(should_continue)
         self.assertIn("Auf Wiedersehen!", stdout.getvalue())
 
-    def test_lidl_menu_dispatch_runs_sync_and_closes_menu(self):
-        with patch("cli.lidl_menu._run_lidl_sync") as run_sync:
+    def test_lidl_menu_dispatch_runs_initial_and_closes_menu(self):
+        with patch("cli.lidl_menu._run_lidl_initial") as run_initial:
             should_continue = lidl_menu._dispatch_lidl_menu_choice("1")
 
         self.assertFalse(should_continue)
-        run_sync.assert_called_once_with()
+        run_initial.assert_called_once_with()
+
+    def test_lidl_menu_dispatch_runs_update_and_closes_menu(self):
+        with patch("cli.lidl_menu._run_lidl_update") as run_update:
+            should_continue = lidl_menu._dispatch_lidl_menu_choice("2")
+
+        self.assertFalse(should_continue)
+        run_update.assert_called_once_with()
 
     def test_rewe_menu_dispatch_prints_invalid_choice_and_keeps_menu_open(self):
         with patch("cli.rewe_menu.print_invalid_choice") as print_invalid_choice:
@@ -69,27 +76,38 @@ class CliMenuTests(unittest.TestCase):
 
     def test_show_lidl_menu_prints_normalized_invalid_choice_message(self):
         stdout = io.StringIO()
-        with patch("builtins.input", side_effect=["9", "4"]), patch("sys.stdout", new=stdout):
+        with patch("builtins.input", side_effect=["9", "5"]), patch("sys.stdout", new=stdout):
             show_lidl_menu()
 
-        self.assertIn("Ungültige Eingabe. Bitte wähle 1, 2, 3 oder 4.", stdout.getvalue())
+        self.assertIn("Ungültige Eingabe. Bitte wähle 1, 2, 3, 4 oder 5.", stdout.getvalue())
 
     def test_show_lidl_menu_runs_sync_with_prompted_auth(self):
         stdout = io.StringIO()
-        with patch("builtins.input", side_effect=["1", ""]), patch(
+        with patch("builtins.input", side_effect=["1", "", ""]), patch(
             "cli.lidl_menu.prompt_auth_source",
             return_value={"browser": "firefox"},
-        ), patch("cli.lidl_menu.run_lidl_sync", return_value=True) as run_sync, patch(
+        ), patch("cli.lidl_menu.run_lidl_initial", return_value=True) as run_initial, patch(
             "sys.stdout", new=stdout
         ):
             show_lidl_menu()
 
-        run_sync.assert_called_once_with(browser="firefox", country=None)
-        self.assertIn("✓ LIDL-Sync erfolgreich abgeschlossen!", stdout.getvalue())
+        run_initial.assert_called_once_with(browser="firefox", country=None, output_dir="tmp/lidl")
+        self.assertIn("✓ LIDL-Initial erfolgreich abgeschlossen!", stdout.getvalue())
+
+    def test_show_lidl_menu_runs_update(self):
+        stdout = io.StringIO()
+        with patch("builtins.input", side_effect=["2", ""]), patch(
+            "cli.lidl_menu.run_lidl_update",
+            return_value=True,
+        ) as run_update, patch("sys.stdout", new=stdout):
+            show_lidl_menu()
+
+        run_update.assert_called_once_with(output_dir="tmp/lidl")
+        self.assertIn("✓ LIDL-Update erfolgreich abgeschlossen!", stdout.getvalue())
 
     def test_show_lidl_menu_runs_check_with_prompted_cookie_file(self):
         stdout = io.StringIO()
-        with patch("builtins.input", side_effect=["3"]), patch(
+        with patch("builtins.input", side_effect=["4"]), patch(
             "cli.lidl_menu.prompt_cookies_file",
             return_value="lidl_cookies.json",
         ), patch("cli.lidl_menu.diagnose_lidl_cookie_file", return_value=True) as diagnose_lidl_cookie_file, patch(
@@ -105,13 +123,12 @@ class CliMenuTests(unittest.TestCase):
 
     def test_show_lidl_menu_runs_json_export(self):
         stdout = io.StringIO()
-        with patch("builtins.input", side_effect=["2", "lidl_receipts.json"]), patch(
-            "cli.lidl_menu.run_export_json_from_db",
-            return_value=True,
+        with patch("builtins.input", side_effect=["3"]), patch(
+            "cli.lidl_menu.run_retailer_export_json",
         ) as run_export, patch("sys.stdout", new=stdout):
             show_lidl_menu()
 
-        run_export.assert_called_once_with(retailer="lidl", output_file="lidl_receipts.json")
+        run_export.assert_called_once_with("lidl", "lidl_receipts.json")
 
     def test_show_rewe_menu_runs_initial_with_prompted_auth(self):
         stdout = io.StringIO()
@@ -144,13 +161,12 @@ class CliMenuTests(unittest.TestCase):
 
     def test_show_rewe_menu_runs_json_export(self):
         stdout = io.StringIO()
-        with patch("builtins.input", side_effect=["3", "rewe_receipts.json"]), patch(
-            "cli.rewe_menu.run_export_json_from_db",
-            return_value=True,
+        with patch("builtins.input", side_effect=["3"]), patch(
+            "cli.rewe_menu.run_retailer_export_json",
         ) as run_export, patch("sys.stdout", new=stdout):
             show_rewe_menu()
 
-        run_export.assert_called_once_with(retailer="rewe", output_file="rewe_receipts.json")
+        run_export.assert_called_once_with("rewe", "rewe_receipts.json")
 
     def test_show_rewe_menu_prints_normalized_invalid_choice_message(self):
         stdout = io.StringIO()

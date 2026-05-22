@@ -75,8 +75,7 @@ class BrowserCookieExtractor:
 
         browser_label = self.supported_browsers.get(browser, browser)
         print(
-            f"Extrahiere {self.retailer_name}-Cookies für {self.cookie_domain} "
-            f"aus {browser_label}-Profil..."
+            f"ℹ Extrahiere {self.retailer_name}-Cookies für {self.cookie_domain} aus {browser_label}-Profil..."
         )
 
         try:

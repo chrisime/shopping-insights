@@ -24,3 +24,14 @@ def print_invalid_choice(valid_options_text: str) -> None:
 def print_cancelled() -> None:
     """Print a normalized cancellation message for interactive menus."""
     print("\n\nAbgebrochen.")
+
+
+def run_retailer_export_json(retailer: str, default_receipts_json_file: str) -> None:
+    """Prompt for export path and run JSON export for one retailer."""
+    from workflows.export_workflow import run_export_json_from_db
+
+    output_file = prompt_with_default("Zielpfad für JSON-Export", default_receipts_json_file)
+    success = run_export_json_from_db(retailer=retailer, output_file=output_file)
+    if not success:
+        print(f"✗ {retailer.upper()}-JSON-Export fehlgeschlagen!")
+

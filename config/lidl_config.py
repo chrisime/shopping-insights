@@ -8,6 +8,7 @@ class LidlConfig:
     RECEIPTS_JSON_FILE = "lidl_receipts.json"
     COOKIES_JSON_FILE = "lidl_cookies.json"
     SKIPPED_RECEIPTS_REPORT_FILE = "lidl_skipped_receipts.json"
+    DEFAULT_OUTPUT_DIR = "tmp/lidl"
 
     # Country settings (can be changed via set_country)
     COUNTRY = "de"

@@ -97,10 +97,9 @@ Für neue Änderungen gelten explizite Paket- und Workflow-Regeln. Der empfohlen
 Wichtige Kurzfassung:
 
 - `workflows/*` ist die einzige Orchestrierungsschicht
-- `workflows/pipeline_runner.py` arbeitet nur mit injizierten Funktionen/Ports, nicht mit konkreten Parsing- oder Storage-Adaptern
+- `workflows/pipeline_runner.py` ist die gemeinsame Parse-/Validierungs-/Persistenz-Strecke für beide Händler und arbeitet nur mit injizierten Funktionen/Ports
 - Persistenz erfolgt standardmäßig DB-first nach `shopping_receipts.sqlite`; externe Formate werden über Export-Adapter erzeugt
 - gemeinsame neutrale Bausteine liegen unter `shared/*` sowie in `result_types.py`
-- entfernte Wrapper- und Altpfade wie `receipt_schema`, `parsing.receipt_schema`, `parsing.receipt_parse_result` und `diagnostics.*` sollen nicht wieder eingeführt werden
 
 Kanonische Importpfade für neue Beiträge sind insbesondere:
 

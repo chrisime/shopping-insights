@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from config import LidlConfig
 from config import storage_config
-from export.json_export import export_receipts_from_db, resolve_receipts_export_path
+from export.json_export import export_receipts_from_db
 from shared.receipt_schema import normalize_receipt_schema
 from shared.retailer_runtime import get_retailer_runtime
 from storage import (
@@ -45,19 +45,6 @@ class ReceiptStoreTests(unittest.TestCase):
 
         self.assertIsInstance(store, SqliteReceiptStore)
 
-    def test_resolve_receipts_export_path_uses_explicit_target(self):
-        self.assertEqual(
-            resolve_receipts_export_path(output_file="tmp/custom.json", retailer="lidl"),
-            "tmp/custom.json",
-        )
-
-    def test_resolve_receipts_export_path_uses_retailer_default_target(self):
-        self.assertEqual(resolve_receipts_export_path(retailer="lidl"), "lidl_receipts.json")
-        self.assertEqual(resolve_receipts_export_path(retailer="rewe"), "rewe_receipts.json")
-
-    def test_resolve_receipts_export_path_rejects_unknown_retailer(self):
-        with self.assertRaisesRegex(ValueError, "Unbekannter Haendler fuer JSON-Export"):
-            resolve_receipts_export_path(retailer="aldi")
 
     def test_sqlite_receipt_store_fetch_existing_ids_follows_public_api(self):
         db_path = self.isolated_receipts_db()

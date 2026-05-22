@@ -1,7 +1,7 @@
-"""Typed DTO for Lidl API ticket responses.
+"""Typed DTOs for Lidl API ticket responses.
 
-Maps the raw nested JSON from the Lidl ticket endpoint into a flat,
-typed dataclass so downstream parsing never touches raw dicts.
+Maps the raw nested JSON from the Lidl ticket endpoints into flat,
+typed dataclasses so downstream code never touches raw dicts.
 """
 
 from __future__ import annotations
@@ -9,6 +9,46 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
+
+
+@dataclass(frozen=True)
+class LidlTicketsPageDTO:
+    """Typed pagination response from get_tickets_page."""
+
+    receipt_ids: list[str]
+    page: int
+    total_count: int
+
+    @staticmethod
+    def from_api_response(data: Dict[str, Any], page: int = 1) -> Optional[LidlTicketsPageDTO]:
+        """Build a DTO from the raw API response."""
+        if not isinstance(data, dict):
+            return None
+
+        raw_items = data.get("items", [])
+        if not isinstance(raw_items, list):
+            return None
+
+        # Extract receipt IDs from items that have HTML receipts
+        ids = []
+        for item in raw_items:
+            # Handle nested 'ticket' key
+            if isinstance(item, dict) and "ticket" in item:
+                inner_item = item["ticket"]
+            else:
+                inner_item = item
+
+            if isinstance(inner_item, dict):
+                receipt_id = str(inner_item.get("id") or "")
+                has_html = bool(inner_item.get("isHtml", False))
+                if receipt_id and has_html:
+                    ids.append(receipt_id)
+
+        return LidlTicketsPageDTO(
+            receipt_ids=ids,
+            page=page,
+            total_count=data.get("totalCount", len(ids)),
+        )
 
 
 STREET_WITH_NUMBER_RE = re.compile(
@@ -70,6 +110,15 @@ class LidlTicketDTO:
             html_receipt=html_receipt,
             store=store,
         )
+
+    def to_api_dict(self) -> Dict[str, Any]:
+        """Serialize the DTO back to the raw API dict format for storage."""
+        return {
+            "id": self.id,
+            "date": self.date,
+            "htmlPrintedReceipt": self.html_receipt,
+            "store": self.store.to_address_dict() if self.store.has_address() else {},
+        }
 
 
 def _extract_store(ticket_data: Dict[str, Any]) -> LidlStoreDTO:

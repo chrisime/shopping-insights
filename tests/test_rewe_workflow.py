@@ -9,21 +9,17 @@ from config import ReweConfig
 from config import storage_config
 import workflows.rewe_workflow as rewe_workflow
 from result_types import PersistResult
-from workflows.pipeline_types import ReceiptIssue, StageResult
+from workflows.pipeline_types import ReceiptIssue, StageResult, WorkflowResult
 from workflows.rewe_workflow import run_rewe_initial, run_rewe_update
 
 
 def _import_rewe_receipts_from_pdfs(
     pdf_dir: Path,
-    retailer: str = rewe_workflow.RETAILER_REWE,
 ) -> tuple[int, int, int]:
     store = rewe_workflow.create_receipt_store()
-    receipts_file = storage_config.SQLITE_RECEIPTS_DB_FILE
     workflow_result = rewe_workflow._run_rewe_pdf_import_pipeline(
         pdf_dir,
-        retailer=retailer,
         store=store,
-        receipts_file=receipts_file,
     )
     return (
         workflow_result.summary.processed_count,
@@ -55,13 +51,13 @@ class ReweWorkflowTests(unittest.TestCase):
                 "workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
             ), patch(
-                "workflows.rewe_workflow.parse_receipts",
+                "workflows.import_pipeline.parse_receipts",
                 return_value=StageResult(
                     records=[],
                     issues=[ReceiptIssue("skip-me.pdf", "Validatorfehler: payment_methods fehlen", detail_key="file")],
                 ),
             ), patch(
-                "workflows.rewe_workflow.validate_receipts",
+                "workflows.import_pipeline.validate_receipts",
                 return_value=StageResult(records=[], issues=[]),
             ), patch("sys.stdout", new=stdout):
                 fake_store.persist_receipts.return_value = PersistResult(created_count=0, updated_count=0, total_receipts=203)
@@ -86,7 +82,7 @@ class ReweWorkflowTests(unittest.TestCase):
         )
 
     def test_run_rewe_initial_stops_when_api_test_fails(self):
-        with patch("workflows.rewe_workflow._load_rewe_session",
+        with patch("workflows.rewe_workflow.setup_session",
             return_value=object(),
         ), patch(
             "workflows.rewe_workflow.resolve_rewe_customer_id",
@@ -113,19 +109,27 @@ class ReweWorkflowTests(unittest.TestCase):
             with patch("workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
             ), patch(
-                "workflows.rewe_workflow.parse_receipts",
-                return_value=StageResult(records=[], issues=[]),
-            ) as parse_receipts, patch(
-                "workflows.rewe_workflow.validate_receipts",
-                return_value=StageResult(records=[], issues=[]),
-            ):
+                "workflows.rewe_workflow._ReweImportPipeline.run",
+                return_value=WorkflowResult(
+                    success=True,
+                    summary=rewe_workflow.WorkflowSummary(
+                        retailer=rewe_workflow.RETAILER_REWE,
+                        processed_count=1,
+                        skipped_count=0,
+                        total_receipts=11,
+                        receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
+                        total_items=0,
+                    ),
+                    skipped_issues=[],
+                    skipped_report_path=pdf_dir.parent / ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE,
+                ),
+            ) as import_pipeline:
                 fake_store.persist_receipts.return_value = PersistResult(created_count=1, updated_count=0, total_receipts=11)
                 success = run_rewe_update(output_dir=str(output_dir))
 
         self.assertTrue(success)
         fake_store.find_existing_ids.assert_not_called()
-        raw_records = parse_receipts.call_args.args[0]
-        self.assertEqual([record.source_id for record in raw_records], ["first.pdf", "second.pdf"])
+        self.assertEqual([path.name for path in import_pipeline.call_args.kwargs["source_paths"]], ["first.pdf", "second.pdf"])
 
     def test_run_rewe_update_reports_total_items_from_pipeline_validation(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -140,11 +144,20 @@ class ReweWorkflowTests(unittest.TestCase):
                 "workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
             ), patch(
-                "workflows.rewe_workflow.parse_receipts",
-                return_value=StageResult(records=[], issues=[]),
-            ), patch(
-                "workflows.rewe_workflow.validate_receipts",
-                return_value=StageResult(records=[], issues=[], total_items=7),
+                "workflows.rewe_workflow._ReweImportPipeline.run",
+                return_value=WorkflowResult(
+                    success=True,
+                    summary=rewe_workflow.WorkflowSummary(
+                        retailer=rewe_workflow.RETAILER_REWE,
+                        processed_count=1,
+                        skipped_count=0,
+                        total_receipts=11,
+                        receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
+                        total_items=7,
+                    ),
+                    skipped_issues=[],
+                    skipped_report_path=pdf_dir.parent / ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE,
+                ),
             ), patch("sys.stdout", new=stdout):
                 fake_store.persist_receipts.return_value = PersistResult(created_count=1, updated_count=0, total_receipts=11)
                 success = run_rewe_update(output_dir=str(output_dir))
@@ -162,14 +175,28 @@ class ReweWorkflowTests(unittest.TestCase):
 
             with patch("workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
-            ), patch("workflows.rewe_workflow.parse_receipts") as parse_receipts:
+            ), patch(
+                "workflows.rewe_workflow._ReweImportPipeline.run",
+                return_value=WorkflowResult(
+                    success=True,
+                    summary=rewe_workflow.WorkflowSummary(
+                        retailer=rewe_workflow.RETAILER_REWE,
+                        processed_count=1,
+                        skipped_count=0,
+                        total_receipts=1,
+                        receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
+                        total_items=0,
+                    ),
+                    skipped_issues=[],
+                    skipped_report_path=pdf_dir.parent / ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE,
+                ),
+            ) as import_pipeline:
                 fake_store.persist_receipts.return_value = PersistResult(created_count=0, updated_count=1, total_receipts=1)
                 success = run_rewe_update(output_dir=str(output_dir))
 
         self.assertTrue(success)
         fake_store.find_existing_ids.assert_not_called()
-        parse_receipts.assert_called_once()
-        fake_store.persist_receipts.assert_called_once()
+        import_pipeline.assert_called_once()
 
     def test_run_rewe_update_fails_when_no_local_pdfs_exist(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

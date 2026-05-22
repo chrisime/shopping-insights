@@ -9,7 +9,6 @@ import requests
 
 from .workflow_constants import (
     REASON_KIND_LIDL_FETCH,
-    REASON_KIND_REWE_DELTA_SCAN,
     REASON_KIND_REWE_PDF_PARSE,
 )
 
@@ -28,8 +27,6 @@ def render_exception_reason(exc: Exception, reason_kind: Optional[str] = None) -
         return _format_lidl_fetch_error(exc)
     if reason_kind == REASON_KIND_REWE_PDF_PARSE:
         return f"PDF konnte nicht gelesen werden: {exc}"
-    if reason_kind == REASON_KIND_REWE_DELTA_SCAN:
-        return f"Bon konnte nicht für Delta-Prüfung identifiziert werden: {exc}"
     return str(exc)
 
 

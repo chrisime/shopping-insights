@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import Mock
 
 from api.lidl_client import get_lidl_ticket, test_lidl_session
+from shared.lidl_ticket_dto import LidlTicketDTO
 
 
 class LidlClientTests(unittest.TestCase):
@@ -23,8 +24,9 @@ class LidlClientTests(unittest.TestCase):
             "230058821020240819725516",
         )
 
-        self.assertEqual(result["date"], "19.08.2024")
-        self.assertEqual(result["store"], {"name": "Fürth-Südstadt"})
+        self.assertIsInstance(result, LidlTicketDTO)
+        self.assertEqual(result.date, "19.08.2024")
+        self.assertEqual(result.store.name, "Fürth-Südstadt")
 
     def test_get_lidl_ticket_accepts_direct_ticket_payload(self):
         session = Mock()
@@ -42,8 +44,9 @@ class LidlClientTests(unittest.TestCase):
             "230058821020240819725516",
         )
 
-        self.assertEqual(result["date"], "19.08.2024")
-        self.assertEqual(result["store"], {"name": "Fürth-Südstadt"})
+        self.assertIsInstance(result, LidlTicketDTO)
+        self.assertEqual(result.date, "19.08.2024")
+        self.assertEqual(result.store.name, "Fürth-Südstadt")
 
     def test_test_lidl_session_returns_true_when_tickets_endpoint_is_accessible(self):
         session = Mock()

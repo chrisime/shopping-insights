@@ -97,13 +97,13 @@ class AuthFileAuthTests(unittest.TestCase):
 
     def test_resolve_rewe_customer_id_prefers_explicit_input(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            cache_customer_id("87654321-4321-4321-4321-fedcbafedcba", tmp_dir)
+            cache_customer_id("87654321-4321-4321-4321-fedcbafedcba", Path(tmp_dir))
 
             customer_id = resolve_rewe_customer_id(
                 customer_id="12345678-1234-1234-1234-ABCDEFABCDEF",
                 session=None,
                 cookies_file=None,
-                output_dir=tmp_dir,
+                output_dir=Path(tmp_dir),
             )
 
         self.assertEqual(customer_id, "12345678-1234-1234-1234-abcdefabcdef")
@@ -115,7 +115,7 @@ class AuthFileAuthTests(unittest.TestCase):
                 "customerId=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
                 encoding="utf-8",
             )
-            cache_customer_id("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", tmp_dir)
+            cache_customer_id("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", Path(tmp_dir))
 
             response = Mock()
             response.status_code = 200
@@ -129,7 +129,7 @@ class AuthFileAuthTests(unittest.TestCase):
                 customer_id=None,
                 session=session,
                 cookies_file=str(cookie_file),
-                output_dir=tmp_dir,
+                output_dir=Path(tmp_dir),
             )
 
         self.assertEqual(customer_id, "12345678-1234-1234-1234-abcdefabcdef")
@@ -147,28 +147,28 @@ class AuthFileAuthTests(unittest.TestCase):
                 customer_id=None,
                 session=None,
                 cookies_file=str(cookie_file),
-                output_dir=tmp_dir,
+                output_dir=Path(tmp_dir),
             )
 
         self.assertEqual(customer_id, "12345678-1234-1234-1234-abcdefabcdef")
 
     def test_load_cached_customer_id_normalizes_uuid_from_cache(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            cache_customer_id("12345678-1234-1234-1234-ABCDEFABCDEF", tmp_dir)
+            cache_customer_id("12345678-1234-1234-1234-ABCDEFABCDEF", Path(tmp_dir))
 
-            customer_id = _load_cached_customer_id(tmp_dir)
+            customer_id = _load_cached_customer_id(Path(tmp_dir))
 
         self.assertEqual(customer_id, "12345678-1234-1234-1234-abcdefabcdef")
 
     def test_resolve_rewe_customer_id_falls_back_to_cache(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            cache_customer_id("12345678-1234-1234-1234-ABCDEFABCDEF", tmp_dir)
+            cache_customer_id("12345678-1234-1234-1234-ABCDEFABCDEF", Path(tmp_dir))
 
             customer_id = resolve_rewe_customer_id(
                 customer_id=None,
                 session=None,
                 cookies_file=None,
-                output_dir=tmp_dir,
+                output_dir=Path(tmp_dir),
             )
 
         self.assertEqual(customer_id, "12345678-1234-1234-1234-abcdefabcdef")
@@ -176,4 +176,3 @@ class AuthFileAuthTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

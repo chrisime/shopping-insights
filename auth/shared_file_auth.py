@@ -29,9 +29,6 @@ class CookieNameAnalysis:
     present_recommended: tuple[str, ...]
     missing_recommended: tuple[str, ...]
 
-    @property
-    def has_any_recommended(self) -> bool:
-        return bool(self.present_recommended)
 
 
 # ---------------------------------------------------------------------------

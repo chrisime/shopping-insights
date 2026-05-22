@@ -21,6 +21,8 @@ Der aktuelle REWE-Workflow kann:
 - bei `update` aus bereits vorhandenen PDFs nur neue eBons anhand bereits bekannter REWE-IDs importieren
 - die PDFs direkt in `shopping_receipts.sqlite` importieren
 
+Intern laufen Parse, Validierung und Persistenz über die gemeinsame Pipeline in `workflows/pipeline_runner.py`.
+
 ---
 
 ## Voraussetzungen

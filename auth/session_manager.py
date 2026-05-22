@@ -32,5 +32,4 @@ def setup_session(retailer: str, auth_method: Optional[str] = None, cookies_file
     if auth_method == "file":
         return RETAILER_FILE_LOADERS[normalized_retailer](cookies_file)
 
-    extractor_cls = RETAILER_BROWSER_EXTRACTORS[normalized_retailer]
-    return extractor_cls().extract(auth_method)
+    return RETAILER_BROWSER_EXTRACTORS[normalized_retailer]().extract(auth_method)

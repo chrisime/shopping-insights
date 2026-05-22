@@ -21,7 +21,7 @@ class AuthCookieValidationTests(unittest.TestCase):
         self.assertEqual(analysis.missing_required, ("ldi-customertoken",))
         self.assertEqual(analysis.present_recommended, ("XSRF-TOKEN",))
         self.assertEqual(analysis.missing_recommended, ("ldi-user-context",))
-        self.assertTrue(analysis.has_any_recommended)
+        self.assertTrue(analysis.present_recommended)
 
     def test_build_cookie_session_deduplicates_and_normalizes_cookie_shape(self):
         session, cookie_count = build_cookie_session(

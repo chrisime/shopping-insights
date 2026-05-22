@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from auth.lidl_file_auth import load_lidl_cookies_from_file
-from auth.session_manager import _load_session_for_retailer, setup_session
+from auth.session_manager import setup_session
 from config.lidl_config import LidlConfig
 
 
@@ -19,7 +19,7 @@ class AuthSessionManagerTests(unittest.TestCase):
             {"lidl": extractor_cls},
         ):
 
-            result = _load_session_for_retailer(
+            result = setup_session(
                 retailer="lidl",
                 auth_method="librewolf",
                 cookies_file=None,
