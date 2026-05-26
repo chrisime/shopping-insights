@@ -92,6 +92,7 @@ class StoreDomain:
                     STORE_TABLE.id,
                     STORE_TABLE.retailer_code,
                     STORE_TABLE.name,
+                    STORE_TABLE.market,
                     STORE_TABLE.street,
                     STORE_TABLE.street_no,
                     STORE_TABLE.zip,
@@ -110,6 +111,7 @@ class StoreDomain:
             id=int(row["id"]),
             retailer_code=str(row["retailer_code"]),
             name=str(row["name"]),
+            market=None if row["market"] is None else str(row["market"]),
             street=str(row["street"]),
             street_no=str(row["street_no"]),
             zip=str(row["zip"]),
@@ -125,6 +127,7 @@ class StoreDomain:
                     STORE_TABLE.id,
                     STORE_TABLE.retailer_code,
                     STORE_TABLE.name,
+                    STORE_TABLE.market,
                     STORE_TABLE.street,
                     STORE_TABLE.street_no,
                     STORE_TABLE.zip,
@@ -142,6 +145,7 @@ class StoreDomain:
             id=int(row["id"]),
             retailer_code=str(row["retailer_code"]),
             name=str(row["name"]),
+            market=None if row["market"] is None else str(row["market"]),
             street=str(row["street"]),
             street_no=str(row["street_no"]),
             zip=str(row["zip"]),
@@ -167,6 +171,7 @@ class StoreDomain:
                 .columns(
                     STORE_TABLE.retailer_code,
                     STORE_TABLE.name,
+                    STORE_TABLE.market,
                     STORE_TABLE.street,
                     STORE_TABLE.street_no,
                     STORE_TABLE.zip,
@@ -181,11 +186,13 @@ class StoreDomain:
                     Parameter("?"),
                     Parameter("?"),
                     Parameter("?"),
+                    Parameter("?"),
                 )
             ).get_sql(),
             (
                 entity.retailer_code,
                 entity.name,
+                entity.market,
                 entity.street,
                 entity.street_no,
                 entity.zip,
@@ -214,7 +221,6 @@ class PurchaseDomain:
                     PURCHASE_TABLE.id,
                     PURCHASE_TABLE.store_id,
                     PURCHASE_TABLE.purchase_date,
-                    PURCHASE_TABLE.market,
                     PURCHASE_TABLE.register_id,
                     PURCHASE_TABLE.cashier,
                     PURCHASE_TABLE.total_price,
@@ -234,7 +240,6 @@ class PurchaseDomain:
             id=str(row["id"]),
             store_id=None if row["store_id"] is None else int(row["store_id"]),
             purchase_date=str(row["purchase_date"]),
-            market=None if row["market"] is None else str(row["market"]),
             register_id=None if row["register_id"] is None else str(row["register_id"]),
             cashier=None if row["cashier"] is None else str(row["cashier"]),
             total_price=None if row["total_price"] is None else float(row["total_price"]),
@@ -264,7 +269,6 @@ class PurchaseDomain:
                     PURCHASE_TABLE.id,
                     PURCHASE_TABLE.store_id,
                     PURCHASE_TABLE.purchase_date,
-                    PURCHASE_TABLE.market,
                     PURCHASE_TABLE.register_id,
                     PURCHASE_TABLE.cashier,
                     PURCHASE_TABLE.total_price,
@@ -286,14 +290,12 @@ class PurchaseDomain:
                     Parameter("?"),
                     Parameter("?"),
                     Parameter("?"),
-                    Parameter("?"),
                 )
             ).get_sql(),
             (
                 entity.id,
                 entity.store_id,
                 entity.purchase_date,
-                entity.market,
                 entity.register_id,
                 entity.cashier,
                 entity.total_price,
@@ -316,7 +318,6 @@ class PurchaseDomain:
                 SQLLiteQuery.update(PURCHASE_TABLE)
                 .set(PURCHASE_TABLE.store_id, Parameter("?"))
                 .set(PURCHASE_TABLE.purchase_date, Parameter("?"))
-                .set(PURCHASE_TABLE.market, Parameter("?"))
                 .set(PURCHASE_TABLE.register_id, Parameter("?"))
                 .set(PURCHASE_TABLE.cashier, Parameter("?"))
                 .set(PURCHASE_TABLE.total_price, Parameter("?"))
@@ -330,7 +331,6 @@ class PurchaseDomain:
             (
                 entity.store_id,
                 entity.purchase_date,
-                entity.market,
                 entity.register_id,
                 entity.cashier,
                 entity.total_price,
@@ -376,7 +376,6 @@ class PurchaseDomain:
                     PURCHASE_TABLE.id,
                     PURCHASE_TABLE.store_id,
                     PURCHASE_TABLE.purchase_date,
-                    PURCHASE_TABLE.market,
                     PURCHASE_TABLE.register_id,
                     PURCHASE_TABLE.cashier,
                     PURCHASE_TABLE.total_price,
@@ -397,7 +396,6 @@ class PurchaseDomain:
                 id=str(row["id"]),
                 store_id=None if row["store_id"] is None else int(row["store_id"]),
                 purchase_date=str(row["purchase_date"]),
-                market=None if row["market"] is None else str(row["market"]),
                 register_id=None if row["register_id"] is None else str(row["register_id"]),
                 cashier=None if row["cashier"] is None else str(row["cashier"]),
                 total_price=None if row["total_price"] is None else float(row["total_price"]),

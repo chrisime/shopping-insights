@@ -16,6 +16,7 @@ class RetailerEntity:
 class StoreEntity:
     retailer_code: str
     name: str
+    market: str | None
     street: str
     street_no: str
     zip: str
@@ -29,7 +30,6 @@ class PurchaseEntity:
     id: str
     store_id: int | None
     purchase_date: str
-    market: str | None
     register_id: str | None
     cashier: str | None
     total_price: float | None

@@ -75,6 +75,16 @@ class LidlStoreDTO:
             "city": self.city,
         }
 
+    def to_api_dict(self) -> dict[str, Any]:
+        """Serialize back to a Lidl-like store payload while preserving the store name."""
+        return {
+            "name": self.name,
+            "street": self.street,
+            "street_no": self.street_no,
+            "zip": self.zip,
+            "city": self.city,
+        }
+
     def has_address(self) -> bool:
         return any((self.street, self.street_no, self.zip, self.city))
 
@@ -117,7 +127,7 @@ class LidlTicketDTO:
             "id": self.id,
             "date": self.date,
             "htmlPrintedReceipt": self.html_receipt,
-            "store": self.store.to_address_dict() if self.store.has_address() else {},
+            "store": self.store.to_api_dict(),
         }
 
 

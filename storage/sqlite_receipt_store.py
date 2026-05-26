@@ -117,14 +117,17 @@ def _map_purchase_to_receipt_dict(
 
     if purchase.store_id is None:
         store_name = ""
+        market = None
         address = AddressDTO(street="", street_no="", zip="", city="")
     else:
         store = store_domain.find_by_id(purchase.store_id)
         if store is None:
             store_name = ""
+            market = None
             address = AddressDTO(street="", street_no="", zip="", city="")
         else:
             store_name = store.name
+            market = store.market
             address = AddressDTO(
                 street=store.street,
                 street_no=store.street_no,
@@ -143,7 +146,7 @@ def _map_purchase_to_receipt_dict(
         purchase_date=purchase.purchase_date,
         store=store_name,
         address=address,
-        market=purchase.market,
+        market=market,
         register_id=purchase.register_id,
         cashier=purchase.cashier,
         total_price=purchase.total_price,

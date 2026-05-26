@@ -53,6 +53,27 @@ class TestLidlTicketDTO:
         assert ticket.store.name == "Lidl"
         assert not ticket.store.has_address()
 
+    def test_to_api_dict_roundtrip_preserves_store_name_and_city(self):
+        raw = {
+            "id": "23004426832026051669963",
+            "date": "2026-05-16T15:46:35",
+            "htmlPrintedReceipt": "<html>...</html>",
+            "store": {
+                "name": "Fürth-Südstadt",
+                "street": "Fronmüllerstr.",
+                "street_no": "12",
+                "zip": "90763",
+                "city": "Fürth",
+            },
+        }
+
+        ticket = LidlTicketDTO.from_api_response(raw)
+        serialized = ticket.to_api_dict()
+        roundtripped = LidlTicketDTO.from_api_response(serialized)
+
+        assert roundtripped.store.name == "Fürth-Südstadt"
+        assert roundtripped.store.city == "Fürth"
+
 
 class TestLidlStoreDTO:
     def test_address_split_from_combined_field(self):
