@@ -25,7 +25,7 @@ const {
 <template>
   <main class="dashboard-page">
     <header class="dashboard-page__header">
-      <h1>Shopping Analyzer Dashboard</h1>
+      <h1>{{ payload?.title ?? "Shopping Analyzer Dashboard" }}</h1>
       <p>Read-only dashboard with filter-driven refresh.</p>
     </header>
 

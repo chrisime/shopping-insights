@@ -16,7 +16,7 @@ describe("DashboardPage", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          title: "Shopping Analyzer Dashboard",
+          title: "Monatsübersicht",
           sections: [
             {
               kind: "metrics",
@@ -35,30 +35,56 @@ describe("DashboardPage", () => {
 
     const html = await renderToString(createSSRApp(DashboardPage));
 
-    expect(html).toContain("Shopping Analyzer Dashboard");
+    expect(html).toContain("Monatsübersicht");
     expect(html).toContain("Kennzahlen");
     expect(html).toContain("Ausgaben gesamt");
     expect(html).toContain("Ausgaben über Zeit");
   });
 
   it("refetches when filters change", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ title: "Shopping Analyzer Dashboard", sections: [] }),
+    let resolveFirst: ((value: unknown) => void) | undefined;
+    let resolveSecond: ((value: unknown) => void) | undefined;
+    const firstResponse = new Promise((resolve) => {
+      resolveFirst = resolve;
     });
+    const secondResponse = new Promise((resolve) => {
+      resolveSecond = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(firstResponse)
+      .mockReturnValueOnce(secondResponse);
     vi.stubGlobal("fetch", fetchMock);
 
     const scope = effectScope();
     const dashboard = scope.run(() => useDashboard());
     expect(dashboard).toBeDefined();
 
-    await dashboard!.refresh();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
+    const firstRefresh = dashboard!.refresh();
     dashboard!.retailer.value = "lidl";
     await nextTick();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    resolveSecond?.({
+      ok: true,
+      json: async () => ({ title: "Newest", sections: [] }),
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    await nextTick();
+    expect(dashboard!.payload.value?.title).toBe("Newest");
+
+    resolveFirst?.({
+      ok: true,
+      json: async () => ({ title: "Stale", sections: [] }),
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    await nextTick();
+
+    expect(dashboard!.payload.value?.title).toBe("Newest");
     scope.stop();
+    await firstRefresh;
   });
 });

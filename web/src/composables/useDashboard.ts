@@ -15,6 +15,7 @@ export function useDashboard() {
   const payload = ref<DashboardPayload | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  let requestToken = 0;
 
   const filters = computed(() => ({
     retailer: retailer.value || undefined,
@@ -27,15 +28,23 @@ export function useDashboard() {
   }));
 
   async function refresh() {
+    const token = ++requestToken;
     loading.value = true;
     error.value = null;
 
     try {
-      payload.value = await fetchDashboard(filters.value);
+      const response = await fetchDashboard(filters.value);
+      if (token === requestToken) {
+        payload.value = response;
+      }
     } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : "Failed to load dashboard";
+      if (token === requestToken) {
+        error.value = cause instanceof Error ? cause.message : "Failed to load dashboard";
+      }
     } finally {
-      loading.value = false;
+      if (token === requestToken) {
+        loading.value = false;
+      }
     }
   }
 
