@@ -1,0 +1,22 @@
+export type DashboardSectionKind = "metrics" | "time_series" | "weekday" | "top_items";
+
+export interface DashboardFilters {
+  retailer?: string;
+  start_date?: string;
+  end_date?: string;
+  time_granularity?: string;
+  spending_view?: string;
+  top_view?: string;
+  top_limit?: number;
+}
+
+export interface DashboardSection {
+  kind: DashboardSectionKind;
+  title: string;
+  items: Array<Record<string, unknown>>;
+}
+
+export interface DashboardPayload {
+  title: string;
+  sections: DashboardSection[];
+}
