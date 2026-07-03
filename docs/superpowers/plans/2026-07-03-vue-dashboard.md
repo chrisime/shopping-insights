@@ -30,14 +30,15 @@
 - Create: `tests/test_api_ui_dashboard.py`
 
 **Interfaces:**
-- Consumes: `build_dashboard_state(...)` from `frontend/dashboard_state.py`, `build_dashboard_page_model(...)` from `frontend/ui_model.py`
-- Produces: `VueDashboardPayload.from_page_model(...)` and `GET /ui/dashboard`
+- Consumes: `build_dashboard_state(provider, retailer, start_date, end_date, time_granularity, spending_view, top_view, top_limit) -> DashboardState` from `frontend/dashboard_state.py`, `build_dashboard_page_model(state: DashboardState) -> DashboardPageModel` from `frontend/ui_model.py`
+- Produces: `VueDashboardPayload.from_page_model(page: DashboardPageModel) -> VueDashboardPayload` and `GET /ui/dashboard(retailer, start_date, end_date, time_granularity, spending_view, top_view, top_limit) -> dict[str, Any]`
 
 - [ ] **Step 1: Write the failing test**
 
 ```python
 def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
     from fastapi.testclient import TestClient
+    from datetime import date
 
     from api.main import app
     from api.services import ui_service
@@ -60,8 +61,8 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
         time_series=[TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1)],
         weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
         top_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
-        min_date=__import__("datetime").date(2024, 1, 1),
-        max_date=__import__("datetime").date(2024, 1, 31),
+        min_date=date(2024, 1, 1),
+        max_date=date(2024, 1, 31),
     )
 
     page = DashboardPageModel(
@@ -121,8 +122,24 @@ from api.services.ui_service import get_vue_dashboard_payload
 router = APIRouter(prefix="/ui", tags=["ui"])
 
 @router.get("/dashboard")
-def read_dashboard(...):
-    return get_vue_dashboard_payload(...).to_dict()
+def read_dashboard(
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    time_granularity: str = "Täglich",
+    spending_view: str = "Absolut",
+    top_view: str = "Menge",
+    top_limit: int = 20,
+):
+    return get_vue_dashboard_payload(
+        retailer=retailer,
+        start_date=start_date,
+        end_date=end_date,
+        time_granularity=time_granularity,
+        spending_view=spending_view,
+        top_view=top_view,
+        top_limit=top_limit,
+    ).to_dict()
 ```
 
 - [ ] **Step 4: Run the test to verify it passes**
