@@ -2,6 +2,8 @@
 
 from typing import Any, Dict, List, Optional
 
+from shared.receipt_schema import normalize_receipt_schema
+
 
 DEFAULT_RECEIPT_FIELDS = {
     "total_price": None,
@@ -60,4 +62,3 @@ def build_receipt_item(
         "quantity": quantity,
         "unit": unit,
     }
-

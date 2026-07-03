@@ -1,6 +1,7 @@
 """Neutrale Schema-Helfer für normalisierte Receipt-Dictionaries."""
 
 import re
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from shared.addresses import empty_address, normalize_address
@@ -18,6 +19,7 @@ _RETAILER_EXTRA_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "lidl": {
         "sticker_discount": None,
         "sticker_discount_pct": [],
+        "lidlplus_amount_saved": 0.0,
         "lidlplus_discount": None,
     },
     "rewe": {
@@ -28,9 +30,17 @@ _RETAILER_EXTRA_DEFAULTS: Dict[str, Dict[str, Any]] = {
 }
 
 _RETAILER_EXTRA_MONEY_FIELDS: Dict[str, set[str]] = {
-    "lidl": {"sticker_discount", "lidlplus_discount"},
+    "lidl": {"sticker_discount", "lidlplus_amount_saved", "lidlplus_discount"},
     "rewe": {"rewe_bonus_amount", "rewe_bonus_discount", "rewe_bonus_total_amount"},
 }
+
+
+@dataclass(frozen=True)
+class ReceiptSchemaProfile:
+    """Retailer-specific schema defaults and money-field declarations."""
+
+    extra_defaults: Dict[str, Any] = field(default_factory=dict)
+    extra_money_fields: set[str] = field(default_factory=set)
 
 
 SHARED_RECEIPT_FIELDS = {
@@ -124,7 +134,7 @@ def _build_normalized_receipt_base(receipt_data: Dict[str, Any], retailer: str) 
 
 def _normalize_receipt_metadata_fields(normalized: Dict[str, Any], retailer: str) -> None:
     normalized["retailer"] = retailer
-    normalized["purchase_date"] = normalize_purchase_date(normalized.get("purchase_date"))
+    normalized["purchase_date"] = _normalize_receipt_purchase_date(normalized.get("purchase_date"))
     normalized.pop("total_price_no_saving", None)
 
 
@@ -146,6 +156,24 @@ def _copy_default_value(value: Any) -> Any:
     if isinstance(value, dict):
         return dict(value)
     return value
+
+
+def _normalize_receipt_purchase_date(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    if re.fullmatch(r"\d{4}\.\d{2}\.\d{2}", text):
+        return text
+
+    normalized = normalize_purchase_date(text)
+    if normalized is not None:
+        return normalized
+
+    return text
 
 
 def _normalize_receipt_address(normalized: Dict[str, Any]) -> None:
