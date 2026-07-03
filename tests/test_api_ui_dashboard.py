@@ -1,6 +1,56 @@
 from datetime import date
 
 
+def test_build_dashboard_state_turns_kumulativ_time_series_cumulative():
+    from frontend.dashboard_state import DashboardDerivedMetrics, build_dashboard_state
+    from frontend.ui_model import build_dashboard_page_model
+    from metrics import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
+
+    class DummyProvider:
+        def basic_kpis(self, retailer=None, start_date=None, end_date=None):
+            return BasicKPIs(25.0, 2, 12.5, 0.0, 0.0, "2024-01-01", "2024-01-31")
+
+        def retailer_bonus_kpis(self, retailer=None, start_date=None, end_date=None):
+            return RetailerBonusKPIs(0.0, 0.0, 0.0, 0.0, 0.0)
+
+        def spending_by_month(self, retailer=None, start_date=None, end_date=None):
+            return [
+                TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1),
+                TimeSeriesRow(period="2024-02", total_spent=15.0, receipt_count=1),
+            ]
+
+        def spending_by_day(self, retailer=None, start_date=None, end_date=None):
+            return []
+
+        def spending_by_year(self, retailer=None, start_date=None, end_date=None):
+            return []
+
+        def weekday_analysis(self, retailer=None, start_date=None, end_date=None):
+            return [WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)]
+
+        def top_items_by_quantity(self, retailer=None, start_date=None, end_date=None, limit=20):
+            return [TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")]
+
+        def top_items_by_spend(self, retailer=None, start_date=None, end_date=None, limit=20):
+            return []
+
+    state = build_dashboard_state(
+        DummyProvider(),
+        retailer="lidl",
+        start_date="2024-01-01",
+        end_date="2024-01-31",
+        time_granularity="Monatlich",
+        spending_view="Kumulativ",
+        top_view="Menge",
+        top_limit=10,
+    )
+
+    page = build_dashboard_page_model(state)
+    time_series_section = next(section for section in page.sections if section.kind == "time_series")
+
+    assert [item["total_spent"] for item in time_series_section.items] == [10.0, 25.0]
+
+
 def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
     from fastapi.testclient import TestClient
 

@@ -118,6 +118,8 @@ def build_dashboard_state(
     kpis = provider.basic_kpis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
     bonus_kpis = provider.retailer_bonus_kpis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
     time_series = _build_time_series(provider, normalized_retailer, start_date, end_date, time_granularity)
+    if spending_view == "Kumulativ":
+        time_series = _cumulative_time_series(time_series)
     weekday = provider.weekday_analysis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
     top_items = _build_top_items(provider, normalized_retailer, start_date, end_date, top_view, top_limit)
     derived = _build_derived_metrics(kpis, bonus_kpis)
@@ -154,6 +156,17 @@ def _build_time_series(
     if time_granularity == "Jährlich":
         return provider.spending_by_year(retailer=retailer, start_date=start_date, end_date=end_date)
     return provider.spending_by_month(retailer=retailer, start_date=start_date, end_date=end_date)
+
+
+def _cumulative_time_series(time_series: list[TimeSeriesRow]) -> list[TimeSeriesRow]:
+    running_total = 0.0
+    cumulative: list[TimeSeriesRow] = []
+    for row in time_series:
+        running_total += row.total_spent
+        cumulative.append(
+            TimeSeriesRow(period=row.period, total_spent=running_total, receipt_count=row.receipt_count)
+        )
+    return cumulative
 
 
 def _build_top_items(
