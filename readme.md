@@ -119,13 +119,18 @@ Je nach Workflow entstehen insbesondere folgende Dateien:
 
 ## Dashboard
 
-Nach dem Import kannst du die gesammelten Daten im Dashboard ansehen:
+Nach dem Import kannst du die gesammelten Daten im Vue-Dashboard ansehen:
 
 ```bash
-streamlit run dashboard.py
+cd web
+npm install
+npm run dev
 ```
 
-Danach ist das Dashboard typischerweise unter `http://localhost:8501` erreichbar.
+Das Frontend liest Daten über `GET /ui/dashboard` vom FastAPI-Backend.
+Setze dafür bei Bedarf `VITE_API_BASE_URL`, zum Beispiel auf `http://localhost:8000`.
+
+Details und Projektkontext stehen in [`docs/architecture/frontend-transition.md`](./docs/architecture/frontend-transition.md) und [`web/README.md`](./web/README.md).
 
 ## Sicherheitshinweise
 
