@@ -1,14 +1,5 @@
-import { createApp, defineComponent, h } from "vue";
+import { createApp } from "vue";
 
-const App = defineComponent({
-  name: "ShoppingAnalyzerApp",
-  setup() {
-    return () =>
-      h("main", { class: "app-shell" }, [
-        h("h1", "Shopping Analyzer Dashboard"),
-        h("p", "Vue dashboard scaffold ready."),
-      ]);
-  },
-});
+import App from "./App.vue";
 
 createApp(App).mount("#app");
