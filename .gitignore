@@ -3,3 +3,4 @@ __pycache__/
 *_receipts.json
 *_cookies.json
 tmp*/
+.worktrees/
