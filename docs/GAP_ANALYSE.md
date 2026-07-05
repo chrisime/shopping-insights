@@ -257,7 +257,6 @@ Folgende REWE-Features können komplett ohne strukturelle Änderungen übernomme
 
 | Paket | Lidl | REWE | Kommentar |
 |-------|------|------|-----------|
-| `streamlit` | ✅ | ❌ | Nur wenn Option B (Streamlit-Dashboard) |
 | `pandas` | ✅ | ❌ | Für Datenverarbeitung im Lidl-Dashboard |
 | `requests` | ✅ | ❌ | Lidl-API-Client |
 | `browser-cookie3` | ✅ | ❌ | Cookie-Extraktion |
@@ -274,7 +273,6 @@ browser-cookie3
 rich
 pdfplumber
 pandas          # optional, nur für Streamlit-Variante
-streamlit       # optional, nur für Streamlit-Variante
 ```
 
 ---
@@ -336,4 +334,3 @@ Alle 15 REWE-Analysen (Tabellen + Charts) sind reine SQL-Abfragen + JS/HTML und 
 
 **Realistischer Gesamtaufwand bis Feature-Parität:**  
 ~1–2 Wochen (mit klaren Entscheidungen bei R-1 und R-2).
-

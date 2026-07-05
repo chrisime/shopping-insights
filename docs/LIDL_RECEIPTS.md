@@ -179,7 +179,6 @@ Zusätzlich kann bei übersprungenen Bons ein Report mit Skip-Gründen geschrieb
 Nach dem Import kannst du das Dashboard starten:
 
 ```bash
-streamlit run dashboard.py
 ```
 
 ---
@@ -194,4 +193,3 @@ Bitte beachte:
 - niemals weitergeben
 - lokal sicher speichern
 - nach Möglichkeit nach erfolgreichem Import löschen
-

@@ -17,6 +17,7 @@
     "@tailwindcss/vite": "^4.3.2",
     "@types/node": "^22.13.4",
     "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/server-renderer": "^3.5.39",
     "@vue/test-utils": "^2.4.11",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.2",
