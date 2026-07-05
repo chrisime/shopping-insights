@@ -15,6 +15,7 @@ export function useDashboard() {
   const payload = ref<DashboardPayload | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const skipNextAutoRefresh = ref(false);
   let requestToken = 0;
 
   const filters = computed(() => ({
@@ -35,6 +36,11 @@ export function useDashboard() {
     try {
       const response = await fetchDashboard(filters.value);
       if (token === requestToken) {
+        if (!payload.value && !startDate.value && !endDate.value && response.min_date && response.max_date) {
+          skipNextAutoRefresh.value = true;
+          startDate.value = response.min_date;
+          endDate.value = response.max_date;
+        }
         payload.value = response;
       }
     } catch (cause) {
@@ -49,6 +55,10 @@ export function useDashboard() {
   }
 
   watch([retailer, startDate, endDate, timeGranularity, spendingView, topView, topLimit], () => {
+    if (skipNextAutoRefresh.value) {
+      skipNextAutoRefresh.value = false;
+      return;
+    }
     void refresh();
   });
 

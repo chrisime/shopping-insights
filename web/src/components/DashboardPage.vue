@@ -56,7 +56,10 @@ const {
           :title="section.title"
           :empty="section.items.length === 0"
         >
-          <KpiRow v-if="section.kind === 'metrics'" :items="section.items" />
+          <KpiRow
+            v-if="section.kind === 'metrics' || section.kind === 'bonus_rewe' || section.kind === 'bonus_lidl' || section.kind === 'bonus_total'"
+            :items="section.items"
+          />
           <TrendChartPanel v-else-if="section.kind === 'time_series'" :items="section.items" />
           <WeekdayPanel v-else-if="section.kind === 'weekday'" :items="section.items" />
           <TopItemsPanel v-else-if="section.kind === 'top_items'" :items="section.items" />

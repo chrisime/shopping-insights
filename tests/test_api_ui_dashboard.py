@@ -51,6 +51,44 @@ def test_build_dashboard_state_turns_kumulativ_time_series_cumulative():
     assert [item["total_spent"] for item in time_series_section.items] == [10.0, 25.0]
 
 
+def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
+    from frontend.dashboard_state import DashboardDerivedMetrics, DashboardState
+    from frontend.ui_model import build_dashboard_page_model
+    from metrics import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
+
+    state = DashboardState(
+        retailer=None,
+        start_date="2024-01-01",
+        end_date="2024-01-31",
+        time_granularity="Monatlich",
+        spending_view="Absolut",
+        top_view="Menge",
+        top_limit=10,
+        available_kpis=BasicKPIs(100.0, 4, 25.0, 10.0, 2.0, "2024-01-01", "2024-01-31"),
+        kpis=BasicKPIs(100.0, 4, 25.0, 10.0, 2.0, "2024-01-01", "2024-01-31"),
+        bonus_kpis=RetailerBonusKPIs(1.0, 2.0, 3.0, 4.0, 5.0),
+        derived=DashboardDerivedMetrics(117.0, 10.0, 9.0, 9.0, 19.0, 19.0, 4.0, 5.0),
+        time_series=[TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1)],
+        weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
+        top_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
+        min_date=date(2024, 1, 1),
+        max_date=date(2024, 1, 31),
+    )
+
+    page = build_dashboard_page_model(state).to_dict()
+
+    assert page["min_date"] == "2024-01-01"
+    assert page["max_date"] == "2024-01-31"
+    metrics = next(section for section in page["sections"] if section["kind"] == "metrics")
+    bonus_rewe = next(section for section in page["sections"] if section["kind"] == "bonus_rewe")
+    bonus_lidl = next(section for section in page["sections"] if section["kind"] == "bonus_lidl")
+
+    assert metrics["items"][0]["value"] == "€100.00"
+    assert metrics["items"][2]["value"] == "4"
+    assert bonus_rewe["items"][0]["value"] == "€1.00"
+    assert bonus_lidl["items"][1]["value"] == "4.0%"
+
+
 def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
     from fastapi.testclient import TestClient
 
@@ -82,6 +120,8 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
     page = DashboardPageModel(
         title="Shopping Analyzer Dashboard",
         sections=[DashboardSection(kind="metrics", title="Kennzahlen", items=[{"label": "A", "value": "1"}])],
+        min_date="2024-01-01",
+        max_date="2024-01-31",
     )
 
     monkeypatch.setattr(ui_service, "build_dashboard_state", lambda *args, **kwargs: state)
@@ -104,3 +144,5 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
     assert response.json()["title"] == "Shopping Analyzer Dashboard"
     assert response.json()["sections"][0]["kind"] == "metrics"
     assert response.json()["sections"][0]["items"][0]["label"] == "A"
+    assert response.json()["min_date"] == "2024-01-01"
+    assert response.json()["max_date"] == "2024-01-31"

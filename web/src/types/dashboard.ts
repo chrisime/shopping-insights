@@ -1,4 +1,11 @@
-export type DashboardSectionKind = "metrics" | "time_series" | "weekday" | "top_items";
+export type DashboardSectionKind =
+  | "metrics"
+  | "bonus_rewe"
+  | "bonus_lidl"
+  | "bonus_total"
+  | "time_series"
+  | "weekday"
+  | "top_items";
 
 export interface DashboardFilters {
   retailer?: string;
@@ -19,4 +26,6 @@ export interface DashboardSection {
 export interface DashboardPayload {
   title: string;
   sections: DashboardSection[];
+  min_date?: string | null;
+  max_date?: string | null;
 }
