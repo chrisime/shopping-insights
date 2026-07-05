@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -28,15 +29,36 @@ class DashboardPageModel:
     error: DashboardError | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        payload = {
+        payload: dict[str, Any] = {
             "title": self.title,
             "sections": [section.to_dict() for section in self.sections],
-            "min_date": self.min_date,
-            "max_date": self.max_date,
         }
+        if self.min_date is not None or self.error is not None:
+            payload["min_date"] = self.min_date
+        if self.max_date is not None or self.error is not None:
+            payload["max_date"] = self.max_date
         if self.error is not None:
             payload["error"] = {"error_code": self.error.error_code, "detail": self.error.detail}
         return payload
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "DashboardPageModel":
+        error_payload = payload.get("error")
+        error = DashboardError(**error_payload) if error_payload is not None else None
+        return cls(
+            title=payload["title"],
+            sections=[DashboardSection(**section) for section in payload.get("sections", [])],
+            min_date=payload.get("min_date"),
+            max_date=payload.get("max_date"),
+            error=error,
+        )
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), ensure_ascii=False)
+
+    @classmethod
+    def from_json(cls, payload: str) -> "DashboardPageModel":
+        return cls.from_dict(json.loads(payload))
 
 
 def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
@@ -128,7 +150,7 @@ def _build_metric_items(state: DashboardState) -> list[dict[str, Any]]:
 
 def _build_rewe_bonus_items(state: DashboardState) -> list[dict[str, Any]]:
     items = []
-    if state.retailer in (None, "rewe") and (state.bonus_kpis.rewe_bonus_collected > 0 or state.bonus_kpis.rewe_bonus_balance > 0):
+    if state.retailer is None and (state.bonus_kpis.rewe_bonus_collected > 0 or state.bonus_kpis.rewe_bonus_balance > 0):
         items.append({"label": "Bonus gesammelt (Zeitraum)", "value": _currency(state.bonus_kpis.rewe_bonus_collected)})
         items.append({"label": "Bonus Guthaben (aktuell)", "value": _currency(state.bonus_kpis.rewe_bonus_balance)})
     return items
@@ -136,7 +158,7 @@ def _build_rewe_bonus_items(state: DashboardState) -> list[dict[str, Any]]:
 
 def _build_lidl_bonus_items(state: DashboardState) -> list[dict[str, Any]]:
     items = []
-    if state.retailer in (None, "lidl") and (state.bonus_kpis.lidlplus_discount > 0 or state.bonus_kpis.sticker_discount > 0):
+    if state.retailer is None and (state.bonus_kpis.lidlplus_discount > 0 or state.bonus_kpis.sticker_discount > 0):
         items.append({"label": "Lidl Plus gespart", "value": _currency(state.bonus_kpis.lidlplus_discount)})
         items.append({"label": "Lidl Plus Sparquote", "value": _percent(_pct(state.bonus_kpis.lidlplus_discount, state.kpis.total_spent))})
         items.append({"label": "Sticker-Rabatte", "value": _currency(state.bonus_kpis.sticker_discount)})
@@ -146,7 +168,7 @@ def _build_lidl_bonus_items(state: DashboardState) -> list[dict[str, Any]]:
 
 def _build_total_bonus_items(state: DashboardState) -> list[dict[str, Any]]:
     total_bonus_redeemed = state.derived.total_bonus_redeemed
-    if total_bonus_redeemed <= 0:
+    if state.retailer is not None or total_bonus_redeemed <= 0:
         return []
     return [
         {"label": "Bonus eingelöst", "value": _currency(total_bonus_redeemed)},

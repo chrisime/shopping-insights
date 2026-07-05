@@ -1,4 +1,14 @@
 venv/
+.venv/
+.idea/
+.opencode/
+.DS_Store
+.mypy_cache/
+.pytest_cache/
+shopping_receipts.sqlite
+shopping_receipts.sqlite.bkp
+lidl_*.json
+rewe_*.json
 __pycache__/
 *_receipts.json
 *_cookies.json
