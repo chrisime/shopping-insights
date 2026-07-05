@@ -146,3 +146,32 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
     assert response.json()["sections"][0]["items"][0]["label"] == "A"
     assert response.json()["min_date"] == "2024-01-01"
     assert response.json()["max_date"] == "2024-01-31"
+
+
+def test_ui_dashboard_allows_vite_dev_origin(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from api.main import app
+    from api.routes import ui as ui_route
+
+    monkeypatch.setattr(
+        ui_route,
+        "get_vue_dashboard_payload",
+        lambda **kwargs: type(
+            "Payload",
+            (),
+            {
+                "to_dict": lambda self: {
+                    "title": "Shopping Analyzer Dashboard",
+                    "sections": [],
+                    "min_date": None,
+                    "max_date": None,
+                }
+            },
+        )(),
+    )
+
+    response = TestClient(app).get("/ui/dashboard", headers={"Origin": "http://localhost:5173"})
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
