@@ -7,42 +7,17 @@ defineProps<{
 </script>
 
 <template>
-  <section class="dashboard-section">
-    <div class="dashboard-section__header">
-      <h2>{{ title }}</h2>
+  <section class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <div class="border-b border-slate-100 pb-3">
+      <h2 class="text-lg font-semibold tracking-tight text-slate-900">{{ title }}</h2>
     </div>
 
-    <p v-if="empty" class="dashboard-section__empty">
+    <p v-if="empty" class="text-sm text-slate-500">
       {{ emptyMessage ?? "Keine Daten für den gewählten Zeitraum." }}
     </p>
 
-    <div v-else class="dashboard-section__content">
+    <div v-else class="min-w-0">
       <slot />
     </div>
   </section>
 </template>
-
-<style scoped>
-.dashboard-section {
-  display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid #d8dee6;
-  border-radius: 14px;
-  background: #fff;
-}
-
-.dashboard-section__header h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-
-.dashboard-section__empty {
-  margin: 0;
-  color: #5b6472;
-}
-
-.dashboard-section__content {
-  min-width: 0;
-}
-</style>

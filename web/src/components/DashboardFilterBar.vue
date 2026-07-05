@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { OField, OInput, OSelect, OSlider } from "@oruga-ui/oruga-next";
+
 const retailer = defineModel<string>("retailer", { default: "" });
 const startDate = defineModel<string>("startDate", { default: "" });
 const endDate = defineModel<string>("endDate", { default: "" });
@@ -9,83 +11,50 @@ const topLimit = defineModel<number>("topLimit", { default: 20 });
 </script>
 
 <template>
-  <form class="filter-bar" @submit.prevent>
-    <label>
-      Händler
-      <select v-model="retailer">
+  <form class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-3" @submit.prevent>
+    <OField label="Händler">
+      <OSelect v-model="retailer" expanded>
         <option value="">Alle</option>
         <option value="lidl">Lidl</option>
         <option value="rewe">REWE</option>
-      </select>
-    </label>
+      </OSelect>
+    </OField>
 
-    <label>
-      Startdatum
-      <input v-model="startDate" type="date" />
-    </label>
+    <OField label="Startdatum">
+      <OInput v-model="startDate" type="date" expanded />
+    </OField>
 
-    <label>
-      Enddatum
-      <input v-model="endDate" type="date" />
-    </label>
+    <OField label="Enddatum">
+      <OInput v-model="endDate" type="date" expanded />
+    </OField>
 
-    <label>
-      Zeitgranularität
-      <select v-model="timeGranularity">
+    <OField label="Zeitgranularität">
+      <OSelect v-model="timeGranularity" expanded>
         <option>Täglich</option>
         <option>Monatlich</option>
         <option>Jährlich</option>
-      </select>
-    </label>
+      </OSelect>
+    </OField>
 
-    <label>
-      Ansicht
-      <select v-model="spendingView">
+    <OField label="Ansicht">
+      <OSelect v-model="spendingView" expanded>
         <option>Absolut</option>
         <option>Kumulativ</option>
-      </select>
-    </label>
+      </OSelect>
+    </OField>
 
-    <label>
-      Sortieren nach
-      <select v-model="topView">
+    <OField label="Sortieren nach">
+      <OSelect v-model="topView" expanded>
         <option>Menge</option>
         <option>Ausgaben</option>
-      </select>
-    </label>
+      </OSelect>
+    </OField>
 
-    <label>
-      Anzahl anzeigen
-      <input v-model.number="topLimit" type="range" min="5" max="50" step="5" />
-      <span>{{ topLimit }}</span>
-    </label>
+    <OField class="xl:col-span-3" label="Anzahl anzeigen">
+      <div class="space-y-2">
+        <OSlider v-model="topLimit" :min="5" :max="50" :step="5" />
+        <p class="text-sm text-slate-500">{{ topLimit }} Einträge</p>
+      </div>
+    </OField>
   </form>
 </template>
-
-<style scoped>
-.filter-bar {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  padding: 1rem;
-  border: 1px solid #d8dee6;
-  border-radius: 14px;
-  background: #fff;
-}
-
-label {
-  display: grid;
-  gap: 0.35rem;
-  font-size: 0.92rem;
-}
-
-select,
-input[type="date"],
-input[type="range"] {
-  width: 100%;
-}
-
-span {
-  font-variant-numeric: tabular-nums;
-}
-</style>
