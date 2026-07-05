@@ -78,6 +78,27 @@ describe("DashboardPage", () => {
     scope.stop();
   });
 
+  it("shows an empty-state message when the payload reports a dashboard error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          title: "Shopping Analyzer Dashboard",
+          min_date: null,
+          max_date: null,
+          error: { error_code: 101, detail: "missing_database" },
+          sections: [],
+        }),
+      }),
+    );
+
+    const html = await renderToString(createSSRApp(DashboardPage));
+
+    expect(html).toContain("Dashboard data is unavailable");
+    expect(html).toContain("Shopping Analyzer Dashboard");
+  });
+
   it("resets the date range when the retailer changes", async () => {
     const fetchMock = vi
       .fn()

@@ -30,19 +30,35 @@ describe("dashboard panels", () => {
     expect(trend.findAll(".bg-indigo-500")).toHaveLength(2);
     expect(trend.findAll(".bg-indigo-500")[0].attributes("style")).toContain("width: 100%");
 
+    const zeroTrend = mount(TrendChartPanel, {
+      props: { items: [{ period: "2024-03", total_spent: 0, receipt_count: 0 }] },
+    });
+    expect(zeroTrend.find(".bg-indigo-500").attributes("style")).toContain("width: 0%");
+
     const weekday = mount(WeekdayPanel, {
-      props: { items: [{ weekday_name: "Montag", trip_count: 1, avg_spent: 10, total_spent: 10 }] },
+      props: {
+        items: [
+          { weekday_name: "Montag", trip_count: 1, avg_spent: 10, total_spent: 10 },
+          { weekday_name: "Dienstag", trip_count: 2, avg_spent: 5, total_spent: 10 },
+        ],
+      },
     });
     expect(weekday.text()).toContain("Montag");
-    expect(weekday.text()).toContain("1 Einkäufe");
-    expect(weekday.text()).toContain("Ø 10");
+    expect(weekday.text()).toContain("Anzahl Einkäufe");
+    expect(weekday.text()).toContain("Ø Ausgaben pro Einkauf");
+    expect(weekday.findAll(".bg-indigo-500")).toHaveLength(4);
 
     const topItems = mount(TopItemsPanel, {
       props: { items: [{ name: "Apfel", total_quantity: 2, total_spent: 4, purchase_count: 1, unit: "pc" }] },
     });
+    expect(topItems.find("table").exists()).toBe(true);
+    expect(topItems.text()).toContain("Artikel");
+    expect(topItems.text()).toContain("Gesamtmenge");
+    expect(topItems.text()).toContain("Ausgaben");
+    expect(topItems.text()).toContain("Einkäufe");
     expect(topItems.text()).toContain("Apfel");
     expect(topItems.text()).toContain("2");
-    expect(topItems.text()).toContain("4");
+    expect(topItems.text()).toContain("€4.00");
     expect(topItems.text()).toContain("1");
     expect(topItems.text()).toContain("pc");
 
@@ -76,5 +92,6 @@ describe("dashboard panels", () => {
 
     expect(topItems.text()).toContain("Tomaten");
     expect(topItems.text()).toContain("0.696 kg");
+    expect(topItems.text()).toContain("€3.99");
   });
 });

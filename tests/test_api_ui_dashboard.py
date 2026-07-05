@@ -1,4 +1,5 @@
 from datetime import date
+import sqlite3
 
 
 def test_build_dashboard_state_turns_kumulativ_time_series_cumulative():
@@ -175,3 +176,99 @@ def test_ui_dashboard_allows_vite_dev_origin(monkeypatch):
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_build_dashboard_state_returns_empty_payload_when_database_tables_are_missing():
+    from frontend.dashboard_state import build_dashboard_state
+    from frontend.ui_model import build_dashboard_page_model
+
+    class MissingTableProvider:
+        def basic_kpis(self, *args, **kwargs):
+            raise sqlite3.OperationalError("no such table: purchase")
+
+        def retailer_bonus_kpis(self, *args, **kwargs):
+            raise AssertionError("should not be called")
+
+        def spending_by_day(self, *args, **kwargs):
+            raise AssertionError("should not be called")
+
+        def spending_by_month(self, *args, **kwargs):
+            raise AssertionError("should not be called")
+
+        def spending_by_year(self, *args, **kwargs):
+            raise AssertionError("should not be called")
+
+        def weekday_analysis(self, *args, **kwargs):
+            raise AssertionError("should not be called")
+
+        def top_items_by_quantity(self, *args, **kwargs):
+            raise AssertionError("should not be called")
+
+        def top_items_by_spend(self, *args, **kwargs):
+            raise AssertionError("should not be called")
+
+    state = build_dashboard_state(
+        MissingTableProvider(),
+        retailer=None,
+        start_date=None,
+        end_date=None,
+        time_granularity="Täglich",
+        spending_view="Absolut",
+        top_view="Menge",
+        top_limit=20,
+    )
+    page = build_dashboard_page_model(state).to_dict()
+
+    assert page == {
+        "title": "Shopping Analyzer Dashboard",
+        "sections": [],
+        "min_date": None,
+        "max_date": None,
+        "error": {"error_code": 101, "detail": "missing_database"},
+    }
+
+
+def test_build_dashboard_state_returns_no_receipts_error_for_empty_database():
+    from frontend.dashboard_state import build_dashboard_state
+    from frontend.ui_model import build_dashboard_page_model
+    from metrics import BasicKPIs, RetailerBonusKPIs
+
+    class EmptyProvider:
+        def basic_kpis(self, retailer=None, start_date=None, end_date=None):
+            return BasicKPIs(0.0, 0, 0.0, 0.0, 0.0, None, None)
+
+        def retailer_bonus_kpis(self, retailer=None, start_date=None, end_date=None):
+            return RetailerBonusKPIs(0.0, 0.0, 0.0, 0.0, 0.0)
+
+        def spending_by_day(self, retailer=None, start_date=None, end_date=None):
+            return []
+
+        def spending_by_month(self, retailer=None, start_date=None, end_date=None):
+            return []
+
+        def spending_by_year(self, retailer=None, start_date=None, end_date=None):
+            return []
+
+        def weekday_analysis(self, retailer=None, start_date=None, end_date=None):
+            return []
+
+        def top_items_by_quantity(self, retailer=None, start_date=None, end_date=None, limit=20):
+            return []
+
+        def top_items_by_spend(self, retailer=None, start_date=None, end_date=None, limit=20):
+            return []
+
+    state = build_dashboard_state(
+        EmptyProvider(),
+        retailer=None,
+        start_date=None,
+        end_date=None,
+        time_granularity="Täglich",
+        spending_view="Absolut",
+        top_view="Menge",
+        top_limit=20,
+    )
+    page = build_dashboard_page_model(state).to_dict()
+
+    assert page["error"] == {"error_code": 102, "detail": "no_receipts"}
+    assert page["sections"] == []

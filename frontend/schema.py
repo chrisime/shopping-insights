@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from frontend.dashboard_errors import DashboardError
 from frontend.ui_model import DashboardPageModel
 
 
@@ -14,6 +15,7 @@ class VueDashboardPayload:
     sections: list[dict[str, Any]]
     min_date: str | None = None
     max_date: str | None = None
+    error: DashboardError | None = None
 
     @classmethod
     def from_page_model(cls, page: DashboardPageModel) -> "VueDashboardPayload":
@@ -22,12 +24,16 @@ class VueDashboardPayload:
             sections=[section.to_dict() for section in page.sections],
             min_date=page.min_date,
             max_date=page.max_date,
+            error=page.error,
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "title": self.title,
             "sections": [dict(section) for section in self.sections],
             "min_date": self.min_date,
             "max_date": self.max_date,
         }
+        if self.error is not None:
+            payload["error"] = {"error_code": self.error.error_code, "detail": self.error.detail}
+        return payload

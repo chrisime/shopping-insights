@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from frontend.dashboard_errors import DashboardError, missing_database_error, no_receipts_error
 from metrics import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
 
@@ -101,6 +103,7 @@ class DashboardState:
     top_items: list[TopItemRow]
     min_date: Any
     max_date: Any
+    error: DashboardError | None = None
 
 
 def build_dashboard_state(
@@ -114,15 +117,38 @@ def build_dashboard_state(
     top_limit: int,
 ) -> DashboardState:
     normalized_retailer = retailer.lower() if retailer else None
-    available_kpis = provider.basic_kpis(retailer=normalized_retailer)
-    kpis = provider.basic_kpis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
-    bonus_kpis = provider.retailer_bonus_kpis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
-    time_series = _build_time_series(provider, normalized_retailer, start_date, end_date, time_granularity)
-    if spending_view == "Kumulativ":
-        time_series = _cumulative_time_series(time_series)
-    weekday = provider.weekday_analysis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
-    top_items = _build_top_items(provider, normalized_retailer, start_date, end_date, top_view, top_limit)
-    derived = _build_derived_metrics(kpis, bonus_kpis)
+    try:
+        available_kpis = provider.basic_kpis(retailer=normalized_retailer)
+        kpis = provider.basic_kpis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
+        if kpis.total_receipts == 0:
+            return _empty_no_receipts_state(
+                retailer=normalized_retailer,
+                start_date=start_date,
+                end_date=end_date,
+                time_granularity=time_granularity,
+                spending_view=spending_view,
+                top_view=top_view,
+                top_limit=top_limit,
+                available_kpis=available_kpis,
+            )
+        bonus_kpis = provider.retailer_bonus_kpis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
+        time_series = _build_time_series(provider, normalized_retailer, start_date, end_date, time_granularity)
+        if spending_view == "Kumulativ":
+            time_series = _cumulative_time_series(time_series)
+        weekday = provider.weekday_analysis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
+        top_items = _build_top_items(provider, normalized_retailer, start_date, end_date, top_view, top_limit)
+        derived = _build_derived_metrics(kpis, bonus_kpis)
+    except sqlite3.OperationalError:
+        return _empty_dashboard_state(
+            retailer=normalized_retailer,
+            start_date=start_date,
+            end_date=end_date,
+            time_granularity=time_granularity,
+            spending_view=spending_view,
+            top_view=top_view,
+            top_limit=top_limit,
+            error=missing_database_error(),
+        )
 
     return DashboardState(
         retailer=normalized_retailer,
@@ -141,6 +167,74 @@ def build_dashboard_state(
         top_items=top_items,
         min_date=available_kpis.min_date,
         max_date=available_kpis.max_date,
+    )
+
+
+def _empty_dashboard_state(
+    retailer: str | None,
+    start_date: str | None,
+    end_date: str | None,
+    time_granularity: str,
+    spending_view: str,
+    top_view: str,
+    top_limit: int,
+    error: DashboardError | None = None,
+) -> DashboardState:
+    empty_kpis = BasicKPIs(0.0, 0, 0.0, 0.0, 0.0, None, None)
+    empty_bonus_kpis = RetailerBonusKPIs(0.0, 0.0, 0.0, 0.0, 0.0)
+    empty_derived = DashboardDerivedMetrics(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    return DashboardState(
+        retailer=retailer,
+        start_date=start_date,
+        end_date=end_date,
+        time_granularity=time_granularity,
+        spending_view=spending_view,
+        top_view=top_view,
+        top_limit=top_limit,
+        available_kpis=empty_kpis,
+        kpis=empty_kpis,
+        bonus_kpis=empty_bonus_kpis,
+        derived=empty_derived,
+        time_series=[],
+        weekday=[],
+        top_items=[],
+        min_date=None,
+        max_date=None,
+        error=error,
+    )
+
+
+def _empty_no_receipts_state(
+    retailer: str | None,
+    start_date: str | None,
+    end_date: str | None,
+    time_granularity: str,
+    spending_view: str,
+    top_view: str,
+    top_limit: int,
+    available_kpis: BasicKPIs,
+) -> DashboardState:
+    empty_kpis = BasicKPIs(0.0, 0, 0.0, 0.0, 0.0, available_kpis.min_date, available_kpis.max_date)
+    empty_bonus_kpis = RetailerBonusKPIs(0.0, 0.0, 0.0, 0.0, 0.0)
+    empty_derived = DashboardDerivedMetrics(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    return DashboardState(
+        retailer=retailer,
+        start_date=start_date,
+        end_date=end_date,
+        time_granularity=time_granularity,
+        spending_view=spending_view,
+        top_view=top_view,
+        top_limit=top_limit,
+        available_kpis=available_kpis,
+        kpis=empty_kpis,
+        bonus_kpis=empty_bonus_kpis,
+        derived=empty_derived,
+        time_series=[],
+        weekday=[],
+        top_items=[],
+        min_date=available_kpis.min_date,
+        max_date=available_kpis.max_date,
+        error=no_receipts_error(),
     )
 
 

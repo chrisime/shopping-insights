@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
 import DashboardFilterBar from "./DashboardFilterBar.vue";
 import DashboardSection from "./DashboardSection.vue";
 import DashboardSkeleton from "./DashboardSkeleton.vue";
@@ -20,6 +22,22 @@ const {
   loading,
   error,
 } = useDashboard();
+
+const bannerMessage = computed(() => {
+  if (payload.value?.error) {
+    return dashboardErrorMessage(payload.value.error.detail);
+  }
+
+  return error.value;
+});
+
+function dashboardErrorMessage(detail: string) {
+  if (detail === "no_receipts") {
+    return "No receipts yet. Import or fetch receipts to see dashboard data.";
+  }
+
+  return "Dashboard data is unavailable. Import receipts to initialize the dashboard.";
+}
 </script>
 
 <template>
@@ -45,8 +63,8 @@ const {
         v-model:top-limit="topLimit"
       />
 
-      <p v-if="error" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-        {{ error }}
+      <p v-if="bannerMessage" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        {{ bannerMessage }}
       </p>
 
       <DashboardSkeleton v-if="loading && !payload" />

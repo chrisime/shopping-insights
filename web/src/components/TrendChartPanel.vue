@@ -34,7 +34,8 @@ function barWidth(value: unknown) {
   if (max <= 0) {
     return "0%";
   }
-  return `${Math.max(4, (amount(value) / max) * 100)}%`;
+
+  return `${Math.max(0, (amount(value) / max) * 100)}%`;
 }
 
 function euro(value: unknown) {

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from frontend.dashboard_errors import DashboardError
 from frontend.dashboard_state import DashboardState
 
 
@@ -24,17 +25,30 @@ class DashboardPageModel:
     sections: list[DashboardSection]
     min_date: str | None = None
     max_date: str | None = None
+    error: DashboardError | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "title": self.title,
             "sections": [section.to_dict() for section in self.sections],
             "min_date": self.min_date,
             "max_date": self.max_date,
         }
+        if self.error is not None:
+            payload["error"] = {"error_code": self.error.error_code, "detail": self.error.detail}
+        return payload
 
 
 def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
+    if _is_empty_state(state):
+        return DashboardPageModel(
+            title="Shopping Analyzer Dashboard",
+            sections=[],
+            min_date=_date_text(state.min_date),
+            max_date=_date_text(state.max_date),
+            error=state.error,
+        )
+
     sections = [DashboardSection(kind="metrics", title="Kennzahlen", items=_build_metric_items(state))]
 
     rewe_items = _build_rewe_bonus_items(state)
@@ -94,6 +108,7 @@ def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
         sections=sections,
         min_date=_date_text(state.min_date),
         max_date=_date_text(state.max_date),
+        error=state.error,
     )
 
 
@@ -157,3 +172,7 @@ def _date_text(value: Any) -> str | None:
     if value is None:
         return None
     return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
+def _is_empty_state(state: DashboardState) -> bool:
+    return state.error is not None

@@ -7,6 +7,11 @@ function text(value: unknown) {
   return value == null ? "-" : String(value);
 }
 
+function currency(value: unknown) {
+  const numeric = typeof value === "number" ? value : Number(value ?? 0);
+  return Number.isFinite(numeric) ? `€${numeric.toFixed(2)}` : "-";
+}
+
 function quantity(value: unknown, unit: unknown) {
   const numeric = typeof value === "number" ? value : Number(value ?? 0);
   if (!Number.isFinite(numeric) || unit == null) {
@@ -18,24 +23,24 @@ function quantity(value: unknown, unit: unknown) {
 </script>
 
 <template>
-  <div class="grid gap-3">
-    <div class="grid gap-2 px-4 text-xs font-medium uppercase tracking-[0.22em] text-slate-500 sm:grid-cols-[minmax(0,1.5fr)_auto_auto_auto]">
-      <span>Artikel</span>
-      <span class="sm:text-right">Gesamtmenge</span>
-      <span class="sm:text-right">Ausgaben</span>
-      <span class="sm:text-right">Einkäufe</span>
-    </div>
-    <ol class="grid gap-3">
-      <li
-        v-for="item in items"
-        :key="text(item.name)"
-        class="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700 shadow-sm sm:grid-cols-[minmax(0,1.5fr)_auto_auto_auto] sm:items-center"
-      >
-        <span class="font-medium text-slate-900">{{ text(item.name) }}</span>
-        <span class="sm:text-right">{{ quantity(item.total_quantity, item.unit) }}</span>
-        <span class="sm:text-right">{{ text(item.total_spent) }}</span>
-        <span class="sm:text-right">{{ text(item.purchase_count) }}</span>
-      </li>
-    </ol>
+  <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <table class="min-w-full divide-y divide-slate-200">
+      <thead class="bg-slate-50">
+        <tr>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Artikel</th>
+          <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Gesamtmenge</th>
+          <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Ausgaben</th>
+          <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Einkäufe</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 bg-white">
+        <tr v-for="item in items" :key="text(item.name)">
+          <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ text(item.name) }}</td>
+          <td class="px-4 py-3 text-right text-sm text-slate-700">{{ quantity(item.total_quantity, item.unit) }}</td>
+          <td class="px-4 py-3 text-right text-sm text-slate-700">{{ currency(item.total_spent) }}</td>
+          <td class="px-4 py-3 text-right text-sm text-slate-700">{{ text(item.purchase_count) }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>

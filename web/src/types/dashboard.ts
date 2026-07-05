@@ -23,9 +23,15 @@ export interface DashboardSection {
   items: Array<Record<string, unknown>>;
 }
 
+export interface DashboardError {
+  error_code: number;
+  detail: string;
+}
+
 export interface DashboardPayload {
   title: string;
   sections: DashboardSection[];
   min_date?: string | null;
   max_date?: string | null;
+  error?: DashboardError | null;
 }

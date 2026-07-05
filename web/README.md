@@ -5,8 +5,8 @@ Dieses Verzeichnis enthält das Vue-Frontend für das Shopping-Analyzer-Dashboar
 ## Start
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Wenn das FastAPI-Backend nicht auf `http://localhost:8000` läuft, setze:
@@ -18,13 +18,13 @@ VITE_API_BASE_URL=http://localhost:8000
 ## Tests
 
 ```bash
-npm test
+pnpm test
 ```
 
 ## Build
 
 ```bash
-npm run build
+pnpm build
 ```
 
 ## API
