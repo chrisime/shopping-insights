@@ -132,6 +132,17 @@ Setze dafür bei Bedarf `VITE_API_BASE_URL`, zum Beispiel auf `http://localhost:
 
 Details und Projektkontext stehen in [`docs/architecture/frontend-transition.md`](./docs/architecture/frontend-transition.md) und [`web/README.md`](./web/README.md).
 
+Wenn `API_BASE_URL` gesetzt ist, bezieht das Dashboard seine Daten über die FastAPI-Schicht statt direkt aus SQLite.
+
+Die Zwischenebenen für den Übergang zum Vue-Frontend sind dokumentiert in:
+
+- [`docs/architecture/frontend-transition.md`](./docs/architecture/frontend-transition.md)
+
+Aktuell bewusst noch nicht umgesetzt:
+
+- CSV-Export
+- OpenAPI-Dokumentation / Härtung
+
 ## Sicherheitshinweise
 
 Cookie- und Request-Dateien enthalten sensible Authentifizierungsdaten.

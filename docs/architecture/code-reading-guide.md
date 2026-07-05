@@ -23,7 +23,7 @@ Das Projekt besteht im Kern aus **drei Ebenen**:
    - `dashboard.py`
 
 2. **Ablaufsteuerung / Use Cases**
-   - `workflows/*`
+    - `workflows/*`
 
 3. **Bausteine, die vom Workflow benutzt werden**
    - `auth/*` → Session, Cookies, Browser-/Datei-Auth
@@ -32,6 +32,10 @@ Das Projekt besteht im Kern aus **drei Ebenen**:
    - `storage/*` → JSON/SQLite speichern und wiederfinden
    - `reporting/*` → Terminal-Ausgaben, Reports
    - `shared/*` → neutrale Hilfsbausteine und Schema-Normalisierung
+
+4. **Frontend-/Dashboard-Schicht**
+   - `frontend/*`
+   - `dashboard.py`
 
 Die wichtigste Idee ist:
 
@@ -70,6 +74,7 @@ Wichtig dabei:
 - `storage/*` speichert **normalisierte** Receipts, nicht Rohdaten
 - `parsing/*` soll extrahieren, aber **nicht** selbst speichern
 - `dashboard.py` ist derzeit eher ein **separater Auswerte-Entry-Point** und architektonisch noch nicht so sauber wie die neueren Workflow-Pfade
+- `frontend/*` enthält die Zwischenebene für Streamlit und den späteren Vue-Übergang
 
 ---
 
@@ -572,4 +577,3 @@ Wenn du magst, ist der nächste sinnvolle Schritt eine zweite, noch praktischere
 - ein **konkreter Call-Flow für LIDL** mit Datei-für-Datei-Sprungliste
 - ein **konkreter Call-Flow für REWE**
 - oder ein **Kommentar-/Refactoring-Durchgang** für besonders schwere Dateien wie `workflows/lidl_workflow.py` oder `shared/receipt_schema.py`
-

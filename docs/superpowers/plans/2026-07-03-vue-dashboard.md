@@ -205,7 +205,7 @@ describe("fetchDashboard", () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd web && npm test -- --run src/api/dashboard.spec.ts`
+Run: `cd web && pnpm test -- --run src/api/dashboard.spec.ts`
 
 Expected: FAIL because the `web/` app and `fetchDashboard` do not exist yet.
 
@@ -243,7 +243,7 @@ export async function fetchDashboard(filters: Record<string, string | number | u
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd web && npm test -- --run src/api/dashboard.spec.ts`
+Run: `cd web && pnpm test -- --run src/api/dashboard.spec.ts`
 
 Expected: PASS.
 
@@ -303,7 +303,7 @@ it("renders dashboard sections from the API payload", async () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd web && npm test -- --run src/components/__tests__/DashboardPage.spec.ts`
+Run: `cd web && pnpm test -- --run src/components/__tests__/DashboardPage.spec.ts`
 
 Expected: FAIL because the Vue page/components do not exist yet.
 
@@ -335,7 +335,7 @@ onMounted(async () => {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd web && npm test -- --run src/components/__tests__/DashboardPage.spec.ts`
+Run: `cd web && pnpm test -- --run src/components/__tests__/DashboardPage.spec.ts`
 
 Expected: PASS.
 
@@ -382,8 +382,8 @@ Run the Vue frontend:
 
 ```bash
 cd web
-npm install
-npm run dev
+ pnpm install
+ pnpm dev
 ```
 
 Set `VITE_API_BASE_URL` to point at the FastAPI backend.
@@ -395,8 +395,8 @@ Run:
 
 ```bash
 .venv/bin/python -m pytest
-cd web && npm test
-cd web && npm run build
+ cd web && pnpm test
+ cd web && pnpm build
 ```
 
 Expected: backend tests pass, frontend unit tests pass, production build succeeds.
