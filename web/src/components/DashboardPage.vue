@@ -37,6 +37,8 @@ const {
         v-model:retailer="retailer"
         v-model:start-date="startDate"
         v-model:end-date="endDate"
+        :min-date="payload?.min_date ?? undefined"
+        :max-date="payload?.max_date ?? undefined"
         v-model:time-granularity="timeGranularity"
         v-model:spending-view="spendingView"
         v-model:top-view="topView"
@@ -60,7 +62,7 @@ const {
             v-if="section.kind === 'metrics' || section.kind === 'bonus_rewe' || section.kind === 'bonus_lidl' || section.kind === 'bonus_total'"
             :items="section.items"
           />
-          <TrendChartPanel v-else-if="section.kind === 'time_series'" :items="section.items" />
+          <TrendChartPanel v-else-if="section.kind === 'time_series'" :items="section.items" :spending-view="spendingView" />
           <WeekdayPanel v-else-if="section.kind === 'weekday'" :items="section.items" />
           <TopItemsPanel v-else-if="section.kind === 'top_items'" :items="section.items" />
           <pre v-else class="m-0 whitespace-pre-wrap text-sm text-slate-600">{{ section.items }}</pre>

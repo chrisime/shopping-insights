@@ -53,4 +53,28 @@ describe("dashboard panels", () => {
       expect.arrayContaining(["h-32", "animate-pulse"]),
     );
   });
+
+  it("renders absolute time-series summary stats and top-item quantities", () => {
+    const trend = mount(TrendChartPanel, {
+      props: {
+        spendingView: "Absolut",
+        items: [
+          { period: "2024-01", total_spent: 10, receipt_count: 1 },
+          { period: "2024-02", total_spent: 5, receipt_count: 2 },
+        ],
+      },
+    });
+
+    expect(trend.text()).toContain("Ø Ausgaben pro Zeitraum");
+    expect(trend.text()).toContain("€7.50");
+    expect(trend.text()).toContain("€10.00");
+    expect(trend.text()).toContain("€5.00");
+
+    const topItems = mount(TopItemsPanel, {
+      props: { items: [{ name: "Tomaten", total_quantity: 0.696, total_spent: 3.99, purchase_count: 1, unit: "kg" }] },
+    });
+
+    expect(topItems.text()).toContain("Tomaten");
+    expect(topItems.text()).toContain("0.696 kg");
+  });
 });

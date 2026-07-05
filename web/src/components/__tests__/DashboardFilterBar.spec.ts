@@ -31,6 +31,8 @@ describe("DashboardFilterBar", () => {
         retailer: "",
         startDate: "",
         endDate: "",
+        minDate: "2024-01-01",
+        maxDate: "2024-01-31",
         timeGranularity: "Täglich",
         spendingView: "Absolut",
         topView: "Menge",
@@ -46,5 +48,7 @@ describe("DashboardFilterBar", () => {
     expect(wrapper.emitted("update:retailer")?.at(-1)).toEqual(["lidl"]);
     expect(wrapper.findComponent({ name: "OField" }).exists()).toBe(true);
     expect(wrapper.find("form").classes()).toContain("rounded-2xl");
+    expect(wrapper.findAll('input[type="date"]')[0].attributes("min")).toBe("2024-01-01");
+    expect(wrapper.findAll('input[type="date"]')[1].attributes("max")).toBe("2024-01-31");
   });
 });

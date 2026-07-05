@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { OField, OInput, OSelect, OSlider } from "@oruga-ui/oruga-next";
 
+defineProps<{
+  minDate?: string;
+  maxDate?: string;
+}>();
+
 const retailer = defineModel<string>("retailer", { default: "" });
 const startDate = defineModel<string>("startDate", { default: "" });
 const endDate = defineModel<string>("endDate", { default: "" });
@@ -21,11 +26,11 @@ const topLimit = defineModel<number>("topLimit", { default: 20 });
     </OField>
 
     <OField label="Startdatum">
-      <OInput v-model="startDate" type="date" expanded />
+      <OInput v-model="startDate" :min="minDate || undefined" :max="maxDate || undefined" type="date" expanded />
     </OField>
 
     <OField label="Enddatum">
-      <OInput v-model="endDate" type="date" expanded />
+      <OInput v-model="endDate" :min="minDate || undefined" :max="maxDate || undefined" type="date" expanded />
     </OField>
 
     <OField label="Zeitgranularität">

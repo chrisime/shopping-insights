@@ -78,6 +78,51 @@ describe("DashboardPage", () => {
     scope.stop();
   });
 
+  it("resets the date range when the retailer changes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          title: "Shopping Analyzer Dashboard",
+          min_date: "2024-01-01",
+          max_date: "2024-01-31",
+          sections: [],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          title: "Shopping Analyzer Dashboard",
+          min_date: "2024-02-01",
+          max_date: "2024-02-29",
+          sections: [],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const scope = effectScope();
+    const dashboard = scope.run(() => useDashboard());
+    expect(dashboard).toBeDefined();
+
+    await dashboard!.refresh();
+    await nextTick();
+
+    dashboard!.retailer.value = "lidl";
+    await nextTick();
+    await Promise.resolve();
+    await Promise.resolve();
+    await nextTick();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(new URL(String(fetchMock.mock.calls[1][0])).searchParams.get("start_date")).toBeNull();
+    expect(new URL(String(fetchMock.mock.calls[1][0])).searchParams.get("end_date")).toBeNull();
+    expect(dashboard!.startDate.value).toBe("2024-02-01");
+    expect(dashboard!.endDate.value).toBe("2024-02-29");
+
+    scope.stop();
+  });
+
   it("refetches when filters change", async () => {
     let resolveFirst: ((value: unknown) => void) | undefined;
     let resolveSecond: ((value: unknown) => void) | undefined;

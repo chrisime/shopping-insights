@@ -16,6 +16,7 @@ export function useDashboard() {
   const loading = ref(false);
   const error = ref<string | null>(null);
   const skipNextAutoRefresh = ref(false);
+  const pendingDateRangeReset = ref(false);
   let requestToken = 0;
 
   const filters = computed(() => ({
@@ -36,12 +37,15 @@ export function useDashboard() {
     try {
       const response = await fetchDashboard(filters.value);
       if (token === requestToken) {
-        if (!payload.value && !startDate.value && !endDate.value && response.min_date && response.max_date) {
-          skipNextAutoRefresh.value = true;
-          startDate.value = response.min_date;
-          endDate.value = response.max_date;
-        }
         payload.value = response;
+        if (
+          response.min_date &&
+          response.max_date &&
+          (pendingDateRangeReset.value || (!startDate.value && !endDate.value))
+        ) {
+          pendingDateRangeReset.value = false;
+          syncDateRange(response.min_date, response.max_date);
+        }
       }
     } catch (cause) {
       if (token === requestToken) {
@@ -61,6 +65,32 @@ export function useDashboard() {
     }
     void refresh();
   });
+
+  watch(
+    retailer,
+    (next, previous) => {
+      if (!payload.value || next === previous) {
+        return;
+      }
+
+      pendingDateRangeReset.value = true;
+      skipNextAutoRefresh.value = true;
+      startDate.value = "";
+      endDate.value = "";
+      void refresh();
+    },
+    { flush: "sync" },
+  );
+
+  function syncDateRange(minDate: string, maxDate: string) {
+    if (startDate.value === minDate && endDate.value === maxDate) {
+      return;
+    }
+
+    skipNextAutoRefresh.value = true;
+    startDate.value = minDate;
+    endDate.value = maxDate;
+  }
 
   if (getCurrentInstance()) {
     onMounted(() => {
