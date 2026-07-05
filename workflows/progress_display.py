@@ -65,6 +65,13 @@ class ReceiptProgressDisplay:
         print(f"\r\033[K{line2}")
         print(f"\r\033[K{line3}", flush=True)
 
+    def render_step(self, index: int, total: int, added: int, skipped: int, items: int, source_id: str = "-") -> None:
+        self.render(ProgressState(
+            current=index, total=total,
+            added=added, skipped=skipped, errors=skipped,
+            items=items, current_receipt=source_id,
+        ))
+
     def close(self) -> None:
         """Finalize rendering and move to the next line."""
         if self._initialized:

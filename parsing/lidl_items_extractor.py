@@ -1,20 +1,25 @@
 """Extract receipt items from HTML content."""
 
+import logging
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 
+from shared.float_parser import parse_german_float
+
 from shared.receipt_schema import build_receipt_item
+
+logger = logging.getLogger(__name__)
 
 
 def extract_lidl_receipt_items(soup: BeautifulSoup) -> List[Dict[str, Any]]:
-    """Extract items from receipt using the exact logic from the provided code snippet."""
+    """Extract items from a Lidl HTML receipt."""
     items = []
     try:
         # Find all article spans (they contain data-art-* attributes)
         article_spans = soup.find_all("span", class_="article")
 
         if not article_spans:
-            print(f"Keine Artikel-Spans gefunden")
+            logger.warning("Keine Artikel-Spans gefunden")
             return items
 
         # Group spans by article ID and description to handle duplicates
@@ -51,10 +56,7 @@ def extract_lidl_receipt_items(soup: BeautifulSoup) -> List[Dict[str, Any]]:
                         unit = "kg"
                         break
 
-                try:
-                    price = float(unit_price.replace(",", "."))
-                except (ValueError, AttributeError):
-                    price = 0.0
+                price = parse_german_float(unit_price) or 0.0
 
                 items.append(
                     build_receipt_item(
@@ -66,9 +68,9 @@ def extract_lidl_receipt_items(soup: BeautifulSoup) -> List[Dict[str, Any]]:
                 )
 
             except Exception as e:
-                print(f"Fehler beim Extrahieren eines Artikels: {e}")
+                logger.warning("Fehler beim Extrahieren eines Artikels: %s", e)
 
     except Exception as e:
-        print(f"Artikel nicht gefunden: {e}")
+        logger.warning("Artikel nicht gefunden: %s", e)
 
     return items

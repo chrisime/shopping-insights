@@ -8,9 +8,16 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
 from pathlib import Path
 
 import pdfplumber
+import simplejson
+
+# Allow running this script directly via `python diagnose/...py`.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from parsing.rewe_info_extractor import extract_rewe_receipt_info
 
@@ -28,6 +35,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=20,
         help="How many lines to print from full text/header/footer (default: 20)",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print full diagnosis as JSON instead of human-readable text",
     )
     return parser
 
@@ -56,7 +68,7 @@ def _print_lines(title: str, lines: list[str], max_lines: int) -> None:
         print(f"... ({len(lines) - max_lines} more lines)")
 
 
-def run(pdf_path: Path, max_lines: int) -> int:
+def run(pdf_path: Path, max_lines: int, as_json: bool) -> int:
     if not pdf_path.exists():
         print(f"ERROR: file not found: {pdf_path}")
         return 2
@@ -73,6 +85,28 @@ def run(pdf_path: Path, max_lines: int) -> int:
     header_lines = _extract_header_lines(lines)
     footer_lines = _extract_footer_lines(lines)
     metadata = extract_rewe_receipt_info(text, lines)
+
+    diagnosis = {
+        "file": str(pdf_path),
+        "pages": page_count,
+        "line_count": len(lines),
+        "header_lines": header_lines,
+        "footer_lines": footer_lines,
+        "extracted": {
+            "store": metadata.get("store"),
+            "address": metadata.get("address"),
+            "market": metadata.get("market"),
+            "register": metadata.get("register"),
+            "cashier": metadata.get("cashier"),
+            "purchase_date": metadata.get("purchase_date"),
+            "id": metadata.get("id"),
+            "total_price": metadata.get("total_price"),
+        },
+    }
+
+    if as_json:
+        print(simplejson.dumps(diagnosis, ensure_ascii=False, indent=2))
+        return 0
 
     print("=== REWE eBon Diagnose ===")
     print(f"File: {pdf_path}")
@@ -98,9 +132,11 @@ def run(pdf_path: Path, max_lines: int) -> int:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
-    return run(args.pdf, args.max_lines)
+    return run(args.pdf, args.max_lines, args.json)
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
 

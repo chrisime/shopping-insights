@@ -1,50 +1,69 @@
 """Linear shared workflow stages for parsing, validation and persistence."""
 
-from __future__ import annotations
+from typing import Any, Callable, Optional, Sequence, TypeVar
 
-from typing import Optional, Sequence
-
-from .progress_display import ProgressState, ReceiptProgressDisplay
-from .error_mapping import render_exception_reason, render_validation_reason
 from parsing.lidl_receipt_parser import parse_lidl_ticket
-from parsing.lidl_validator import LidlReceiptValidationError, validate_lidl_receipt_data
-from parsing.rewe_ebons_parser import parse_rewe_receipt_pdf
-from parsing.rewe_validator import ReweReceiptValidationError, validate_rewe_receipt_data
+from parsing.lidl_validator import (
+    LidlReceiptValidationError,
+    validate_lidl_receipt_data,
+)
+from parsing.rewe_ebons_parser import parse_rewe_ticket
+from parsing.rewe_validator import (
+    ReweReceiptValidationError,
+    validate_rewe_receipt_data,
+)
+
+from .error_mapping import render_exception_reason, render_validation_reason
 from .pipeline_types import (
     ParsedReceiptRecord,
     RawReceiptRecord,
     ReceiptIssue,
     StageResult,
 )
+from .progress_display import ReceiptProgressDisplay
 from .workflow_constants import RETAILER_LIDL, RETAILER_REWE
+
+T = TypeVar("T")
+
+
+def _lookup(table: dict[str, T], retailer: str, label: str) -> T:
+    try:
+        return table[retailer]
+    except KeyError:
+        raise ValueError(f"Unbekannter Händler für {label}: {retailer}")
+
+
+_PARSERS: dict[str, Callable[..., Any]] = {
+    RETAILER_LIDL: parse_lidl_ticket,
+    RETAILER_REWE: parse_rewe_ticket,
+}
+
+_VALIDATORS: dict[str, Callable[..., None]] = {
+    RETAILER_LIDL: validate_lidl_receipt_data,
+    RETAILER_REWE: validate_rewe_receipt_data,
+}
+
+_VALIDATION_ERROR_TYPES: dict[str, tuple[type[Exception], ...]] = {
+    RETAILER_LIDL: (LidlReceiptValidationError,),
+    RETAILER_REWE: (ReweReceiptValidationError,),
+}
+
 
 def parse_raw_record_for_retailer(raw_record: RawReceiptRecord, retailer: str) -> dict:
     """Parse one raw record for the given retailer."""
-    if retailer == RETAILER_LIDL:
-        return parse_lidl_ticket(raw_record.payload, raw_record.source_id)
-    if retailer == RETAILER_REWE:
-        return parse_rewe_receipt_pdf(raw_record.payload)
-    raise ValueError(f"Unbekannter Händler für Parse-Pipeline: {retailer}")
+    parser = _lookup(_PARSERS, retailer, "Parse-Pipeline")
+    return parser(raw_record.payload)
 
 
 def validate_receipt_for_retailer(receipt_data: dict, retailer: str) -> None:
     """Validate one parsed receipt for the given retailer."""
-    if retailer == RETAILER_LIDL:
-        validate_lidl_receipt_data(receipt_data)
-        return
-    if retailer == RETAILER_REWE:
-        validate_rewe_receipt_data(receipt_data)
-        return
-    raise ValueError(f"Unbekannter Händler für Validierungs-Pipeline: {retailer}")
+    validator = _lookup(_VALIDATORS, retailer, "Validierungs-Pipeline")
+    validator(receipt_data)
 
 
 def validation_error_types_for_retailer(retailer: str) -> tuple[type[Exception], ...]:
     """Return the retailer-specific validation exception types."""
-    if retailer == RETAILER_LIDL:
-        return (LidlReceiptValidationError,)
-    if retailer == RETAILER_REWE:
-        return (ReweReceiptValidationError,)
-    raise ValueError(f"Unbekannter Händler für Validierungsfehler: {retailer}")
+    return _lookup(_VALIDATION_ERROR_TYPES, retailer, "Validierungsfehler")
 
 
 def parse_receipts(
@@ -60,19 +79,16 @@ def parse_receipts(
     total_records = len(raw_records)
     parsed_items_count = 0
 
-    progress.render(ProgressState(0, total_records, 0, 0, 0, 0, "-"))
+    progress.render_step(0, total_records, 0, 0, 0, "-")
 
     for index, raw_record in enumerate(raw_records, 1):
-        progress.render(
-            ProgressState(
-                current=index - 1,
-                total=total_records,
-                added=len(parsed_records),
-                skipped=len(issues),
-                errors=len(issues),
-                items=parsed_items_count,
-                current_receipt=raw_record.source_id,
-            )
+        progress.render_step(
+            index - 1,
+            total_records,
+            len(parsed_records),
+            len(issues),
+            parsed_items_count,
+            raw_record.source_id,
         )
 
         try:
@@ -101,16 +117,13 @@ def parse_receipts(
                 )
             )
 
-        progress.render(
-            ProgressState(
-                current=index,
-                total=total_records,
-                added=len(parsed_records),
-                skipped=len(issues),
-                errors=len(issues),
-                items=parsed_items_count,
-                current_receipt=raw_record.source_id,
-            )
+        progress.render_step(
+            index,
+            total_records,
+            len(parsed_records),
+            len(issues),
+            parsed_items_count,
+            raw_record.source_id,
         )
 
     progress.close()
@@ -133,20 +146,17 @@ def validate_receipts(
     total_records = len(parsed_records)
     valid_items_count = 0
 
-    progress.render(ProgressState(0, total_records, 0, 0, 0, 0, "-"))
+    progress.render_step(0, total_records, 0, 0, 0, "-")
     validation_error_types = validation_error_types_for_retailer(retailer)
 
     for index, parsed_record in enumerate(parsed_records, 1):
-        progress.render(
-            ProgressState(
-                current=index - 1,
-                total=total_records,
-                added=len(valid_receipts),
-                skipped=len(issues),
-                errors=len(issues),
-                items=valid_items_count,
-                current_receipt=parsed_record.source_id,
-            )
+        progress.render_step(
+            index - 1,
+            total_records,
+            len(valid_receipts),
+            len(issues),
+            valid_items_count,
+            parsed_record.source_id,
         )
 
         try:
@@ -162,16 +172,13 @@ def validate_receipts(
                 )
             )
 
-        progress.render(
-            ProgressState(
-                current=index,
-                total=total_records,
-                added=len(valid_receipts),
-                skipped=len(issues),
-                errors=len(issues),
-                items=valid_items_count,
-                current_receipt=parsed_record.source_id,
-            )
+        progress.render_step(
+            index,
+            total_records,
+            len(valid_receipts),
+            len(issues),
+            valid_items_count,
+            parsed_record.source_id,
         )
 
     progress.close()
@@ -180,6 +187,7 @@ def validate_receipts(
         issues=issues,
         total_items=valid_items_count,
     )
+
 
 def _count_total_items(receipts: Sequence[dict]) -> int:
     """Return the total number of items across normalized receipt payloads."""

@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import requests
 import simplejson
 
-from api.lidl_client import get_lidl_ticket
+from client.lidl_client import get_lidl_ticket
 from parsing.lidl_receipt_parser import parse_lidl_ticket
 from parsing.lidl_validator import LidlReceiptValidationError, validate_lidl_receipt_data
 from result_types import ReceiptParseResult
@@ -29,7 +29,7 @@ def _fetch_lidl_receipt_parse_result(session, receipt_id: str) -> ReceiptParseRe
         return ReceiptParseResult(receipt_data=None, skip_reason=render_exception_reason(exc, REASON_KIND_LIDL_FETCH))
 
     try:
-        receipt_data = parse_lidl_ticket(ticket_data, receipt_id)
+        receipt_data = parse_lidl_ticket(ticket_data)
         validate_lidl_receipt_data(receipt_data)
         return ReceiptParseResult(receipt_data=receipt_data)
     except LidlReceiptValidationError as exc:
@@ -108,4 +108,3 @@ class LidlDiagnosticsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

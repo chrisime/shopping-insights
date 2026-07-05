@@ -7,10 +7,12 @@ from unittest.mock import Mock, patch
 
 from config import ReweConfig
 from config import storage_config
-import workflows.rewe_workflow as rewe_workflow
-from result_types import PersistResult
+from result_types import PersistResult, WorkflowSummary
 from workflows.pipeline_types import ReceiptIssue, StageResult, WorkflowResult
 from workflows.rewe_workflow import run_rewe_initial, run_rewe_update
+from workflows.workflow_constants import RETAILER_REWE
+
+import workflows.rewe_workflow as rewe_workflow
 
 
 def _import_rewe_receipts_from_pdfs(
@@ -112,8 +114,8 @@ class ReweWorkflowTests(unittest.TestCase):
                 "workflows.rewe_workflow._ReweImportPipeline.run",
                 return_value=WorkflowResult(
                     success=True,
-                    summary=rewe_workflow.WorkflowSummary(
-                        retailer=rewe_workflow.RETAILER_REWE,
+                    summary=WorkflowSummary(
+                        retailer=RETAILER_REWE,
                         processed_count=1,
                         skipped_count=0,
                         total_receipts=11,
@@ -147,8 +149,8 @@ class ReweWorkflowTests(unittest.TestCase):
                 "workflows.rewe_workflow._ReweImportPipeline.run",
                 return_value=WorkflowResult(
                     success=True,
-                    summary=rewe_workflow.WorkflowSummary(
-                        retailer=rewe_workflow.RETAILER_REWE,
+                    summary=WorkflowSummary(
+                        retailer=RETAILER_REWE,
                         processed_count=1,
                         skipped_count=0,
                         total_receipts=11,
@@ -179,8 +181,8 @@ class ReweWorkflowTests(unittest.TestCase):
                 "workflows.rewe_workflow._ReweImportPipeline.run",
                 return_value=WorkflowResult(
                     success=True,
-                    summary=rewe_workflow.WorkflowSummary(
-                        retailer=rewe_workflow.RETAILER_REWE,
+                    summary=WorkflowSummary(
+                        retailer=RETAILER_REWE,
                         processed_count=1,
                         skipped_count=0,
                         total_receipts=1,

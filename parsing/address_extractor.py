@@ -6,40 +6,33 @@ import re
 from typing import Iterable, Optional
 
 from shared.addresses import normalize_address
+from shared.metadata_markers import COMPANY_SUFFIXES, METADATA_MARKERS, STREET_SUFFIXES
 
+
+HOUSE_NUMBER_PATTERN = r"\d+(?:\s*[A-Za-zÄÖÜäöüß])?(?:\s*[-/]\s*\d+(?:\s*[A-Za-zÄÖÜäöüß])?)*"
 
 ADDRESS_ONE_LINE_RE = re.compile(
     r"^(?P<street>.+?)\s*"
-    r"(?P<street_no>\d+[A-Za-z]?(?:\s*[-/]\s*\d+[A-Za-z]?)?)"
+    rf"(?P<street_no>{HOUSE_NUMBER_PATTERN})"
     r"(?:\s*,\s*|\s+)"
     r"(?P<zip>\d{5})\s+(?P<city>.+)$"
 )
 STREET_LINE_RE = re.compile(
-    r"^(?P<street>.+?)\s*(?P<street_no>\d+[A-Za-z]?(?:\s*[-/]\s*\d+[A-Za-z]?)?)$"
+    rf"^(?P<street>.+?)\s*(?P<street_no>{HOUSE_NUMBER_PATTERN})$"
 )
-HOUSE_NUMBER_ONLY_RE = re.compile(r"^(?P<street_no>\d+[A-Za-z]?(?:\s*[-/]\s*\d+[A-Za-z]?)?)$")
+HOUSE_NUMBER_ONLY_RE = re.compile(rf"^(?P<street_no>{HOUSE_NUMBER_PATTERN})$")
 ZIP_CITY_RE = re.compile(r"^(?:D-)?(?P<zip>\d{5})\s+(?P<city>.+)$")
 LETTER_RE = re.compile(r"[A-Za-zÄÖÜäöüß]")
 
-ADDRESS_LINE_EXCLUSION_MARKERS = (
-    "gmbh",
-    "mbh",
-    " ag",
-    " kg",
-    "ohg",
-    "ug ",
-    "markt:",
-    "kasse",
-    "bed.",
-    "bon-nr",
-    "datum",
-    "uhrzeit",
-    "summe",
-    "geg.",
-    "www.",
-    "http",
-    "@",
+COMPANY_SUFFIX_RE = re.compile(
+    r"\b(?:" + "|".join(re.escape(s) for s in COMPANY_SUFFIXES) + r")\b",
+    re.IGNORECASE,
 )
+STREET_SUFFIX_RE = re.compile(
+    r"\b(?:" + "|".join(re.escape(s) for s in STREET_SUFFIXES) + r")\b",
+    re.IGNORECASE,
+)
+URL_OR_EMAIL_RE = re.compile(r"www\.|http|@")
 
 def extract_address_from_lines(lines: Iterable[str]) -> Optional[dict]:
     """Extract a normalized address from single-line or two-line header patterns."""
@@ -84,7 +77,7 @@ def _parse_two_line_address(street_line: str, zip_city_line: str) -> Optional[di
         return None
 
     normalized_street = _normalize_line(street_match.group("street"))
-    if not _is_plausible_street_line(normalized_street):
+    if not _is_street_line(normalized_street):
         return None
 
     payload = {
@@ -105,7 +98,7 @@ def _parse_three_line_address(street_line: str, house_number_line: str, zip_city
         return None
 
     normalized_street = _normalize_line(street_line)
-    if not _is_plausible_street_line(normalized_street):
+    if not _is_street_line(normalized_street):
         return None
 
     payload = {
@@ -117,13 +110,23 @@ def _parse_three_line_address(street_line: str, house_number_line: str, zip_city
     return normalize_address(payload)
 
 
-def _is_plausible_street_line(line: str) -> bool:
+def _is_street_line(line: str) -> bool:
     normalized = _normalize_line(line).lower()
     if not normalized:
         return False
     if LETTER_RE.search(normalized) is None:
         return False
-    return not any(marker in normalized for marker in ADDRESS_LINE_EXCLUSION_MARKERS)
+    if COMPANY_SUFFIX_RE.search(normalized):
+        return False
+    if _is_metadata_line(normalized):
+        return False
+    if URL_OR_EMAIL_RE.search(normalized):
+        return False
+    return True
+
+
+def _is_metadata_line(normalized: str) -> bool:
+    return any(marker in normalized for marker in METADATA_MARKERS)
 
 
 def _normalize_line(line: str) -> str:

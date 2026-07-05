@@ -6,16 +6,14 @@ import zipfile
 
 from requests import Session
 
-from api.rewe_client import download_receipts_zip, test_rewe_session
+from client.rewe_client import download_receipts_zip, test_rewe_session
 from auth.rewe_customer_id import cache_customer_id, resolve_rewe_customer_id
 from auth.session_manager import setup_session
 from config import storage_config, ReweConfig
-from reporting.shared_reporting import write_skipped_receipts_report
-from result_types import WorkflowSummary
 from shared.receipt_store import ReceiptStore
 from storage import create_receipt_store
 
-from .import_workflow import ImportWorkflow
+from .import_workflow import ImportWorkflow, resolve_auth_method
 from .import_pipeline import ImportPipeline
 from .pipeline_types import WorkflowResult
 from .workflow_constants import RETAILER_REWE, REASON_KIND_REWE_PDF_PARSE
@@ -29,19 +27,8 @@ __all__ = [
 
 class _ReweImportPipeline(ImportPipeline):
     load_error_reason_kind = REASON_KIND_REWE_PDF_PARSE
-
-    def write_skipped_receipts_report(self, source_dir: Path, skipped_details: list[dict[str, str]]) -> Path | None:
-        report_path = source_dir.parent / ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE
-        return write_skipped_receipts_report(skipped_details, report_path)
-
-    def print_skipped_receipts(self, skipped_details: list[dict[str, str]], report_path: Path | None) -> None:
-        if not skipped_details:
-            return
-        print("ℹ Übersprungene REWE-Bons:")
-        for skipped in skipped_details:
-            print(f"  - {skipped['file']}: {skipped['reason']}")
-        if report_path:
-            print(f"ℹ Skip-Report geschrieben: {report_path}")
+    retailer_display_name = "REWE"
+    _skipped_report_filename = ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE
 
 
 class _ReweImportWorkflow(ImportWorkflow):
@@ -78,6 +65,13 @@ class _ReweImportWorkflow(ImportWorkflow):
     def _print_no_download_info(self) -> None:
         print("ℹ REWE: importiere alle vorhandenen lokalen PDFs.")
 
+    def _validate_update_preconditions(self, output_dir: Path) -> bool:
+        pdf_dir = self._source_dir(output_dir)
+        if not pdf_dir.exists() or not any(pdf_dir.glob("*.pdf")):
+            print(f"\u26a0 Keine REWE-PDFs zum Importieren gefunden in: {pdf_dir}")
+            return False
+        return True
+
     def _post_import(self, result: WorkflowResult, output_dir: Path) -> None:
         if self._resolved_customer_id:
             cache_customer_id(self._resolved_customer_id, output_dir)
@@ -104,22 +98,6 @@ def run_rewe_update(output_dir: str = ReweConfig.REWE_DEFAULT_OUTPUT_DIR) -> boo
 def _run_rewe_pdf_import_pipeline(pdf_dir: Path, store: ReceiptStore) -> WorkflowResult:
     """Parse, validate and persist extracted REWE PDFs and return a normalized workflow result."""
     active_pdf_paths = sorted(pdf_dir.glob("*.pdf"))
-    if not active_pdf_paths:
-        print(f"\u26a0 Keine REWE-PDFs zum Importieren gefunden in: {pdf_dir}")
-        return WorkflowResult(
-            success=False,
-            summary=WorkflowSummary(
-                retailer=RETAILER_REWE,
-                processed_count=0,
-                skipped_count=0,
-                total_receipts=0,
-                receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
-                total_items=0,
-            ),
-            skipped_issues=[],
-            skipped_report_path=None,
-        )
-
     return _ReweImportPipeline().run(
         source_paths=active_pdf_paths,
         source_dir=pdf_dir,
@@ -136,12 +114,8 @@ def _prepare_rewe_session(
         output_dir: Path,
 ) -> Optional[tuple[Session, Optional[str]]]:
     """Load the REWE session and resolve the customer id for the initial import."""
-    if browser:
-        auth_method = browser
-    elif cookies_file:
-        auth_method = "file"
-    else:
-        print("\u2717 REWE benötigt --cookies-file oder --browser.")
+    auth_method = resolve_auth_method(browser, cookies_file, "REWE")
+    if not auth_method:
         return None
 
     session = setup_session(RETAILER_REWE, auth_method, cookies_file)

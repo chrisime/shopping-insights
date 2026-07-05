@@ -12,7 +12,7 @@ from storage.sqlite_receipt_store import SqliteReceiptStore
 
 def export_receipts_from_db(retailer: str, output_file: str) -> int:
     """Export one retailer's persisted SQLite receipts to JSON."""
-    normalized_retailer = str(retailer or "").strip().lower()
+    normalized_retailer = retailer.strip().lower()
     if not normalized_retailer:
         raise ValueError("Haendlercode fuer JSON-Export fehlt")
 

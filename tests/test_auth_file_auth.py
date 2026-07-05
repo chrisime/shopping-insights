@@ -1,6 +1,7 @@
 import simplejson
 import tempfile
 import unittest
+import base64
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -15,6 +16,14 @@ from auth.rewe_file_auth import load_rewe_cookies_from_file
 
 
 class AuthFileAuthTests(unittest.TestCase):
+    @staticmethod
+    def _build_jwt_like_token(payload: dict) -> str:
+        header_raw = simplejson.dumps({"alg": "none", "typ": "JWT"}, separators=(",", ":")).encode("utf-8")
+        payload_raw = simplejson.dumps(payload, separators=(",", ":")).encode("utf-8")
+        header = base64.urlsafe_b64encode(header_raw).decode("ascii").rstrip("=")
+        body = base64.urlsafe_b64encode(payload_raw).decode("ascii").rstrip("=")
+        return f"{header}.{body}.sig"
+
     def test_load_lidl_cookies_from_file_accepts_top_level_cookies_key(self):
         cookies_payload = {
             "cookies": [
@@ -58,6 +67,28 @@ class AuthFileAuthTests(unittest.TestCase):
 
         self.assertIsNone(session)
 
+    def test_load_lidl_cookies_from_file_rejects_expired_auth_token(self):
+        expired_token = self._build_jwt_like_token({"exp": 1})
+        cookies_payload = {
+            "cookies": [
+                {
+                    "domain": ".lidl.de",
+                    "name": "authToken",
+                    "value": expired_token,
+                    "path": "/",
+                    "secure": True,
+                    "expirationDate": 1893456000,
+                }
+            ]
+        }
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cookie_file = Path(tmp_dir) / "lidl_cookies.json"
+            cookie_file.write_text(simplejson.dumps(cookies_payload), encoding="utf-8")
+
+            session = load_lidl_cookies_from_file(str(cookie_file))
+
+        self.assertIsNone(session)
+
     def test_load_rewe_cookies_from_file_accepts_top_level_cookies_key(self):
         cookies_payload = {
             "cookies": [
@@ -87,6 +118,28 @@ class AuthFileAuthTests(unittest.TestCase):
 
         self.assertIsNotNone(session)
         self.assertEqual({cookie.name for cookie in session.cookies}, {"rstp"})
+
+    def test_load_rewe_cookies_from_file_rejects_expired_rstp(self):
+        expired_token = self._build_jwt_like_token({"exp": 1})
+        cookies_payload = {
+            "cookies": [
+                {
+                    "domain": ".rewe.de",
+                    "name": "rstp",
+                    "value": expired_token,
+                    "path": "/",
+                    "secure": True,
+                    "expirationDate": 1893456000,
+                }
+            ]
+        }
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cookie_file = Path(tmp_dir) / "rewe_cookies.json"
+            cookie_file.write_text(simplejson.dumps(cookies_payload), encoding="utf-8")
+
+            session = load_rewe_cookies_from_file(str(cookie_file))
+
+        self.assertIsNone(session)
 
     def test_extract_rewe_customer_id_from_text_normalizes_uuid(self):
         customer_id = extract_rewe_customer_id_from_text(

@@ -2,11 +2,9 @@ import unittest
 
 from bs4 import BeautifulSoup
 
-from parsing.lidl_info_extractor import (
-    extract_lidl_receipt_info,
-    infer_lidl_pos_metadata_from_receipt_id,
-    normalize_lidl_payment_methods,
-)
+from parsing.lidl_info_extractor import extract_lidl_receipt_info
+from parsing.lidl_payment_extractor import normalize_lidl_payment_methods
+from parsing.lidl_pos_extractor import infer_lidl_pos_metadata_from_receipt_id
 from shared.receipt_schema import normalize_receipt_schema
 
 
@@ -20,6 +18,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
                 "market": "5882",
                 "register": "10",
                 "cashier": "725516",
+                "bon_number": "725516",
             },
         )
 
@@ -38,7 +37,6 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -55,6 +53,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
         self.assertEqual(receipt_data["market"], "4426")
         self.assertEqual(receipt_data["register"], "04")
         self.assertEqual(receipt_data["cashier"], "113520")
+        self.assertEqual(receipt_data["bon_number"], "113520")
 
     def test_html_pos_metadata_wins_over_id_fallback(self):
         html = """
@@ -67,7 +66,6 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -158,7 +156,6 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -179,7 +176,6 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -187,7 +183,7 @@ class LidlInfoExtractorTests(unittest.TestCase):
         self.assertIsNone(receipt_data.get("sticker_discount"))
         self.assertEqual(receipt_data.get("sticker_discount_pct"), [])
 
-    def test_extract_basic_receipt_info_ignores_rabatt_amount_without_percent_for_sticker_field(self):
+    def test_extract_basic_receipt_info_treats_rabatt_without_percent_as_regular_saved_amount(self):
         html = """
         <html><body>
             <span class="purchase_list">
@@ -200,13 +196,33 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024-08-28",
             "Fürth-Südstadt",
         )
 
         self.assertIsNone(receipt_data.get("sticker_discount"))
         self.assertEqual(receipt_data.get("sticker_discount_pct"), [])
-        self.assertIsNone(receipt_data.get("discount"))
+        self.assertEqual(receipt_data.get("discount"), 0.8)
+
+    def test_extract_basic_receipt_info_treats_product_rabatt_as_regular_saved_amount(self):
+        html = """
+        <html><body>
+            <span class="purchase_list">
+                Cashewkerne 200g      2,89 x   3    8,67 A
+                Rabatt Cashew                -1,74
+                Lidl Plus Rabatt             -2,07
+            </span>
+        </body></html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+
+        receipt_data = extract_lidl_receipt_info(
+            soup,
+            "23004426420240828113520",
+            "Fürth-Südstadt",
+        )
+
+        self.assertEqual(receipt_data.get("discount"), 1.74)
+        self.assertIsNone(receipt_data.get("sticker_discount"))
 
     def test_extract_basic_receipt_info_defaults_lidlplus_saved_amount_to_zero(self):
         soup = BeautifulSoup("<html><body></body></html>", "html.parser")
@@ -214,11 +230,71 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024-08-28",
             "Fürth-Südstadt",
         )
 
-        self.assertEqual(receipt_data["lidlplus_discount"], 0.0)
+        self.assertIsNone(receipt_data["lidlplus_discount"])
+
+    def test_extract_basic_receipt_info_reads_branch_name_from_lidl_header(self):
+        html = """
+        <html><body>
+            <span id="header_line_1">Fürth-Südstadt</span>
+            <span id="header_line_2">Fronmüllerstr. 12</span>
+            <span id="header_line_3">90763 Fürth-Südstadt</span>
+        </body></html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+
+        receipt_data = extract_lidl_receipt_info(
+            soup,
+            "23004426420240828113520",
+            "Lidl",
+        )
+
+        self.assertEqual(receipt_data["store"], "Fürth-Südstadt")
+        self.assertEqual(receipt_data["address"]["city"], "Fürth-Südstadt")
+
+    def test_extract_basic_receipt_info_keeps_store_when_header_has_no_branch_line(self):
+        html = """
+        <html><body>
+            <span id="header_line_2">Olympiastr. 25a</span>
+            <span id="header_line_3">82467 Garmisch-Partenkirchen</span>
+        </body></html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+
+        receipt_data = extract_lidl_receipt_info(
+            soup,
+            "2300679112024090991221",
+            "Lidl",
+        )
+
+        self.assertEqual(receipt_data["store"], "Lidl")
+        self.assertEqual(receipt_data["address"]["city"], "Garmisch-Partenkirchen")
+
+    def test_extract_basic_receipt_info_uses_api_city_as_branch_when_header_city_differs(self):
+        html = """
+        <html><body>
+            <span id="header_line_2">Fronmüllerstr. 12</span>
+            <span id="header_line_3">90763 Fürth</span>
+        </body></html>
+        """
+        soup = BeautifulSoup(html, "html.parser")
+
+        receipt_data = extract_lidl_receipt_info(
+            soup,
+            "23004426220241031479702",
+            "Lidl",
+            {
+                "street": "Fronmüllerstr.",
+                "street_no": "12",
+                "zip": "90763",
+                "city": "Fürth-Südstadt",
+            },
+        )
+
+        self.assertEqual(receipt_data["store"], "Fürth-Südstadt")
+        self.assertEqual(receipt_data["address"]["city"], "Fürth")
 
     def test_extract_basic_receipt_info_applies_total_price_from_zu_zahlen_summary(self):
         html = """
@@ -234,7 +310,6 @@ class LidlInfoExtractorTests(unittest.TestCase):
         receipt_data = extract_lidl_receipt_info(
             soup,
             "23004426420240828113520",
-            "2024-08-28",
             "Fürth-Südstadt",
         )
 
@@ -267,10 +342,13 @@ class LidlInfoExtractorTests(unittest.TestCase):
         self.assertIn("sticker_discount", normalized)
         self.assertIsNone(normalized["sticker_discount"])
         self.assertIn("sticker_discount_pct", normalized)
-        # REWE fields must NOT be present for lidl
-        self.assertNotIn("rewe_bonus_amount", normalized)
-        self.assertNotIn("rewe_bonus_discount", normalized)
-        self.assertNotIn("rewe_bonus_total_amount", normalized)
+        # REWE fields are present but None for lidl
+        self.assertIn("rewe_bonus_amount", normalized)
+        self.assertIsNone(normalized["rewe_bonus_amount"])
+        self.assertIn("rewe_bonus_discount", normalized)
+        self.assertIsNone(normalized["rewe_bonus_discount"])
+        self.assertIn("rewe_bonus_total_amount", normalized)
+        self.assertIsNone(normalized["rewe_bonus_total_amount"])
         self.assertEqual(normalized["purchase_date"], "2024-08-28")
         self.assertEqual(
             normalized["address"],

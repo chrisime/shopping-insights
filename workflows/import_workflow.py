@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Optional
 
 from reporting.shared_reporting import print_import_summary
 from shared.receipt_store import ReceiptStore
@@ -80,3 +81,13 @@ class ImportWorkflow(ABC):
         result = self._run_local_import(output_dir, store)
         self._print_import_summary(result)
         return result.success
+
+
+def resolve_auth_method(browser: Optional[str], cookies_file: Optional[str], retailer_name: str) -> Optional[str]:
+    """Determine the authentication method from CLI arguments."""
+    if browser:
+        return browser
+    if cookies_file:
+        return "file"
+    print(f"\u2717 {retailer_name} ben\u00f6tigt --cookies-file oder --browser.")
+    return None

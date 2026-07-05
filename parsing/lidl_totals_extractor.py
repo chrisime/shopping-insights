@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 import re
 from typing import Any, Dict, Optional
 
+from shared.float_parser import parse_german_float
 from bs4 import BeautifulSoup
 
 
@@ -26,9 +27,9 @@ def extract_lidl_totals(
     sticker_discount: Optional[Any] = None,
 ) -> ReceiptTotalsDTO:
     """Extract and calculate Lidl totals in one step from HTML + parsed fields."""
-    coerced_discount = _round_optional(_coerce_optional_float(discount))
-    coerced_lidlplus = _round_optional(_coerce_optional_float(lidlplus_discount))
-    coerced_sticker = _round_optional(_coerce_optional_float(sticker_discount))
+    coerced_discount = _coerce_optional_float(discount)
+    coerced_lidlplus = _coerce_optional_float(lidlplus_discount)
+    coerced_sticker = _coerce_optional_float(sticker_discount)
     saved_deposit = _extract_pfand_savings_from_html(soup)
     rounded_deposit = round(saved_deposit, 2) if saved_deposit > 0 else None
 
@@ -47,18 +48,13 @@ def extract_lidl_totals(
 
 
 def _coerce_optional_float(value: Optional[Any]) -> Optional[float]:
-    if not value:
+    if value is None:
         return None
     try:
         return round(float(value), 2)
     except (ValueError, TypeError, AttributeError):
         return None
 
-
-def _round_optional(value: Optional[float]) -> Optional[float]:
-    if value is None:
-        return None
-    return round(float(value), 2)
 
 
 def _extract_pfand_savings_from_html(soup: BeautifulSoup) -> float:
@@ -71,21 +67,14 @@ def _extract_pfand_savings_from_html(soup: BeautifulSoup) -> float:
 
     pfand_matches = re.findall(r"Pfandrückgabe\s*(-?\d+,\d+)", purchase_text)
     for match in pfand_matches:
-        try:
-            pfand_savings += abs(float(match.replace(",", ".")))
-        except (ValueError, AttributeError):
-            continue
+        pfand_savings += abs(parse_german_float(match) or 0.0)
 
     if pfand_savings > 0:
         return pfand_savings
 
     pfand_calc_matches = re.findall(r"(-?\d+)\s*x\s*(-?\d+,\d+)", purchase_text)
     for qty_match, price_match in pfand_calc_matches:
-        try:
-            qty = float(qty_match)
-            price = float(price_match.replace(",", "."))
-            pfand_savings += abs(qty * price)
-        except (ValueError, AttributeError):
-            continue
+        qty = float(qty_match)
+        pfand_savings += abs(qty * (parse_german_float(price_match) or 0.0))
 
     return pfand_savings

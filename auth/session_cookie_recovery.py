@@ -12,6 +12,10 @@ by LZ4-block-compressed JSON.
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 import simplejson
 import platform
 from pathlib import Path
@@ -59,9 +63,9 @@ def _find_default_profile(profiles_dir: Path) -> Optional[Path]:
         # Fallback: accept backup profiles too
         candidates = [p.parent for p in profiles_dir.rglob("cookies.sqlite")]
 
-    # Prefer default-default or default-release profiles
+    # Prefer default-default, default-release or *.default profiles
     for c in candidates:
-        if "default-default" in c.name or "default-release" in c.name:
+        if any(name in c.name for name in ("default-default", "default-release", ".default")):
             return c
     return candidates[0] if candidates else None
 
@@ -124,6 +128,9 @@ def read_session_cookies_for_domain(
     for window in data.get("windows", []):
         raw_cookies.extend(window.get("cookies", []))
 
+    if not raw_cookies:
+        return []
+
     domain_suffix_dot = f".{domain_suffix}"
     result: List[Dict] = []
     for c in raw_cookies:
@@ -138,4 +145,69 @@ def read_session_cookies_for_domain(
             "secure": bool(c.get("secure", False)),
         })
 
+    logger.info("  ℹ %d Session-Cookie(s) für %s aus Session-Restore gefunden", len(result), domain_suffix)
     return result
+
+
+def _read_pref_value(
+    prefs_js: Path, pref_name: str,
+) -> Optional[str]:
+    """Read a single pref value from a Firefox/LibreWolf ``prefs.js`` file.
+
+    Returns the value as a string (e.g. ``"0"``, ``"2"``) or ``None`` if
+    the pref is not found or the file is unreadable.
+    """
+    try:
+        text = prefs_js.read_text("utf-8")
+    except OSError:
+        return None
+
+    import re
+    # Matches: user_pref("browser.sessionstore.privacy_level", 2);
+    pattern = re.compile(
+        rf'user_pref\(\s*"{re.escape(pref_name)}"\s*,\s*(.+?)\s*\)\s*;'
+    )
+    match = pattern.search(text)
+    if match:
+        return match.group(1).strip().strip('"')
+    return None
+
+
+def check_sessionstore_privacy_level(browser: str) -> Optional[bool]:
+    """Check if the browser's ``browser.sessionstore.privacy_level`` is set
+    to 2, which prevents session cookies from being saved to the session-
+    restore file.
+
+    Works for both Firefox and LibreWolf.
+
+    Returns:
+        ``True`` if privacy_level is 0 or 1 (session cookies OK).
+        ``False`` if privacy_level is 2 (session cookies blocked).
+        ``None`` if the check could not be performed (browser not found,
+               profile missing, or prefs.js unreadable).
+    """
+    profiles_dir = _find_firefox_profiles_dir(browser)
+    if profiles_dir is None:
+        return None
+
+    profile = _find_default_profile(profiles_dir)
+    if profile is None:
+        return None
+
+    prefs_js = profile / "prefs.js"
+    if not prefs_js.exists():
+        return None
+
+    value = _read_pref_value(prefs_js, "browser.sessionstore.privacy_level")
+    if value is None:
+        # Pref not set — defaults to 1 (Firefox) or 2 (LibreWolf)
+        return None
+
+    try:
+        level = int(value)
+    except (ValueError, TypeError):
+        return None
+
+    if level == 2:
+        return False
+    return True

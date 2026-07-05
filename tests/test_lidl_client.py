@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock
 
-from api.lidl_client import get_lidl_ticket, test_lidl_session
+from client.lidl_client import get_lidl_ticket, test_lidl_session as run_lidl_session_test
 from shared.lidl_ticket_dto import LidlTicketDTO
 
 
@@ -55,7 +55,7 @@ class LidlClientTests(unittest.TestCase):
         response.json.return_value = {"items": [], "totalCount": 0}
         session.get.return_value = response
 
-        result = test_lidl_session(session)
+        result = run_lidl_session_test(session)
 
         self.assertTrue(result)
 
@@ -68,11 +68,10 @@ class LidlClientTests(unittest.TestCase):
 
         session.get.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError(response=response)
 
-        result = test_lidl_session(session)
+        result = run_lidl_session_test(session)
 
         self.assertFalse(result)
 
 
 if __name__ == "__main__":
     unittest.main()
-

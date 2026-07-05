@@ -1,7 +1,10 @@
 """LIDL-specific file-based cookie loading for authentication."""
 
+import logging
 import os
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 import requests
 
@@ -21,6 +24,7 @@ from .shared_file_auth import (
     print_cookie_diagnostics,
     read_utf8_text_file,
 )
+from .jwt_expiry import extract_jwt_expiry_epoch, is_jwt_expired
 
 
 def _lidl_diagnostic_profile() -> CookieDiagnosticProfile:
@@ -68,28 +72,28 @@ def load_lidl_cookies_from_file(
     if file_path is None:
         file_path = LidlConfig.COOKIES_JSON_FILE
 
-    print(f"Lade Cookies aus Datei: {file_path}...")
+    logger.info("Lade Cookies aus Datei: %s...", file_path)
 
     try:
         if not os.path.exists(file_path):
-            print(f"✗ Cookie-Datei nicht gefunden: {file_path}")
-            print(f"\nBitte erstelle eine Datei '{file_path}' mit deinen Cookies.")
-            print("Du kannst Cookies exportieren mit Browser-Erweiterungen wie:")
-            print("  - EditThisCookie (exportiere als JSON)")
-            print("  - Cookie-Editor")
-            print("\nDie Datei sollte ein JSON-Array von Cookie-Objekten enthalten.")
+            logger.error("✗ Cookie-Datei nicht gefunden: %s", file_path)
+            logger.info("Bitte erstelle eine Datei '%s' mit deinen Cookies.", file_path)
+            logger.info("Du kannst Cookies exportieren mit Browser-Erweiterungen wie:")
+            logger.info("  - EditThisCookie (exportiere als JSON)")
+            logger.info("  - Cookie-Editor")
+            logger.info("Die Datei sollte ein JSON-Array von Cookie-Objekten enthalten.")
             return None
 
         raw_cookie_text = read_utf8_text_file(file_path)
 
         cookies_list = parse_json_cookie_export(raw_cookie_text)
         if cookies_list is None:
-            print("✗ Fehler beim Parsen der Cookie-Datei: ungültiges JSON")
-            print("Bitte stelle sicher, dass die Datei gültiges JSON enthält.")
+            logger.error("✗ Fehler beim Parsen der Cookie-Datei: ungültiges JSON")
+            logger.info("Bitte stelle sicher, dass die Datei gültiges JSON enthält.")
             return None
 
         if not cookies_list:
-            print("✗ Ungültiges Cookie-Dateiformat. Erwarte ein JSON-Array oder Objekt mit 'cookies'-Feld.")
+            logger.error("✗ Ungültiges Cookie-Dateiformat. Erwarte ein JSON-Array oder Objekt mit 'cookies'-Feld.")
             return None
 
         session, cookie_count = build_cookie_session(
@@ -100,10 +104,10 @@ def load_lidl_cookies_from_file(
 
         if cookie_count == 0:
             expected_domain = LidlConfig.get_cookie_domain()
-            print(f"✗ Keine Cookies für {expected_domain} in der Datei gefunden.")
+            logger.error("✗ Keine Cookies für %s in der Datei gefunden.", expected_domain)
             return None
 
-        print(f"✓ Erfolgreich {cookie_count} Cookies aus Datei geladen")
+        logger.info("✓ Erfolgreich %d Cookies aus Datei geladen", cookie_count)
         cookie_names = {cookie.name for cookie in session.cookies}
         profile = _lidl_diagnostic_profile()
         print_cookie_diagnostics(
@@ -116,10 +120,16 @@ def load_lidl_cookies_from_file(
         )
         if status == "ROT":
             return None
+
+        expiry_epoch = extract_jwt_expiry_epoch(session.cookies, "authToken")
+        if expiry_epoch is not None and is_jwt_expired(expiry_epoch):
+            logger.error("✗ Das LIDL authToken ist abgelaufen. Bitte Cookies nach erneutem Login neu exportieren.")
+            return None
+
         return session
 
     except Exception as e:
-        print(f"✗ Fehler beim Laden der Cookie-Datei: {e}")
+        logger.error("✗ Fehler beim Laden der Cookie-Datei: %s", e)
         return None
 
 
@@ -128,25 +138,25 @@ def diagnose_lidl_cookie_file(file_path: Optional[str] = None) -> bool:
     if file_path is None:
         file_path = LidlConfig.COOKIES_JSON_FILE
 
-    print(f"Prüfe LIDL-Cookie-Datei: {file_path}...")
+    logger.info("Prüfe LIDL-Cookie-Datei: %s...", file_path)
 
     if not file_path or not os.path.exists(file_path):
-        print(f"✗ Datei nicht gefunden: {file_path}")
+        logger.error("✗ Datei nicht gefunden: %s", file_path)
         return False
 
     try:
         raw_cookie_text = read_utf8_text_file(file_path)
     except Exception as exc:  # pragma: no cover - filesystem dependent
-        print(f"✗ Datei konnte nicht gelesen werden: {exc}")
+        logger.error("✗ Datei konnte nicht gelesen werden: %s", exc)
         return False
 
     cookies_list = parse_json_cookie_export(raw_cookie_text)
     if cookies_list is None:
-        print("✗ Datei konnte nicht als LIDL-Cookie-Datei erkannt werden. Erwarte ein JSON-Array oder Objekt mit 'cookies'-Feld.")
+        logger.error("✗ Datei konnte nicht als LIDL-Cookie-Datei erkannt werden.")
         return False
 
     if not cookies_list:
-        print("✗ Ungültiges Cookie-Dateiformat.")
+        logger.error("✗ Ungültiges Cookie-Dateiformat.")
         return False
 
     session, cookie_count = build_cookie_session(
@@ -157,10 +167,10 @@ def diagnose_lidl_cookie_file(file_path: Optional[str] = None) -> bool:
 
     if cookie_count == 0:
         expected_domain = LidlConfig.get_cookie_domain()
-        print(f"✗ Keine LIDL-Cookies für {expected_domain} in der Datei gefunden.")
+        logger.error("✗ Keine LIDL-Cookies für %s in der Datei gefunden.", expected_domain)
         return False
 
-    print(f"✓ Datei ist lesbar, {cookie_count} LIDL-Cookies erkannt")
+    logger.info("✓ Datei ist lesbar, %d LIDL-Cookies erkannt", cookie_count)
     cookie_names = {cookie.name for cookie in session.cookies}
     profile = _lidl_diagnostic_profile()
     print_cookie_diagnostics(
@@ -171,4 +181,9 @@ def diagnose_lidl_cookie_file(file_path: Optional[str] = None) -> bool:
     status, _, _ = assess_cookie_quality(
         cookie_names, profile,
     )
+    expiry_epoch = extract_jwt_expiry_epoch(session.cookies, "authToken")
+    if expiry_epoch is not None and is_jwt_expired(expiry_epoch):
+        logger.error("✗ Das LIDL authToken ist abgelaufen. Bitte Cookies nach erneutem Login neu exportieren.")
+        return False
+
     return status != "ROT"

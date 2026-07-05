@@ -1,10 +1,8 @@
 """Shared data types for linear receipt workflow pipelines."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Generic, List, TypeVar
+from typing import Any, Generic, TypeVar
 
 from result_types import WorkflowSummary
 
@@ -22,7 +20,7 @@ class ParsedReceiptRecord:
     """Parsed normalized receipt data identified by its source id."""
 
     source_id: str
-    receipt_data: Dict[str, Any]
+    receipt_data: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -33,7 +31,7 @@ class ReceiptIssue:
     reason: str
     detail_key: str = "receipt_id"
 
-    def as_detail(self) -> Dict[str, str]:
+    def as_detail(self) -> dict[str, str]:
         return {
             self.detail_key: self.source_id,
             "reason": self.reason,
@@ -47,8 +45,8 @@ TRecord = TypeVar("TRecord")
 class StageResult(Generic[TRecord]):
     """Result of a linear workflow stage with records plus structured issues."""
 
-    records: List[TRecord]
-    issues: List[ReceiptIssue]
+    records: list[TRecord]
+    issues: list[ReceiptIssue]
     total_items: int = 0
 
 
@@ -59,5 +57,5 @@ class WorkflowResult:
 
     success: bool
     summary: WorkflowSummary
-    skipped_issues: List[ReceiptIssue]
+    skipped_issues: list[ReceiptIssue]
     skipped_report_path: Path | None = None

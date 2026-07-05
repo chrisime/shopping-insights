@@ -6,7 +6,7 @@ import requests
 import simplejson
 from bs4 import BeautifulSoup
 
-from api.lidl_client import get_lidl_ticket
+from client.lidl_client import get_lidl_ticket
 from parsing.lidl_receipt_parser import parse_lidl_ticket
 from parsing.lidl_validator import LidlReceiptValidationError, validate_lidl_receipt_data
 from parsing.lidl_totals_extractor import extract_lidl_totals
@@ -31,7 +31,7 @@ def _fetch_lidl_receipt_parse_result(session, receipt_id: str) -> ReceiptParseRe
         return ReceiptParseResult(receipt_data=None, skip_reason=render_exception_reason(exc, REASON_KIND_LIDL_FETCH))
 
     try:
-        receipt_data = parse_lidl_ticket(ticket_data, receipt_id)
+        receipt_data = parse_lidl_ticket(ticket_data)
         validate_lidl_receipt_data(receipt_data)
         return ReceiptParseResult(receipt_data=receipt_data)
     except LidlReceiptValidationError as exc:
@@ -118,6 +118,7 @@ class LidlReceiptParserTests(unittest.TestCase):
         self.assertEqual(receipt_data["market"], "5882")
         self.assertEqual(receipt_data["register"], "10")
         self.assertEqual(receipt_data["cashier"], "725516")
+        self.assertEqual(receipt_data["bon_number"], "725516")
         self.assertEqual(receipt_data["total_price"], 2.78)
 
     def test_validate_lidl_receipt_data_rejects_non_iso_purchase_date(self):
@@ -210,4 +211,3 @@ class LidlReceiptParserTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

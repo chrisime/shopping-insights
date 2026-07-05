@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 import simplejson
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, List, Optional, Set
+
+logger = logging.getLogger(__name__)
 
 from requests import Session
 from requests.cookies import create_cookie
@@ -104,32 +108,28 @@ def print_cookie_diagnostics(
 
     names = sorted(str(name) for name in cookie_names if name)
     cookie_names_list = ", ".join(names) if names else "keine"
-    print(f"  Erkannte Cookie-Namen: {cookie_names_list}")
+    logger.info("  Erkannte Cookie-Namen: %s", cookie_names_list)
 
     if missing_required:
-        print(
-            f"⚠ Wichtige {profile.store_name}-Session-Cookies fehlen: {', '.join(missing_required)}"
-        )
+        logger.warning("⚠ Wichtige %s-Session-Cookies fehlen: %s", profile.store_name, ", ".join(missing_required))
         if profile.missing_required_hint:
-            print(f"  {profile.missing_required_hint}")
+            logger.info("  %s", profile.missing_required_hint)
 
     if missing_recommended:
-        print(
-            f"⚠ Zusätzliche hilfreiche {profile.store_name}-Cookies fehlen: {', '.join(missing_recommended)}"
-        )
+        logger.info("⚠ Zusätzliche hilfreiche %s-Cookies fehlen: %s", profile.store_name, ", ".join(missing_recommended))
 
     active_extras = extras or CookieDiagnosticExtras()
     for line in active_extras.lines:
-        print(line)
+        logger.info(line)
 
     status, summary, recommendation = assess_cookie_quality(cookie_names, profile)
-    print(f"  Ampelstatus: {status}")
-    print(f"  Einschaetzung: {summary}")
-    print(f"  Empfehlung: {recommendation}")
+    logger.info("  Ampelstatus: %s", status)
+    logger.info("  Einschaetzung: %s", summary)
+    logger.info("  Empfehlung: %s", recommendation)
     steps = _build_next_steps(status, missing_required, missing_recommended, profile)
     steps.extend(active_extras.steps)
     for step in steps:
-        print(f"  Naechster Schritt: {step}")
+        logger.info("  Naechster Schritt: %s", step)
 
 
 def _build_next_steps(

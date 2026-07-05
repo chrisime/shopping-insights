@@ -2,25 +2,22 @@
 
 import time
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, List, Optional, Sequence
 
 import simplejson
-from api.lidl_client import get_lidl_ticket, get_tickets_page, test_lidl_session
+from client.lidl_client import collect_lidl_receipt_ids, get_lidl_ticket, test_lidl_session
 from auth.session_manager import setup_session
-from bs4 import BeautifulSoup
 from config import LidlConfig
 from config import storage_config
-from parsing.lidl_items_extractor import extract_lidl_receipt_items
 
-from reporting.shared_reporting import write_skipped_receipts_report
 from requests import Session
 from shared.receipt_store import ReceiptStore
 from shared.lidl_ticket_dto import LidlTicketDTO
 from storage import create_receipt_store
-from .import_workflow import ImportWorkflow
+from .import_workflow import ImportWorkflow, resolve_auth_method
 from .import_pipeline import ImportPipeline
 from .pipeline_types import WorkflowResult
-from .progress_display import ProgressState, ReceiptProgressDisplay
+from .progress_display import ReceiptProgressDisplay
 from .workflow_constants import RETAILER_LIDL, REASON_KIND_LIDL_FETCH
 
 __all__ = [
@@ -32,6 +29,8 @@ __all__ = [
 class _LidlImportPipeline(ImportPipeline):
     detail_key = "receipt_id"
     load_error_reason_kind = REASON_KIND_LIDL_FETCH
+    retailer_display_name = "LIDL"
+    _skipped_report_filename = LidlConfig.SKIPPED_RECEIPTS_REPORT_FILE
 
     def load_payload(self, source_path: Path) -> Any:
         ticket_data = simplejson.loads(source_path.read_text(encoding="utf-8"))
@@ -39,22 +38,6 @@ class _LidlImportPipeline(ImportPipeline):
         if isinstance(ticket_data, dict):
             return LidlTicketDTO.from_api_response(ticket_data, receipt_id)
         raise ValueError("Ungültiges LIDL-Ticketformat: erwartetes JSON-Objekt")
-
-    def write_skipped_receipts_report(self, source_dir: Path, skipped_details: list[dict[str, str]]) -> Path | None:
-        return write_skipped_receipts_report(
-            skipped_details,
-            report_path=source_dir.parent / LidlConfig.SKIPPED_RECEIPTS_REPORT_FILE,
-        )
-
-    def print_skipped_receipts(self, skipped_details: list[dict[str, str]], report_path: Path | None) -> None:
-        if not skipped_details:
-            return
-        print("✓ Übersprungene LIDL-Bons:")
-        for skipped in skipped_details:
-            source_id = skipped.get("receipt_id") or skipped.get("file") or "unbekannt"
-            print(f"  - {source_id}: {skipped['reason']}")
-        if report_path:
-            print(f"✓ Skip-Report geschrieben: {report_path}")
 
 
 class _LidlImportWorkflow(ImportWorkflow):
@@ -76,9 +59,11 @@ class _LidlImportWorkflow(ImportWorkflow):
 
         tickets_dir = self._source_dir(output_dir)
         tickets_dir.mkdir(parents=True, exist_ok=True)
-        discovered_ids, page_count = _collect_lidl_receipt_ids(session)
+        print("ℹ Sammle alle LIDL-Kassenbon-IDs mit digitalem Kassenbon über API...")
+        discovered_ids, page_count = collect_lidl_receipt_ids(session)
         self._checked_pages = page_count
 
+        print(f"ℹ Gefunden: {len(discovered_ids)} LIDL-Kassenbon-IDs")
         existing_ids = store.find_existing_ids(retailer=RETAILER_LIDL)
         local_ids = {path.stem for path in tickets_dir.glob("*.json")}
         receipt_ids = _filter_new_lidl_receipt_ids(discovered_ids, existing_ids | local_ids)
@@ -114,7 +99,6 @@ class _LidlImportWorkflow(ImportWorkflow):
 
     def _print_import_summary_details(self, result: WorkflowResult) -> None:
         if self._checked_pages is not None:
-            print(f"ℹ Verarbeitete Seiten: {self._checked_pages}")
             print(f"ℹ Geprüfte Seiten: {self._checked_pages}")
         print(f"ℹ Verarbeitete Artikel: {result.summary.total_items}")
 
@@ -141,47 +125,13 @@ def run_lidl_update(output_dir: str = LidlConfig.DEFAULT_OUTPUT_DIR) -> bool:
     return _LidlImportWorkflow(None, None, None).run_update(base_output_dir, store)
 
 
-def _collect_lidl_receipt_ids(session: Session, max_pages: Optional[int] = None) -> Tuple[List[str], int]:
-    """Collect LIDL receipt ids from all pages or only a limited number."""
-    all_receipt_ids: List[str] = []
-    current_page = 1
-    processed_pages = 0
-
-    if max_pages is None:
-        print("ℹ Sammle alle LIDL-Kassenbon-IDs mit digitalem Kassenbon über API...")
-    else:
-        print(f"ℹ Sammle LIDL-Kassenbon-IDs der ersten {max_pages} Seiten über API...")
-
-    while max_pages is None or current_page <= max_pages:
-        tickets_page = get_tickets_page(session, current_page)
-        if not tickets_page or not tickets_page.receipt_ids:
-            break
-
-        all_receipt_ids.extend(tickets_page.receipt_ids)
-        processed_pages = current_page
-        current_page += 1
-
-        # Check if we've reached the end of all pages
-        page_size = len(tickets_page.receipt_ids)
-        total_pages = (tickets_page.total_count + page_size - 1) // page_size if page_size > 0 else 1
-        if current_page > total_pages:
-            break
-
-    print(f"ℹ Gefunden: {len(all_receipt_ids)} LIDL-Kassenbon-IDs")
-    return all_receipt_ids, processed_pages
-
-
 def _prepare_lidl_session(browser: Optional[str], cookies_file: Optional[str], country: Optional[str]) -> Optional[Session]:
     """Configure, authenticate and verify the LIDL session."""
     if country:
         LidlConfig.set_country(country)
 
-    if browser:
-        auth_method = browser
-    elif cookies_file:
-        auth_method = "file"
-    else:
-        print("\u2717 LIDL ben\u00f6tigt --cookies-file oder --browser.")
+    auth_method = resolve_auth_method(browser, cookies_file, "LIDL")
+    if not auth_method:
         return None
 
     session = setup_session(RETAILER_LIDL, auth_method, cookies_file)
@@ -211,18 +161,17 @@ def _download_lidl_tickets(session: Session, receipt_ids: List[str], tickets_dir
         items_label="Artikel",
     )
     total_receipts = len(receipt_ids)
+    total_items = 0
     saved_count = 0
     error_count = 0
-    total_items = 0
 
-    progress.render(ProgressState(0, total_receipts, 0, 0, 0, 0, "-"))
+    progress.render_step(0, total_receipts, 0, 0, 0, "-")
 
     for index, receipt_id in enumerate(receipt_ids, 1):
-        progress.render(ProgressState(
-            current=index - 1, total=total_receipts,
-            added=saved_count, skipped=error_count, errors=error_count,
-            items=total_items, current_receipt=receipt_id,
-        ))
+        progress.render_step(
+            index - 1, total_receipts,
+            saved_count, error_count, total_items, receipt_id,
+        )
         try:
             ticket_dto = get_lidl_ticket(session, receipt_id)
             ticket_path = tickets_dir / f"{receipt_id}.json"
@@ -231,29 +180,18 @@ def _download_lidl_tickets(session: Session, receipt_ids: List[str], tickets_dir
                 encoding="utf-8",
             )
             saved_count += 1
-            total_items += _count_lidl_ticket_items(ticket_dto)
         except Exception:
             error_count += 1
 
-        progress.render(ProgressState(
-            current=index, total=total_receipts,
-            added=saved_count, skipped=error_count, errors=error_count,
-            items=total_items, current_receipt=receipt_id,
-        ))
+        progress.render_step(
+            index, total_receipts,
+            saved_count, error_count, total_items, receipt_id,
+        )
         if LidlConfig.REQUEST_DELAY > 0:
             time.sleep(LidlConfig.REQUEST_DELAY)
 
     progress.close()
     print(f"✓ {saved_count} Ticket-JSONs gespeichert nach: {tickets_dir}")
-
-
-def _count_lidl_ticket_items(ticket: LidlTicketDTO) -> int:
-    """Return the number of extractable items in a Lidl ticket."""
-    if not ticket.html_receipt or not ticket.html_receipt.strip():
-        return 0
-
-    soup = BeautifulSoup(ticket.html_receipt, "html.parser")
-    return len(extract_lidl_receipt_items(soup))
 
 
 def _filter_new_lidl_receipt_ids(discovered_receipt_ids: Sequence[str], existing_receipt_ids: set[str]) -> List[str]:

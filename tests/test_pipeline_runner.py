@@ -34,8 +34,8 @@ class PipelineRunnerTests(unittest.TestCase):
             result = parse_receipts(raw_records, retailer="rewe", detail_key="file")
 
         self.assertEqual(len(result.records), 1)
-        final_state = progress_display_cls.return_value.render.call_args_list[-1].args[0]
-        self.assertEqual(final_state.items, 2)
+        final_state = progress_display_cls.return_value.render_step.call_args_list[-1]
+        self.assertEqual(final_state.args[4], 2)
 
     def test_validate_receipts_uses_rewe_validator_for_rewe_records(self):
         parsed_records = [

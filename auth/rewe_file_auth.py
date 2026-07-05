@@ -1,7 +1,10 @@
 """File-based cookie loading for REWE authentication."""
 
+import logging
 import os
 from http.cookies import SimpleCookie
+
+logger = logging.getLogger(__name__)
 from typing import List, Optional, Set
 
 import requests
@@ -14,6 +17,7 @@ from .cookie_policies import (
     RECOMMENDED_REWE_WAF_COOKIE_NAMES,
 )
 from .rewe_customer_id import extract_rewe_customer_id_from_text
+from .jwt_expiry import extract_jwt_expiry_epoch, is_jwt_expired
 from .shared_file_auth import (
     CookieDiagnosticExtras,
     CookieDiagnosticProfile,
@@ -102,12 +106,12 @@ def _parse_rewe_cookie_session_payload(
     """Parse raw REWE cookie text and print consistent user-facing errors."""
     session_payload = _build_rewe_cookie_session_from_text(raw_cookie_text)
     if session_payload is None:
-        print(invalid_format_message)
+        logger.error(invalid_format_message)
         return None
 
     session, cookie_count = session_payload
     if cookie_count == 0:
-        print("✗ Keine REWE-Cookies für rewe.de in der Datei gefunden.")
+        logger.error("✗ Keine REWE-Cookies für rewe.de in der Datei gefunden.")
         return None
 
     return session, cookie_count
@@ -128,14 +132,12 @@ def load_rewe_cookies_from_file(
     if file_path is None:
         file_path = ReweConfig.REWE_COOKIES_JSON_FILE
 
-    print(f"Lade REWE-Cookies aus Datei: {file_path}...")
+    logger.info("Lade REWE-Cookies aus Datei: %s...", file_path)
 
     try:
         if not os.path.exists(file_path):
-            print(f"✗ Cookie-Datei nicht gefunden: {file_path}")
-            print(
-                "Bitte übergib eine REWE-Cookie-Datei oder einen kopierten Request-/Header-Export an den REWE-POC."
-            )
+            logger.error("✗ Cookie-Datei nicht gefunden: %s", file_path)
+            logger.info("Bitte übergib eine REWE-Cookie-Datei oder einen kopierten Request-/Header-Export.")
             return None
 
         raw_cookie_text = read_utf8_text_file(file_path)
@@ -149,12 +151,18 @@ def load_rewe_cookies_from_file(
 
         session, cookie_count = session_payload
 
-        print(f"✓ Erfolgreich {cookie_count} REWE-Cookies geladen")
+        logger.info("✓ Erfolgreich %d REWE-Cookies geladen", cookie_count)
         _print_rewe_cookie_diagnostics(session.cookies, raw_cookie_text)
+
+        expiry_epoch = extract_jwt_expiry_epoch(session.cookies, "rstp")
+        if expiry_epoch is not None and is_jwt_expired(expiry_epoch):
+            logger.error("✗ Das REWE rstp-Cookie ist abgelaufen. Bitte Cookies nach erneutem Login neu exportieren.")
+            return None
+
         return session
 
     except Exception as exc:  # pragma: no cover - defensive fallback
-        print(f"✗ Fehler beim Laden der REWE-Cookies: {exc}")
+        logger.error("✗ Fehler beim Laden der REWE-Cookies: %s", exc)
         return None
 
 
@@ -163,16 +171,16 @@ def diagnose_rewe_cookie_file(file_path: Optional[str] = None) -> bool:
     if file_path is None:
         file_path = ReweConfig.REWE_COOKIES_JSON_FILE
 
-    print(f"Prüfe REWE-Cookie-Datei: {file_path}...")
+    logger.info("Prüfe REWE-Cookie-Datei: %s...", file_path)
 
     if not file_path or not os.path.exists(file_path):
-        print(f"✗ Datei nicht gefunden: {file_path}")
+        logger.error("✗ Datei nicht gefunden: %s", file_path)
         return False
 
     try:
         raw_cookie_text = read_utf8_text_file(file_path)
     except Exception as exc:  # pragma: no cover - filesystem dependent
-        print(f"✗ Datei konnte nicht gelesen werden: {exc}")
+        logger.error("✗ Datei konnte nicht gelesen werden: %s", exc)
         return False
 
     session_payload = _parse_rewe_cookie_session_payload(
@@ -184,12 +192,17 @@ def diagnose_rewe_cookie_file(file_path: Optional[str] = None) -> bool:
 
     session, cookie_count = session_payload
 
-    print(f"✓ Datei ist lesbar, {cookie_count} REWE-Cookies erkannt")
+    logger.info("✓ Datei ist lesbar, %d REWE-Cookies erkannt", cookie_count)
     _print_rewe_cookie_diagnostics(session.cookies, raw_cookie_text)
     profile = _rewe_diagnostic_profile()
     status, _, _ = assess_cookie_quality(
         {cookie.name for cookie in session.cookies}, profile,
     )
+    expiry_epoch = extract_jwt_expiry_epoch(session.cookies, "rstp")
+    if expiry_epoch is not None and is_jwt_expired(expiry_epoch):
+        logger.error("✗ Das REWE rstp-Cookie ist abgelaufen. Bitte Cookies nach erneutem Login neu exportieren.")
+        return False
+
     return status != "ROT"
 
 

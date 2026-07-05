@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import tempfile
 import unittest
@@ -86,7 +88,7 @@ class LidlWorkflowTests(unittest.TestCase):
             "workflows.lidl_workflow.test_lidl_session",
             return_value=True,
         ), patch(
-            "workflows.lidl_workflow._collect_lidl_receipt_ids",
+            "workflows.lidl_workflow.collect_lidl_receipt_ids",
             return_value=(["23000987220230201728424"], 22),
         ), patch(
             "workflows.lidl_workflow.create_receipt_store",
@@ -113,7 +115,7 @@ class LidlWorkflowTests(unittest.TestCase):
         self.assertEqual(import_kwargs["store"], store)
         self.assertEqual(import_kwargs["checked_pages"], 22)
         self.assertIn("LIDL-Kassenbons importiert:", output)
-        self.assertIn("Verarbeitete Seiten: 22", output)
+        self.assertIn("Geprüfte Seiten: 22", output)
 
     def test_run_lidl_initial_uses_default_store_factory(self):
         store = Mock()
@@ -123,7 +125,7 @@ class LidlWorkflowTests(unittest.TestCase):
             "workflows.lidl_workflow.test_lidl_session",
             return_value=True,
         ), patch(
-            "workflows.lidl_workflow._collect_lidl_receipt_ids",
+            "workflows.lidl_workflow.collect_lidl_receipt_ids",
             return_value=([], 1),
         ), patch(
             "workflows.lidl_workflow.create_receipt_store",
@@ -161,7 +163,7 @@ class LidlWorkflowTests(unittest.TestCase):
             "workflows.lidl_workflow.test_lidl_session",
             return_value=True,
         ), patch(
-            "workflows.lidl_workflow._collect_lidl_receipt_ids",
+            "workflows.lidl_workflow.collect_lidl_receipt_ids",
             return_value=(
                 [
                     "known-receipt",
@@ -271,7 +273,7 @@ class LidlWorkflowTests(unittest.TestCase):
         with patch("workflows.lidl_workflow.setup_session", return_value=object()), patch(
             "workflows.lidl_workflow.test_lidl_session",
             return_value=False,
-        ), patch("workflows.lidl_workflow._collect_lidl_receipt_ids") as collect_receipt_ids, patch(
+        ), patch("workflows.lidl_workflow.collect_lidl_receipt_ids") as collect_receipt_ids, patch(
             "sys.stdout", new=stdout
         ):
             success = run_lidl_initial(cookies_file="dummy.json")

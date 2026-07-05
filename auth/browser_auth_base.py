@@ -10,7 +10,11 @@ hooks.
 
 from __future__ import annotations
 
+import logging
+
 from typing import Callable, Dict, Iterable, Mapping, Optional, Set
+
+logger = logging.getLogger(__name__)
 
 import browser_cookie3
 import requests
@@ -66,17 +70,12 @@ class BrowserCookieExtractor:
         """
         loader = ALL_BROWSER_LOADERS.get(browser)
         if browser not in self.supported_browsers or loader is None:
-            print(f"✗ Unbekannter Browser für {self.retailer_name}: {browser}")
-            print(
-                "Unterstützt werden: "
-                + ", ".join(self.supported_browsers.keys())
-            )
+            logger.error("✗ Unbekannter Browser für %s: %s", self.retailer_name, browser)
+            logger.info("Unterstützt werden: %s", ", ".join(self.supported_browsers.keys()))
             return None
 
         browser_label = self.supported_browsers.get(browser, browser)
-        print(
-            f"ℹ Extrahiere {self.retailer_name}-Cookies für {self.cookie_domain} aus {browser_label}-Profil..."
-        )
+        logger.info("ℹ Extrahiere %s-Cookies für %s aus %s-Profil...", self.retailer_name, self.cookie_domain, browser_label)
 
         try:
             cookies = loader(domain_name=self.cookie_domain)
@@ -100,10 +99,7 @@ class BrowserCookieExtractor:
         if not self._validate_cookies(session, browser_label):
             return None
 
-        print(
-            f"✓ Erfolgreich {cookie_count} {self.retailer_name}-Cookies "
-            f"aus {browser_label} extrahiert"
-        )
+        logger.info("✓ Erfolgreich %d %s-Cookies aus %s extrahiert", cookie_count, self.retailer_name, browser_label)
         return session
 
     # ----------------------------------------------------------------------
@@ -148,6 +144,7 @@ class BrowserCookieExtractor:
         so that persistent cookies from ``cookies.sqlite`` take precedence.
         """
         existing_names = {cookie.name for cookie in session.cookies}
+
         session_cookies = read_session_cookies_for_domain(
             browser, self.cookie_domain,
         )
@@ -168,9 +165,7 @@ class BrowserCookieExtractor:
             existing_names.add(name)
             added += 1
         if added:
-            print(
-                f"  + {added} Session-Cookie(s) aus {browser.title()}-Session-Restore ergänzt"
-            )
+            logger.info("  + %d Session-Cookie(s) aus %s-Session-Restore ergänzt", added, browser.title())
         return added
 
     def _validate_cookies(
@@ -184,11 +179,7 @@ class BrowserCookieExtractor:
         )
 
         if analysis.missing_required:
-            print(
-                f"✗ Im lokalen {browser_label}-Profil fehlen wichtige "
-                f"{self.retailer_name}-Session-Cookies: "
-                f"{', '.join(analysis.missing_required)}"
-            )
+            logger.error("✗ Im lokalen %s-Profil fehlen wichtige %s-Session-Cookies: %s", browser_label, self.retailer_name, ", ".join(analysis.missing_required))
             self._on_missing_required(set(analysis.cookie_names), browser_label)
             return False
 
@@ -201,22 +192,14 @@ class BrowserCookieExtractor:
 
     # ----- Logging hooks --------------------------------------------------
     def _on_load_error(self, browser_label: str, exc: Exception) -> None:
-        print(
-            f"✗ Fehler beim Lesen der {self.retailer_name}-Cookies aus "
-            f"{browser_label}: {exc}"
-        )
-        print("Bitte stelle sicher, dass:")
-        print(f"1. {browser_label} lokal installiert ist")
-        print(f"2. du in {browser_label} bei {self.retailer_name} angemeldet bist")
-        print(
-            "3. der Browserzugriff auf das lokale Profil bzw. die Keychain erlaubt ist"
-        )
+        logger.error("✗ Fehler beim Lesen der %s-Cookies aus %s: %s", self.retailer_name, browser_label, exc)
+        logger.info("Bitte stelle sicher, dass:")
+        logger.info("1. %s lokal installiert ist", browser_label)
+        logger.info("2. du in %s bei %s angemeldet bist", browser_label, self.retailer_name)
+        logger.info("3. der Browserzugriff auf das lokale Profil bzw. die Keychain erlaubt ist")
 
     def _on_no_cookies(self, browser_label: str) -> None:
-        print(
-            f"✗ Keine {self.retailer_name}-Cookies im lokalen "
-            f"{browser_label}-Profil gefunden."
-        )
+        logger.error("✗ Keine %s-Cookies im lokalen %s-Profil gefunden.", self.retailer_name, browser_label)
 
     def _on_missing_required(
         self, cookie_names: Set[str], browser_label: str
@@ -225,8 +208,5 @@ class BrowserCookieExtractor:
         return None
 
     def _on_missing_recommended(self, browser_label: str) -> None:
-        print(
-            f"⚠ Im lokalen {browser_label}-Profil wurden keine empfohlenen "
-            f"{self.retailer_name}-Zusatzcookies gefunden."
-        )
+        logger.info("⚠ Im lokalen %s-Profil wurden keine empfohlenen %s-Zusatzcookies gefunden.", browser_label, self.retailer_name)
 

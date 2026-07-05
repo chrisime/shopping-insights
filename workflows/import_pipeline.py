@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, Optional, Sequence
 
 from result_types import WorkflowSummary
+from reporting.shared_reporting import write_skipped_receipts_report
+from shared.receipt_dto import receipt_dict_to_dto
 from shared.receipt_store import ReceiptStore
 
 from .error_mapping import render_exception_reason
@@ -19,6 +21,8 @@ class ImportPipeline(ABC):
 
     detail_key = "file"
     load_error_reason_kind: str | None = None
+    retailer_display_name = ""
+    _skipped_report_filename = ""
 
     def run(
         self,
@@ -54,7 +58,8 @@ class ImportPipeline(ABC):
 
         parse_result = parse_receipts(raw_records, retailer=retailer, detail_key=self.detail_key)
         validation_result = validate_receipts(parse_result.records, retailer=retailer, detail_key=self.detail_key)
-        persist_result = store.persist_receipts(validation_result.records, retailer=retailer)
+        receipt_dtos = [receipt_dict_to_dto(record, retailer) for record in validation_result.records]
+        persist_result = store.persist_receipts(receipt_dtos, retailer=retailer)
 
         skipped_issues = [*load_issues, *parse_result.issues, *validation_result.issues]
         skipped_details = [issue.as_detail() for issue in skipped_issues]
@@ -80,13 +85,24 @@ class ImportPipeline(ABC):
         """Load the raw payload for one local source file."""
         return source_path
 
-    @abstractmethod
     def write_skipped_receipts_report(self, source_dir: Path, skipped_details: list[dict[str, str]]) -> Path | None:
         """Persist skipped receipts metadata and return the report path."""
+        if not self._skipped_report_filename:
+            return None
+        report_path = source_dir.parent / self._skipped_report_filename
+        return write_skipped_receipts_report(skipped_details, report_path)
 
-    @abstractmethod
     def print_skipped_receipts(self, skipped_details: list[dict[str, str]], report_path: Path | None) -> None:
         """Print skipped receipts to stdout/stderr."""
+        if not skipped_details:
+            return
+        prefix = "✓" if self.retailer_display_name == "LIDL" else "ℹ"
+        print(f"{prefix} Übersprungene {self.retailer_display_name}-Bons:")
+        for skipped in skipped_details:
+            source_id = skipped.get(self.detail_key) or skipped.get("file") or "unbekannt"
+            print(f"  - {source_id}: {skipped['reason']}")
+        if report_path:
+            print(f"{prefix} Skip-Report geschrieben: {report_path}")
 
     @staticmethod
     def _build_empty_result(retailer: str, receipts_file: str, checked_pages: Optional[int]) -> WorkflowResult:
@@ -104,4 +120,3 @@ class ImportPipeline(ABC):
             skipped_issues=[],
             skipped_report_path=None,
         )
-

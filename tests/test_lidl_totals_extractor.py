@@ -2,7 +2,7 @@ import unittest
 
 from bs4 import BeautifulSoup
 
-from parsing.lidl_totals_extractor import extract_lidl_totals
+from parsing.lidl_totals_extractor import ReceiptTotalsDTO, extract_lidl_totals
 
 
 class LidlTotalsExtractorTests(unittest.TestCase):
@@ -44,6 +44,26 @@ class LidlTotalsExtractorTests(unittest.TestCase):
         self.assertEqual(result.discount, 1.0)
         self.assertIsNone(result.total_price)
         self.assertIsNone(result.saved_deposit)
+
+
+    # --- ReceiptTotalsDTO ---
+    def test_receipt_totals_dto_defaults(self):
+        dto = ReceiptTotalsDTO(discount=1.0, saved_deposit=None, total_price=None)
+        self.assertEqual(dto.discount, 1.0)
+        self.assertIsNone(dto.saved_deposit)
+        self.assertIsNone(dto.total_price)
+        self.assertEqual(dto.additional_savings, {})
+
+    def test_receipt_totals_dto_with_additional_savings(self):
+        dto = ReceiptTotalsDTO(
+            discount=None,
+            saved_deposit=0.5,
+            total_price=10.0,
+            additional_savings={"sticker_discount": 0.75},
+        )
+        self.assertEqual(dto.saved_deposit, 0.5)
+        self.assertEqual(dto.total_price, 10.0)
+        self.assertEqual(dto.additional_savings["sticker_discount"], 0.75)
 
 
 if __name__ == "__main__":

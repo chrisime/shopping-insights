@@ -1,6 +1,6 @@
 import unittest
 
-from parsing.rewe_info_extractor import extract_rewe_receipt_info
+from parsing.rewe_info_extractor import REWE_BODY_MARKER, extract_rewe_receipt_info
 
 
 class ReweInfoExtractorTests(unittest.TestCase):
@@ -36,6 +36,7 @@ Kaiserstr. 22, 90763 Fürth
         self.assertEqual(metadata["market"], "0605")
         self.assertEqual(metadata["register"], "8")
         self.assertEqual(metadata["cashier"], "432108")
+        self.assertEqual(metadata["bon_number"], "7714")
 
     def test_extract_rewe_receipt_info_supports_mixed_case_footer_company_names(self):
         text = """
@@ -262,6 +263,75 @@ Markt:4196 Kasse:4 Bed.:432104
             },
         )
         self.assertEqual(metadata["id"], "rewe-4196-4-12022026-1103-2587")
+
+    def test_extract_rewe_receipt_info_parses_header_with_spaced_house_number_suffix_before_uid(self):
+        text = """
+REWE
+Fürther Str. 221 b
+90429 Nürnberg
+UID Nr.: DE457418405
+EUR
+BANANE 1,99 A
+SUMME EUR 1,99
+Geg. VISA EUR 1,99
+Markt:4426 Kasse:6 Bed.:123456
+04.04.2026 12:30 Bon-Nr.:9876
+""".strip()
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+        metadata = extract_rewe_receipt_info(text, lines)
+
+        self.assertEqual(metadata["store"], "REWE")
+        self.assertEqual(
+            metadata["address"],
+            {
+                "street": "Fürther Str.",
+                "street_no": "221b",
+                "zip": 90429,
+                "city": "Nürnberg",
+            },
+        )
+        self.assertEqual(metadata["market"], "4426")
+        self.assertEqual(metadata["register"], "6")
+        self.assertEqual(metadata["cashier"], "123456")
+        self.assertEqual(metadata["id"], "rewe-4426-6-04042026-1230-9876")
+
+    def test_extract_rewe_receipt_info_does_not_use_two_line_header_address_as_store_name(self):
+        text = """
+REWE
+Bahnhofsplatz 9
+90443 Nürnberg
+UID Nr.: DE457418405
+EUR
+SPINAT-FETA STRU 2,20 A
+SUMME EUR 5,69
+Geg. VISA EUR 5,69
+Markt:6005 Kasse:5 Bed.:432105
+09.05.2025 05:54 Bon-Nr.:7243
+""".strip()
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+        metadata = extract_rewe_receipt_info(text, lines)
+
+        self.assertEqual(metadata["store"], "REWE")
+        self.assertEqual(
+            metadata["address"],
+            {
+                "street": "Bahnhofsplatz",
+                "street_no": "9",
+                "zip": 90443,
+                "city": "Nürnberg",
+            },
+        )
+        self.assertEqual(metadata["market"], "6005")
+        self.assertEqual(metadata["register"], "5")
+        self.assertEqual(metadata["cashier"], "432105")
+        self.assertEqual(metadata["bon_number"], "7243")
+        self.assertEqual(metadata["id"], "rewe-6005-5-09052025-0554-7243")
+
+
+    def test_rewe_body_marker_constant(self):
+        self.assertEqual(REWE_BODY_MARKER, "EUR")
 
 
 if __name__ == "__main__":

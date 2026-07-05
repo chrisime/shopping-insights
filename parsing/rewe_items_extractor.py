@@ -6,8 +6,10 @@ from dataclasses import dataclass
 import re
 from typing import Any, Dict, List, Optional
 
+from shared.float_parser import parse_german_float
 from shared.receipt_schema import build_receipt_item
-from .rewe_parser_common import to_rewe_float
+
+from .rewe_info_extractor import REWE_BODY_MARKER
 
 
 ITEM_LINE_RE = re.compile(r"^(?P<name>.+?)\s+(?P<amount>-?\d+,\d{2})\s+(?P<tax>[A-Z])(?:\s+\*)?$")
@@ -74,13 +76,23 @@ def extract_rewe_receipt_items(lines: List[str]) -> ReweItemsExtractionResult:
         if quantity_match and pending is not None:
             pending.quantity = quantity_match.group("quantity")
             pending.unit = quantity_match.group("unit").lower()
-            pending.unit_price = quantity_match.group("unit_price").lstrip("-")
+            quantity_unit_price = quantity_match.group("unit_price").lstrip("-")
+            unit_price_value = parse_german_float(quantity_unit_price)
+
+            # Some REWE eBons include noisy/incorrect trailing "1 Stk x 0,00" lines.
+            # Keep the reliable amount from the article line in that specific case.
+            if not (
+                pending.unit == "stk"
+                and pending.total_amount > 0
+                and unit_price_value == 0.0
+            ):
+                pending.unit_price = quantity_unit_price
             continue
 
         # Handeingabe line: "Handeingabe E-Bon 0,422 kg"
         handeingabe_match = HANDEINGABE_RE.search(line)
         if handeingabe_match and pending is not None:
-            weight = to_rewe_float(handeingabe_match.group("weight"))
+            weight = parse_german_float(handeingabe_match.group("weight"))
             if weight > 0:
                 pending.unit_price = str(round(pending.total_amount / weight, 2)).replace(".", ",")
                 pending.quantity = handeingabe_match.group("weight")
@@ -100,7 +112,7 @@ def extract_rewe_receipt_items(lines: List[str]) -> ReweItemsExtractionResult:
             # Open new pending item
             name = _normalize_item_name(item_match.group("name"))
             amount_text = item_match.group("amount")
-            total_amount = to_rewe_float(amount_text)
+            total_amount = parse_german_float(amount_text)
             pending = _PendingItem(
                 name=name,
                 total_amount=total_amount,
@@ -146,7 +158,7 @@ def _commit_pending(pending: Optional[_PendingItem]) -> _CommitResult:
 
 def _extract_receipt_body_lines(lines: List[str]) -> List[str]:
     try:
-        start_index = lines.index("EUR") + 1
+        start_index = lines.index(REWE_BODY_MARKER) + 1
     except ValueError:
         start_index = 0
 
