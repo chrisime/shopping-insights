@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, Sequence, Tuple, cast
 
-from config.retailer_profiles import resolve_retailer_receipts_json_file
 from shared.receipt_dates import parse_purchase_date
-from shared.receipt_schema import normalize_receipt_schema
+from shared.receipt_schema import ReceiptData, normalize_receipt_schema
+from shared.retailer_runtime import get_retailer_runtime
 
 
 def add_receipt_to_json(
@@ -42,12 +42,10 @@ def upsert_receipts(
     updated_count = 0
 
     for receipt in receipts:
-        normalized_receipt = normalize_receipt_schema(receipt, retailer=retailer)
+        normalized_receipt = dict(normalize_receipt_schema(cast(ReceiptData, receipt), retailer=retailer))
         if str(retailer or "").strip().lower() == "rewe":
             if normalized_receipt.get("rewe_bonus_amount") is None:
                 normalized_receipt["rewe_bonus_amount"] = 0.0
-            if normalized_receipt.get("rewe_bonus_amount_saved") is None:
-                normalized_receipt["rewe_bonus_amount_saved"] = 0.0
         receipt_key = _receipt_key(normalized_receipt)
         if not receipt_key:
             continue
@@ -75,7 +73,14 @@ def sort_receipts_by_date(file_path: str | None = None, retailer: str | None = N
 
 
 def _resolve_receipts_path(file_path: str | None, retailer: str | None) -> Path:
-    return Path(resolve_retailer_receipts_json_file(retailer, file_path))
+    if file_path:
+        return Path(file_path)
+
+    retailer_runtime = get_retailer_runtime(retailer or "")
+    if retailer_runtime is None:
+        raise ValueError("Unbekannter Händler für Receipt-Storage")
+
+    return Path(retailer_runtime.receipts_json_file)
 
 
 def _load_receipts(path: Path) -> list[Dict[str, Any]]:
