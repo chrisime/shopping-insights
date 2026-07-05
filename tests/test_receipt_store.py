@@ -9,6 +9,9 @@ from unittest.mock import patch
 from config import LidlConfig
 from config import storage_config
 from export.json_export import export_receipts_from_db
+from shared.receipt_dto import receipt_dto_to_dict
+from shared.receipt_dto import receipt_dict_to_dto
+from shared.receipt_hashes import calculate_receipt_payload_hash
 from shared.receipt_schema import normalize_receipt_schema
 from shared.retailer_runtime import get_retailer_runtime
 from storage import (
@@ -40,6 +43,11 @@ class ReceiptStoreTests(unittest.TestCase):
         with closing(sqlite3.connect(db_path)) as connection:
             return connection.execute(sql, params).fetchall()
 
+    @staticmethod
+    def dto(receipt: dict[str, object], retailer: str):
+        normalized = normalize_receipt_schema(receipt, retailer)
+        return receipt_dict_to_dto(normalized, retailer)
+
     def test_create_receipt_store_returns_sqlite_store_by_default(self):
         store = create_receipt_store()
 
@@ -49,8 +57,8 @@ class ReceiptStoreTests(unittest.TestCase):
     def test_sqlite_receipt_store_fetch_existing_ids_follows_public_api(self):
         db_path = self.isolated_receipts_db()
         store = SqliteReceiptStore()
-        store.persist_receipts(
-            [
+        store.persist_receipts([
+            self.dto(
                 {
                     "id": "rewe-0605-8-01042026-1908-7714",
                     "retailer": "rewe",
@@ -65,10 +73,10 @@ class ReceiptStoreTests(unittest.TestCase):
                     "total_price": "1,00",
                     "payment_methods": [{"method": "Karte", "network": "VISA", "amount": "1,00"}],
                     "items": [{"name": "Banane", "price": "1,00", "quantity": "1", "unit": "stk"}],
-                }
-            ],
-            retailer="rewe",
-        )
+                },
+                "rewe",
+            )
+        ], retailer="rewe")
 
         existing_ids = store.find_existing_ids(retailer="rewe")
 
@@ -77,8 +85,8 @@ class ReceiptStoreTests(unittest.TestCase):
     def test_sqlite_receipt_store_fetch_existing_ids_does_not_depend_on_hash(self):
         db_path = self.isolated_receipts_db()
         store = SqliteReceiptStore()
-        store.persist_receipts(
-            [
+        store.persist_receipts([
+            self.dto(
                 {
                     "id": "rewe-0605-8-01042026-1908-7714",
                     "retailer": "rewe",
@@ -91,10 +99,10 @@ class ReceiptStoreTests(unittest.TestCase):
                         "city": "Fürth",
                     },
                     "total_price": "1,00",
-                }
-            ],
-            retailer="rewe",
-        )
+                },
+                "rewe",
+            )
+        ], retailer="rewe")
 
         self.execute(
             db_path,
@@ -166,18 +174,18 @@ class ReceiptStoreTests(unittest.TestCase):
         sqlite3.connect(db_path).close()
 
         store = SqliteReceiptStore()
-        result = store.persist_receipts(
-            [
+        result = store.persist_receipts([
+            self.dto(
                 {
                     "id": "rewe-4196-4-12022026-1103-2587",
                     "retailer": "rewe",
                     "purchase_date": "12.02.2026",
                     "store": "R E W E",
                     "total_price": 8.22,
-                }
-            ],
-            retailer="rewe",
-        )
+                },
+                "rewe",
+            )
+        ], retailer="rewe")
 
         retailer_row = self.query_one(
             db_path,
@@ -197,18 +205,18 @@ class ReceiptStoreTests(unittest.TestCase):
 
             db_path = self.isolated_receipts_db()
             store = SqliteReceiptStore()
-            store.persist_receipts(
-                [
+            store.persist_receipts([
+                self.dto(
                     {
                         "id": "23004426420240828113520",
                         "retailer": "lidl",
                         "purchase_date": "28.08.2024",
                         "store": "lidl",
                         "total_price": 19.23,
-                    }
-                ],
-                retailer="lidl",
-            )
+                    },
+                    "lidl",
+                )
+            ], retailer="lidl")
 
             retailer_row = self.query_one(
                 db_path,
@@ -231,18 +239,18 @@ class ReceiptStoreTests(unittest.TestCase):
         db_path = self.isolated_receipts_db()
         output_file = db_path.parent / "lidl_receipts.json"
         sqlite_store = SqliteReceiptStore()
-        sqlite_store.persist_receipts(
-            [
+        sqlite_store.persist_receipts([
+            self.dto(
                 {
                     "id": "23004426420240828113520",
                     "retailer": "lidl",
                     "purchase_date": "28.08.2024",
                     "store": "lidl",
                     "total_price": 19.23,
-                }
-            ],
-            retailer="lidl",
-        )
+                },
+                "lidl",
+            )
+        ], retailer="lidl")
 
         exported_count = export_receipts_from_db(
             retailer="lidl",
@@ -299,15 +307,18 @@ class ReceiptStoreTests(unittest.TestCase):
                 "items": [{"name": "Tomaten", "price": "3,99", "quantity": "0,696", "unit": "kg"}],
         }
 
-        rewe_result = store.persist_receipts([rewe_receipt], retailer="rewe")
-        lidl_result = store.persist_receipts([lidl_receipt], retailer="lidl")
+        rewe_result = store.persist_receipts([self.dto(rewe_receipt, "rewe")], retailer="rewe")
+        lidl_result = store.persist_receipts([self.dto(lidl_receipt, "lidl")], retailer="lidl")
         updated_rewe_result = store.persist_receipts(
             [
-                {
-                    **rewe_receipt,
-                    "total_price": "1,99",
-                    "items": [{"name": "Banane", "price": "1,99", "quantity": "1", "unit": "stk"}],
-                }
+                self.dto(
+                    {
+                        **rewe_receipt,
+                        "total_price": "1,99",
+                        "items": [{"name": "Banane", "price": "1,99", "quantity": "1", "unit": "stk"}],
+                    },
+                    "rewe",
+                )
             ],
             retailer="rewe",
         )
@@ -346,18 +357,18 @@ class ReceiptStoreTests(unittest.TestCase):
     def test_sqlite_receipt_store_persists_purchase_date_in_iso_format(self):
         db_path = self.isolated_receipts_db()
         store = SqliteReceiptStore()
-        store.persist_receipts(
-            [
+        store.persist_receipts([
+            self.dto(
                 {
                     "id": "rewe-0605-8-01042026-1908-7714",
                     "retailer": "rewe",
                     "purchase_date": "01.04.2026",
                     "store": "REWE Markt GmbH",
                     "total_price": "1,00",
-                }
-            ],
-            retailer="rewe",
-        )
+                },
+                "rewe",
+            )
+        ], retailer="rewe")
 
         persisted_purchase_date = self.query_one(
             db_path,
@@ -386,8 +397,8 @@ class ReceiptStoreTests(unittest.TestCase):
             "items": [{"name": "Banane", "price": "1,00", "quantity": "1", "unit": "stk"}],
         }
 
-        first_result = store.persist_receipts([receipt], retailer="rewe")
-        second_result = store.persist_receipts([receipt], retailer="rewe")
+        first_result = store.persist_receipts([self.dto(receipt, "rewe")], retailer="rewe")
+        second_result = store.persist_receipts([self.dto(receipt, "rewe")], retailer="rewe")
 
         purchase_count = self.query_one(db_path, "select count(*) from purchase")[0]
         item_count = self.query_one(db_path, "select count(*) from purchase_item")[0]
@@ -399,31 +410,30 @@ class ReceiptStoreTests(unittest.TestCase):
         self.assertEqual(item_count, 1)
         self.assertEqual(payment_count, 1)
 
-    def test_sqlite_receipt_store_persist_receipts_reuses_provided_payload_hash(self):
+    def test_sqlite_receipt_store_persist_receipts_ignores_provided_payload_hash(self):
         db_path = self.isolated_receipts_db()
         store = SqliteReceiptStore()
-        result = store.persist_receipts(
-            [
-                {
-                    "id": "23004426420240828113520",
-                    "retailer": "lidl",
-                    "purchase_date": "28.08.2024",
-                    "store": "lidl",
-                    "total_price": 19.23,
-                    "payload_hash": "payload-lidl-2",
-                }
-            ],
-            retailer="lidl",
-        )
+        raw_receipt = {
+            "id": "23004426420240828113520",
+            "retailer": "lidl",
+            "purchase_date": "28.08.2024",
+            "store": "lidl",
+            "total_price": 19.23,
+            "payload_hash": "payload-lidl-2",
+        }
+        result = store.persist_receipts([self.dto(raw_receipt, "lidl")], retailer="lidl")
 
         persisted_hash = self.query_one(
             db_path,
             "select hash from purchase where id = ?",
             ("23004426420240828113520",),
         )
+        expected_hash = calculate_receipt_payload_hash(
+            receipt_dto_to_dict(self.dto(raw_receipt, "lidl"))
+        )
 
         self.assertEqual((result.created_count, result.updated_count, result.total_receipts), (1, 0, 1))
-        self.assertEqual(persisted_hash, ("payload-lidl-2",))
+        self.assertEqual(persisted_hash, (expected_hash,))
 
     def test_sqlite_receipt_store_replace_update_rebuilds_child_rows_without_stale_positions(self):
         db_path = self.isolated_receipts_db()
@@ -456,8 +466,8 @@ class ReceiptStoreTests(unittest.TestCase):
             "items": [{"name": "Banane", "price": "1,50", "quantity": "1", "unit": "stk"}],
         }
 
-        first_result = store.persist_receipts([original_receipt], retailer="rewe")
-        second_result = store.persist_receipts([updated_receipt], retailer="rewe")
+        first_result = store.persist_receipts([self.dto(original_receipt, "rewe")], retailer="rewe")
+        second_result = store.persist_receipts([self.dto(updated_receipt, "rewe")], retailer="rewe")
 
         item_rows = self.query_all(
             db_path,
@@ -490,8 +500,9 @@ class ReceiptStoreTests(unittest.TestCase):
         # Lidl-specific fields are present with defaults when retailer is lidl
         self.assertIn("lidlplus_discount", normalized_shared)
         self.assertIsNone(normalized_shared["lidlplus_discount"])
-        # REWE fields are NOT present for lidl retailer
-        self.assertNotIn("rewe_bonus_amount", normalized_shared)
+        # REWE fields are present but None for lidl retailer
+        self.assertIn("rewe_bonus_amount", normalized_shared)
+        self.assertIsNone(normalized_shared["rewe_bonus_amount"])
         self.assertEqual(normalized_shared["items"][0]["quantity"], 0.696)
 
 

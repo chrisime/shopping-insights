@@ -12,6 +12,7 @@ def _build_receipt_dto(*, retailer: str, store: str, market: str | None, city: s
         market=market,
         register_id=None,
         cashier=None,
+        bon_number=None,
         total_price=1.0,
         discount=0.0,
         saved_deposit=0.0,
@@ -31,11 +32,21 @@ def test_build_store_entity_uses_market_as_primary_identity_hash_when_present():
     assert first_store.hash == second_store.hash
 
 
-def test_build_store_entity_normalizes_lidl_city_district_into_store_name():
+def test_build_store_entity_keeps_store_and_city_as_provided():
     dto = _build_receipt_dto(retailer="lidl", store="Lidl", market="4426", city="Fuerth-Suedstadt")
 
     store = build_store_entity(dto)
 
-    assert store.name == "Fuerth-Suedstadt"
-    assert store.city == "Fuerth"
+    assert store.name == "Lidl"
+    assert store.city == "Fuerth-Suedstadt"
+
+
+def test_build_store_entity_keeps_official_hyphenated_city_names():
+    dto = _build_receipt_dto(retailer="lidl", store="Lidl", market="6791", city="Garmisch-Partenkirchen")
+
+    store = build_store_entity(dto)
+
+    assert store.name == "Lidl"
+    assert store.city == "Garmisch-Partenkirchen"
+
 

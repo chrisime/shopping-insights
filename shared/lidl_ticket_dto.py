@@ -107,7 +107,7 @@ class LidlTicketDTO:
         """Build a DTO from the raw ticket dict returned by ``get_lidl_ticket``.
 
         ``ticket_data`` is the ``data["ticket"]`` portion of the API response,
-        as returned by :func:`api.lidl_client.get_lidl_ticket`.
+        as returned by :func:`client.lidl_client.get_lidl_ticket`.
         """
         ticket_id = str(ticket_data.get("id") or receipt_id or "")
         date = str(ticket_data.get("date") or "")
@@ -201,4 +201,3 @@ def _split_address_line(address_line: Optional[str]) -> tuple[Optional[str], Opt
         return match.group("street").strip(), re.sub(r"\s+", "", match.group("street_no").strip())
 
     return address_line, None
-

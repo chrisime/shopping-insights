@@ -32,6 +32,7 @@ create table if not exists purchase
     id            varchar primary key,
     store_id      integer,
     purchase_date date    not null,
+    bon_number    varchar,
     register_id   varchar,
     cashier       varchar,
     total_price   real,

@@ -41,9 +41,7 @@ class RetailerDomain:
             (code,),
         ).fetchone()
 
-        if row is None:
-            return None
-        return RetailerEntity(
+        return None if row is None else RetailerEntity(
             code=str(row["code"]),
             name=str(row["name"]),
             country=str(row["country"]),
@@ -221,6 +219,7 @@ class PurchaseDomain:
                     PURCHASE_TABLE.id,
                     PURCHASE_TABLE.store_id,
                     PURCHASE_TABLE.purchase_date,
+                    PURCHASE_TABLE.bon_number,
                     PURCHASE_TABLE.register_id,
                     PURCHASE_TABLE.cashier,
                     PURCHASE_TABLE.total_price,
@@ -234,12 +233,12 @@ class PurchaseDomain:
             ).get_sql(),
             (purchase_id,),
         ).fetchone()
-        if row is None:
-            return None
-        return PurchaseEntity(
+
+        return None if row is None else PurchaseEntity(
             id=str(row["id"]),
             store_id=None if row["store_id"] is None else int(row["store_id"]),
             purchase_date=str(row["purchase_date"]),
+            bon_number=None if row["bon_number"] is None else str(row["bon_number"]),
             register_id=None if row["register_id"] is None else str(row["register_id"]),
             cashier=None if row["cashier"] is None else str(row["cashier"]),
             total_price=None if row["total_price"] is None else float(row["total_price"]),
@@ -259,6 +258,7 @@ class PurchaseDomain:
             ).get_sql(),
             (purchase_id,),
         ).fetchone()
+
         return None if row is None else str(row["hash"])
 
     def insert(self, entity: PurchaseEntity) -> None:
@@ -269,6 +269,7 @@ class PurchaseDomain:
                     PURCHASE_TABLE.id,
                     PURCHASE_TABLE.store_id,
                     PURCHASE_TABLE.purchase_date,
+                    PURCHASE_TABLE.bon_number,
                     PURCHASE_TABLE.register_id,
                     PURCHASE_TABLE.cashier,
                     PURCHASE_TABLE.total_price,
@@ -290,12 +291,14 @@ class PurchaseDomain:
                     Parameter("?"),
                     Parameter("?"),
                     Parameter("?"),
+                    Parameter("?"),
                 )
             ).get_sql(),
             (
                 entity.id,
                 entity.store_id,
                 entity.purchase_date,
+                entity.bon_number,
                 entity.register_id,
                 entity.cashier,
                 entity.total_price,
@@ -318,6 +321,7 @@ class PurchaseDomain:
                 SQLLiteQuery.update(PURCHASE_TABLE)
                 .set(PURCHASE_TABLE.store_id, Parameter("?"))
                 .set(PURCHASE_TABLE.purchase_date, Parameter("?"))
+                .set(PURCHASE_TABLE.bon_number, Parameter("?"))
                 .set(PURCHASE_TABLE.register_id, Parameter("?"))
                 .set(PURCHASE_TABLE.cashier, Parameter("?"))
                 .set(PURCHASE_TABLE.total_price, Parameter("?"))
@@ -331,6 +335,7 @@ class PurchaseDomain:
             (
                 entity.store_id,
                 entity.purchase_date,
+                entity.bon_number,
                 entity.register_id,
                 entity.cashier,
                 entity.total_price,
@@ -364,6 +369,7 @@ class PurchaseDomain:
             ).get_sql(),
             (retailer_code.lower(),),
         ).fetchall()
+
         return {str(row["id"]) for row in rows}
 
     def find_by_retailer(self, retailer_code: str) -> list[PurchaseEntity]:
@@ -376,6 +382,7 @@ class PurchaseDomain:
                     PURCHASE_TABLE.id,
                     PURCHASE_TABLE.store_id,
                     PURCHASE_TABLE.purchase_date,
+                    PURCHASE_TABLE.bon_number,
                     PURCHASE_TABLE.register_id,
                     PURCHASE_TABLE.cashier,
                     PURCHASE_TABLE.total_price,
@@ -391,11 +398,13 @@ class PurchaseDomain:
             ).get_sql(),
             (retailer_code.lower(),),
         ).fetchall()
+
         return [
             PurchaseEntity(
                 id=str(row["id"]),
                 store_id=None if row["store_id"] is None else int(row["store_id"]),
                 purchase_date=str(row["purchase_date"]),
+                bon_number=None if row["bon_number"] is None else str(row["bon_number"]),
                 register_id=None if row["register_id"] is None else str(row["register_id"]),
                 cashier=None if row["cashier"] is None else str(row["cashier"]),
                 total_price=None if row["total_price"] is None else float(row["total_price"]),
@@ -419,6 +428,7 @@ class PurchaseDomain:
             ).get_sql(),
             (retailer_code,),
         ).fetchone()
+
         return 0 if row is None else int(row[0])
 
 
@@ -480,6 +490,7 @@ class PurchaseItemDomain:
             ).get_sql(),
             (purchase_id,),
         ).fetchall()
+
         return [
             PurchaseItemEntity(
                 id=int(row["id"]),
@@ -548,6 +559,7 @@ class PaymentMethodDomain:
             ).get_sql(),
             (purchase_id,),
         ).fetchall()
+
         return [
             PaymentMethodEntity(
                 id=int(row["id"]),
@@ -596,9 +608,8 @@ class PurchaseLidlDomain:
             ).get_sql(),
             (purchase_id,),
         ).fetchone()
-        if row is None:
-            return None
-        return PurchaseLidlEntity(
+
+        return None if row is None else PurchaseLidlEntity(
             purchase_id=str(row["purchase_id"]),
             lidlplus_discount=None if row["lidlplus_discount"] is None else float(row["lidlplus_discount"]),
             sticker_discount=None if row["sticker_discount"] is None else float(row["sticker_discount"]),
@@ -643,9 +654,8 @@ class PurchaseReweDomain:
             ).get_sql(),
             (purchase_id,),
         ).fetchone()
-        if row is None:
-            return None
-        return PurchaseReweEntity(
+
+        return None if row is None else PurchaseReweEntity(
             purchase_id=str(row["purchase_id"]),
             rewe_bonus_amount=float(row["rewe_bonus_amount"]),
             rewe_bonus_total_amount=float(row["rewe_bonus_total_amount"]),

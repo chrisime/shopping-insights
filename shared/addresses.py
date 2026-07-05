@@ -42,5 +42,8 @@ def _normalize_zip(value: object) -> Optional[int]:
         return None
     if not re.fullmatch(r"\d{5}", text):
         return None
-    return int(text)
+    zip_int = int(text)
+    if zip_int < 1067 or zip_int > 99998:
+        return None
+    return zip_int
 

@@ -21,6 +21,9 @@ class LidlConfig:
     DEFAULT_TIMEOUT = 15
     REQUEST_DELAY = 0.5
     PAGES_TO_CHECK = 3
+    MAX_RETRIES = 3
+    RETRY_BACKOFF_SECONDS = 2
+    RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
     # Browser settings
     SUPPORTED_BROWSERS = {"firefox": "Firefox", "librewolf": "LibreWolf", "chrome": "Chrome", "chromium": "Chromium"}

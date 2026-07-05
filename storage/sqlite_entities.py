@@ -30,6 +30,7 @@ class PurchaseEntity:
     id: str
     store_id: int | None
     purchase_date: str
+    bon_number: str | None
     register_id: str | None
     cashier: str | None
     total_price: float | None

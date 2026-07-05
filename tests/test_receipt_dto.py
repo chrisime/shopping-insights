@@ -44,6 +44,21 @@ class ReceiptDtoTests(unittest.TestCase):
         exported = receipt_dto_to_dict(receipt)
         self.assertEqual(exported["register"], "4")
 
+    def test_receipt_dict_to_dto_parses_comma_decimal_item_price(self):
+        receipt = receipt_dict_to_dto(
+            {
+                "id": "receipt-3",
+                "retailer": "rewe",
+                "purchase_date": "2026-05-30",
+                "store": "REWE",
+                "address": {"street": "A", "street_no": "1", "zip": "1", "city": "B"},
+                "payload_hash": "hash-3",
+                "items": [{"name": "BUTTER CHICKEN", "quantity": 1, "unit": "stk", "price": "2,79"}],
+            }
+        )
+
+        self.assertEqual(receipt.items[0].price, 2.79)
+
 
 if __name__ == "__main__":
     unittest.main()

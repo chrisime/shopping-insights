@@ -5,20 +5,12 @@ from __future__ import annotations
 import sqlite3
 from contextlib import closing
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Sequence
 
 from config import storage_config
 from result_types import PersistResult
-from shared.receipt_dto import (
-    AddressDTO,
-    PaymentMethodDTO,
-    ReceiptDTO,
-    ReceiptItemDTO,
-    receipt_dict_to_dto,
-    receipt_dto_to_dict,
-)
+from shared.receipt_dto import ReceiptDTO, receipt_dto_to_dict
 from shared.receipt_hashes import calculate_receipt_payload_hash
-from shared.receipt_schema import normalize_receipt_schema
 from shared.receipt_store import ReceiptStore
 
 from .sqlite_domains import (
@@ -30,6 +22,7 @@ from .sqlite_domains import (
     RetailerDomain,
     StoreDomain,
 )
+from .sqlite_entities import PurchaseEntity
 from .sqlite_entity_builders import (
     build_payment_method_entities,
     build_purchase_entity,
@@ -60,7 +53,7 @@ def _ensure_schema(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
-def _persist_receipt_row(receipt: ReceiptDTO, payload_hash: str, connection: sqlite3.Connection) -> Optional[str]:
+def _persist_receipt_row(receipt: ReceiptDTO, payload_hash: str, connection: sqlite3.Connection) -> str | None:
     """Persist one receipt and return whether it was created, updated or unchanged."""
     store_domain = StoreDomain(connection)
     purchase_domain = PurchaseDomain(connection)
@@ -103,84 +96,86 @@ def _delete_purchase_children(connection: sqlite3.Connection, purchase_id: str) 
     connection.execute("DELETE FROM purchase_rewe WHERE purchase_id = ?", (purchase_id,))
 
 
-def _map_purchase_to_receipt_dict(
-    purchase: Any,
-    retailer: str,
-    connection: sqlite3.Connection,
-) -> Dict[str, Any]:
-    """Map one persisted purchase aggregate back to the canonical receipt dictionary."""
+def _map_store_projection(purchase: PurchaseEntity, connection: sqlite3.Connection) -> tuple[str, str | None, dict[str, str]]:
     store_domain = StoreDomain(connection)
+    store_id = purchase.store_id
+    if store_id is None:
+        raise RuntimeError(f"DB integrity error: purchase {purchase.id} has NULL store_id")
+
+    store = store_domain.find_by_id(store_id)
+    if store is None:
+        raise RuntimeError(f"DB integrity error: store {store_id} for purchase {purchase.id} not found")
+
+    return store.name, store.market, {
+        "street": store.street,
+        "street_no": store.street_no,
+        "zip": store.zip,
+        "city": store.city,
+    }
+
+
+def _map_item_rows(items: Sequence[Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "name": item.name,
+            "quantity": item.quantity,
+            "unit": item.unit,
+            "price": item.price,
+        }
+        for item in items
+    ]
+
+
+def _map_payment_method_rows(payment_methods: Sequence[Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "method": payment_method.method,
+            "network": payment_method.network,
+            "amount": payment_method.amount,
+        }
+        for payment_method in payment_methods
+    ]
+
+
+def _map_purchase_to_receipt_dict(purchase: PurchaseEntity, retailer: str, connection: sqlite3.Connection) -> dict[str, Any]:
+    """Map one persisted purchase aggregate back to the canonical receipt dictionary."""
     purchase_item_domain = PurchaseItemDomain(connection)
     payment_method_domain = PaymentMethodDomain(connection)
     purchase_lidl_domain = PurchaseLidlDomain(connection)
     purchase_rewe_domain = PurchaseReweDomain(connection)
 
-    if purchase.store_id is None:
-        store_name = ""
-        market = None
-        address = AddressDTO(street="", street_no="", zip="", city="")
-    else:
-        store = store_domain.find_by_id(purchase.store_id)
-        if store is None:
-            store_name = ""
-            market = None
-            address = AddressDTO(street="", street_no="", zip="", city="")
-        else:
-            store_name = store.name
-            market = store.market
-            address = AddressDTO(
-                street=store.street,
-                street_no=store.street_no,
-                zip=store.zip,
-                city=store.city,
-            )
+    store_name, market, address = _map_store_projection(purchase, connection)
 
     items = purchase_item_domain.find_by_purchase_id(purchase.id)
     payment_methods = payment_method_domain.find_by_purchase_id(purchase.id)
     lidl_extension = purchase_lidl_domain.find_by_purchase_id(purchase.id)
     rewe_extension = purchase_rewe_domain.find_by_purchase_id(purchase.id)
 
-    receipt_dto = ReceiptDTO(
-        id=purchase.id,
-        retailer=retailer,
-        purchase_date=purchase.purchase_date,
-        store=store_name,
-        address=address,
-        market=market,
-        register_id=purchase.register_id,
-        cashier=purchase.cashier,
-        total_price=purchase.total_price,
-        discount=purchase.discount,
-        saved_deposit=purchase.saved_deposit,
-        currency=purchase.currency,
-        source_file=purchase.source_file,
-        payload_hash=purchase.hash,
-        items=tuple(
-            ReceiptItemDTO(
-                position=item.position,
-                name=item.name,
-                quantity=item.quantity,
-                unit=item.unit,
-                price=item.price,
-            )
-            for item in items
-        ),
-        payment_methods=tuple(
-            PaymentMethodDTO(
-                position=payment_method.position,
-                method=payment_method.method,
-                network=payment_method.network,
-                amount=payment_method.amount,
-            )
-            for payment_method in payment_methods
-        ),
-        lidlplus_discount=None if lidl_extension is None else lidl_extension.lidlplus_discount,
-        sticker_discount=None if lidl_extension is None else lidl_extension.sticker_discount,
-        rewe_bonus_amount=None if rewe_extension is None else rewe_extension.rewe_bonus_amount,
-        rewe_bonus_total_amount=None if rewe_extension is None else rewe_extension.rewe_bonus_total_amount,
-        rewe_bonus_discount=None if rewe_extension is None else rewe_extension.rewe_bonus_discount,
-    )
-    return receipt_dto_to_dict(receipt_dto)
+    return {
+        "id": purchase.id,
+        "retailer": retailer,
+        "purchase_date": purchase.purchase_date,
+        "store": store_name,
+        "address": address,
+        "market": market,
+        "register": purchase.register_id,
+        "register_id": purchase.register_id,
+        "cashier": purchase.cashier,
+        "bon_number": purchase.bon_number,
+        "total_price": purchase.total_price,
+        "discount": purchase.discount,
+        "saved_deposit": purchase.saved_deposit,
+        "currency": purchase.currency,
+        "source_file": purchase.source_file,
+        "payload_hash": purchase.hash,
+        "items": _map_item_rows(items),
+        "payment_methods": _map_payment_method_rows(payment_methods),
+        "lidlplus_discount": None if lidl_extension is None else lidl_extension.lidlplus_discount,
+        "sticker_discount": None if lidl_extension is None else lidl_extension.sticker_discount,
+        "rewe_bonus_amount": None if rewe_extension is None else rewe_extension.rewe_bonus_amount,
+        "rewe_bonus_total_amount": None if rewe_extension is None else rewe_extension.rewe_bonus_total_amount,
+        "rewe_bonus_discount": None if rewe_extension is None else rewe_extension.rewe_bonus_discount,
+    }
 
 
 class SqliteReceiptStore(ReceiptStore):
@@ -192,23 +187,23 @@ class SqliteReceiptStore(ReceiptStore):
             return purchase_domain.find_ids_by_retailer(retailer)
 
 
-    def list_receipts(self, retailer: str) -> list[Dict[str, Any]]:
+    @staticmethod
+    def list_receipts(retailer: str) -> list[dict[str, Any]]:
         """Load all persisted receipts for one retailer and map them to schema dictionaries."""
         with closing(_connect_sqlite()) as connection:
             purchase_domain = PurchaseDomain(connection)
+            purchases = purchase_domain.find_by_retailer(retailer)
 
-            receipts = [
-                _map_purchase_to_receipt_dict(
-                    purchase,
-                    retailer=retailer,
-                    connection=connection,
-                )
-                for purchase in purchase_domain.find_by_retailer(retailer)
+            if not purchases:
+                return []
+
+            return [
+                _map_purchase_to_receipt_dict(purchase, retailer, connection)
+                for purchase in purchases
             ]
 
-        return receipts
 
-    def persist_receipts(self, receipts: Sequence[Dict[str, Any]], retailer: str) -> PersistResult:
+    def persist_receipts(self, receipts: Sequence[ReceiptDTO], retailer: str) -> PersistResult:
         created_count = 0
         updated_count = 0
 
@@ -223,22 +218,8 @@ class SqliteReceiptStore(ReceiptStore):
                 retailer_domain.upsert(retailer_entity)
 
                 for receipt in receipts:
-                    normalized_receipt = normalize_receipt_schema(receipt, retailer_code)
-                    receipt_id = normalized_receipt.get("id") or normalized_receipt.get("url")
-
-                    if not receipt_id:
-                        continue
-
-                    normalized_receipt["id"] = str(receipt_id)
-                    payload_hash = str(
-                        normalized_receipt.get("payload_hash")
-                        or calculate_receipt_payload_hash(normalized_receipt)
-                    )
-                    normalized_receipt["payload_hash"] = payload_hash
-
-                    receipt_dto = receipt_dict_to_dto(normalized_receipt, retailer_code)
-
-                    action = _persist_receipt_row(receipt_dto, payload_hash, connection)
+                    payload_hash = calculate_receipt_payload_hash(receipt_dto_to_dict(receipt))
+                    action = _persist_receipt_row(receipt, payload_hash, connection)
 
                     if action == "created":
                         created_count += 1
@@ -247,8 +228,4 @@ class SqliteReceiptStore(ReceiptStore):
 
                 total_receipts = purchase_domain.count_by_retailer(retailer_code)
 
-        return PersistResult(
-            created_count=created_count,
-            updated_count=updated_count,
-            total_receipts=total_receipts,
-        )
+        return PersistResult(created_count, updated_count, total_receipts)

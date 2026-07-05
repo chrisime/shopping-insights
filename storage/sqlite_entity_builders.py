@@ -38,12 +38,6 @@ def build_store_entity(receipt_dto: ReceiptDTO) -> StoreEntity:
     zip_code = _to_text(receipt_dto.address.zip)
     city = _to_text(receipt_dto.address.city)
 
-    # Some Lidl payloads store branch labels in city (e.g. "Fürth-Südstadt") with generic store name.
-    # Normalize to: name="Fürth-Südstadt", city="Fürth".
-    if retailer_code == "lidl" and city and "-" in city and name.strip().lower() == "lidl":
-        name = city
-        city = city.split("-", 1)[0].strip()
-
     if market:
         identity_payload = {
             "retailer_code": retailer_code,
@@ -85,6 +79,7 @@ def build_purchase_entity(receipt_dto: ReceiptDTO, store_id: int | None, payload
         id=receipt_dto.id,
         store_id=store_id,
         purchase_date=receipt_dto.purchase_date,
+        bon_number=receipt_dto.bon_number,
         register_id=receipt_dto.register_id,
         cashier=receipt_dto.cashier,
         total_price=receipt_dto.total_price,
@@ -156,3 +151,4 @@ def _to_text(value: Any) -> str:
 def _to_optional_text(value: Any) -> str | None:
     text = _to_text(value)
     return text or None
+

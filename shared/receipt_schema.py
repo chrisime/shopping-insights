@@ -1,12 +1,38 @@
 """Neutrale Schema-Helfer für normalisierte Receipt-Dictionaries."""
 
 import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict, cast
 
 from shared.addresses import empty_address, normalize_address
-from shared.receipt_dates import normalize_purchase_date
 from shared.payment_methods import normalize_payment_method_entry
+from shared.receipt_dates import normalize_purchase_date
+
+
+class ReceiptData(TypedDict, total=False):
+    """Typed schema for a normalized receipt dictionary."""
+
+    id: str
+    url: Optional[str]
+    retailer: str
+    purchase_date: Optional[str]
+    store: Optional[str]
+    total_price: Optional[float]
+    discount: Optional[float]
+    saved_deposit: Optional[float]
+    address: dict
+    market: Optional[str]
+    register: Optional[str]
+    cashier: Optional[str]
+    bon_number: Optional[str]
+    source_file: Optional[str]
+    payment_methods: List[Dict[str, Any]]
+    items: List[Dict[str, Any]]
+    sticker_discount: Optional[float]
+    sticker_discount_pct: list
+    lidlplus_discount: Optional[float]
+    rewe_bonus_amount: Optional[float]
+    rewe_bonus_discount: Optional[float]
+    rewe_bonus_total_amount: Optional[float]
 
 
 SHARED_MONEY_FIELDS = {
@@ -35,14 +61,6 @@ _RETAILER_EXTRA_MONEY_FIELDS: Dict[str, set[str]] = {
 }
 
 
-@dataclass(frozen=True)
-class ReceiptSchemaProfile:
-    """Retailer-specific schema defaults and money-field declarations."""
-
-    extra_defaults: Dict[str, Any] = field(default_factory=dict)
-    extra_money_fields: set[str] = field(default_factory=set)
-
-
 SHARED_RECEIPT_FIELDS = {
     "total_price": None,
     "discount": None,
@@ -51,6 +69,7 @@ SHARED_RECEIPT_FIELDS = {
     "market": None,
     "register": None,
     "cashier": None,
+    "bon_number": None,
     "source_file": None,
     "payment_methods": [],
     "items": [],
@@ -63,23 +82,32 @@ def build_receipt_schema(
     purchase_date: Optional[str],
     store: Optional[str],
     **overrides: Any,
-) -> Dict[str, Any]:
+) -> ReceiptData:
     """Create a normalized receipt dict with shared core and optional fields."""
-    receipt_data = {
+    receipt_data: ReceiptData = {
         "id": receipt_id,
         "retailer": retailer,
         "purchase_date": _normalize_optional_text(purchase_date),
         "store": store,
+        "total_price": None,
+        "discount": None,
+        "saved_deposit": None,
+        "address": empty_address(),
+        "market": None,
+        "register": None,
+        "cashier": None,
+        "bon_number": None,
+        "source_file": None,
+        "payment_methods": [],
+        "items": [],
+        "sticker_discount": None,
+        "sticker_discount_pct": [],
+        "lidlplus_discount": None,
+        "rewe_bonus_amount": None,
+        "rewe_bonus_discount": None,
+        "rewe_bonus_total_amount": None,
     }
-
-    for key, value in SHARED_RECEIPT_FIELDS.items():
-        receipt_data[key] = _copy_default_value(value)
-
-    extra_defaults = _RETAILER_EXTRA_DEFAULTS.get(retailer.lower(), {})
-    for key, value in extra_defaults.items():
-        receipt_data[key] = _copy_default_value(value)
-
-    receipt_data.update(overrides)
+    receipt_data.update(overrides)  # type: ignore[arg-type]
     return receipt_data
 
 
@@ -99,7 +127,9 @@ def build_receipt_item(
     }
 
 
-def normalize_receipt_schema(receipt_data: Dict[str, Any], retailer: Optional[str] = None) -> Dict[str, Any]:
+def normalize_receipt_schema(
+    receipt_data: ReceiptData, retailer: Optional[str] = None
+) -> ReceiptData:
     """Merge an existing receipt dict into the shared schema defaults."""
     resolved_retailer = _resolve_receipt_retailer(receipt_data, retailer)
     normalized = _build_normalized_receipt_base(receipt_data, resolved_retailer)
@@ -116,14 +146,20 @@ def _normalize_optional_text(value: str | None) -> Optional[str]:
     return None if value is None else value.strip()
 
 
-def _resolve_receipt_retailer(receipt_data: Dict[str, Any], retailer: Optional[str] = None) -> str:
-    resolved_retailer = _normalize_optional_text(retailer or receipt_data.get("retailer"))
+def _resolve_receipt_retailer(
+    receipt_data: ReceiptData, retailer: Optional[str] = None
+) -> str:
+    resolved_retailer = _normalize_optional_text(
+        retailer or receipt_data.get("retailer")
+    )
     if resolved_retailer is None:
         raise ValueError("Receipt retailer fehlt für die Schema-Normalisierung")
     return resolved_retailer
 
 
-def _build_normalized_receipt_base(receipt_data: Dict[str, Any], retailer: str) -> Dict[str, Any]:
+def _build_normalized_receipt_base(
+    receipt_data: ReceiptData, retailer: str
+) -> ReceiptData:
     return build_receipt_schema(
         receipt_id=receipt_data.get("id") or receipt_data.get("url") or "",
         retailer=retailer,
@@ -132,13 +168,19 @@ def _build_normalized_receipt_base(receipt_data: Dict[str, Any], retailer: str) 
     )
 
 
-def _normalize_receipt_metadata_fields(normalized: Dict[str, Any], retailer: str) -> None:
+def _normalize_receipt_metadata_fields(
+    normalized: ReceiptData, retailer: str
+) -> None:
     normalized["retailer"] = retailer
-    normalized["purchase_date"] = _normalize_receipt_purchase_date(normalized.get("purchase_date"))
+    normalized["purchase_date"] = normalize_purchase_date(
+        normalized.get("purchase_date")
+    )
     normalized.pop("total_price_no_saving", None)
 
 
-def _restore_mutable_defaults(normalized: Dict[str, Any], retailer: Optional[str] = None) -> None:
+def _restore_mutable_defaults(
+    normalized: ReceiptData, retailer: Optional[str] = None
+) -> None:
     for field_name, default_value in SHARED_RECEIPT_FIELDS.items():
         if normalized.get(field_name) is None:
             normalized[field_name] = _copy_default_value(default_value)
@@ -176,11 +218,13 @@ def _normalize_receipt_purchase_date(value: Any) -> Optional[str]:
     return text
 
 
-def _normalize_receipt_address(normalized: Dict[str, Any]) -> None:
+def _normalize_receipt_address(normalized: ReceiptData) -> None:
     normalized["address"] = normalize_address(normalized.get("address"))
 
 
-def _normalize_receipt_money_fields(normalized: Dict[str, Any], retailer: Optional[str] = None) -> None:
+def _normalize_receipt_money_fields(
+    normalized: ReceiptData, retailer: Optional[str] = None
+) -> None:
     for field_name in SHARED_MONEY_FIELDS:
         if field_name in normalized:
             normalized[field_name] = _normalize_money_value(normalized.get(field_name))
@@ -189,10 +233,14 @@ def _normalize_receipt_money_fields(normalized: Dict[str, Any], retailer: Option
         extra_money_fields = _RETAILER_EXTRA_MONEY_FIELDS.get(retailer.lower(), set())
         for field_name in extra_money_fields:
             if field_name in normalized:
-                normalized[field_name] = _normalize_money_value(normalized.get(field_name))
+                normalized[field_name] = _normalize_money_value(
+                    normalized.get(field_name)
+                )
 
 
-def _normalize_receipt_collection_fields(normalized: Dict[str, Any]) -> None:
+def _normalize_receipt_collection_fields(
+    normalized: ReceiptData,
+) -> None:
     normalized["payment_methods"] = _normalize_payment_methods(
         normalized.get("payment_methods"),
         retailer=normalized.get("retailer"),
@@ -200,7 +248,9 @@ def _normalize_receipt_collection_fields(normalized: Dict[str, Any]) -> None:
     normalized["items"] = _normalize_items(normalized.get("items"))
 
 
-def _normalize_payment_methods(payment_methods: Any, *, retailer: Any = None) -> List[Dict[str, Any]]:
+def _normalize_payment_methods(
+    payment_methods: Any, *, retailer: Any = None
+) -> List[Dict[str, Any]]:
     normalized_methods: List[Dict[str, Any]] = []
     for payment_method in payment_methods or []:
         if not isinstance(payment_method, dict):
@@ -222,9 +272,13 @@ def _normalize_items(items: Any) -> List[Dict[str, Any]]:
         if not isinstance(item, dict):
             continue
         normalized_item = dict(item)
-        normalized_item["unit"] = str(normalized_item.get("unit") or "stk").strip().lower() or "stk"
+        normalized_item["unit"] = (
+            str(normalized_item.get("unit") or "stk").strip().lower() or "stk"
+        )
         normalized_item["price"] = _normalize_money_value(normalized_item.get("price"))
-        normalized_item["quantity"] = _normalize_quantity_value(normalized_item.get("quantity"), normalized_item["unit"])
+        normalized_item["quantity"] = _normalize_quantity_value(
+            normalized_item.get("quantity"), normalized_item["unit"]
+        )
         normalized_items.append(normalized_item)
     return normalized_items
 

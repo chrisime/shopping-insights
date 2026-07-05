@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Protocol, Sequence
+from typing import Protocol, Sequence
 
 from result_types import PersistResult
+from shared.receipt_dto import ReceiptDTO
 
 class ReceiptStore(Protocol):
     """Persistenzvertrag für normalisierte Receipt-Datensätze."""
@@ -19,7 +20,7 @@ class ReceiptStore(Protocol):
 
     def persist_receipts(
         self,
-        receipts: Sequence[Dict[str, Any]],
+        receipts: Sequence[ReceiptDTO],
         retailer: str,
     ) -> PersistResult:
         """Persist normalized receipt records and return created/updated/total counts."""

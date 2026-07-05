@@ -41,6 +41,7 @@ class ReceiptDTO:
     market: str | None
     register_id: str | None
     cashier: str | None
+    bon_number: str | None
     total_price: float | None
     discount: float
     saved_deposit: float
@@ -75,6 +76,7 @@ def receipt_dict_to_dto(receipt_data: Mapping[str, Any], retailer: str | None = 
         market=_to_optional_text(receipt_data.get("market")),
         register_id=_to_optional_text(receipt_data.get("register")),
         cashier=_to_optional_text(receipt_data.get("cashier")),
+        bon_number=_to_optional_text(receipt_data.get("bon_number")),
         total_price=_to_optional_float(receipt_data.get("total_price")),
         discount=_to_float_or_default(receipt_data.get("discount"), 0.0),
         saved_deposit=_to_float_or_default(receipt_data.get("saved_deposit"), 0.0),
@@ -111,6 +113,7 @@ def receipt_dto_to_dict(receipt: ReceiptDTO) -> dict[str, Any]:
         "market": receipt.market,
         "register": receipt.register_id,
         "cashier": receipt.cashier,
+        "bon_number": receipt.bon_number,
         "total_price": receipt.total_price,
         "discount": receipt.discount,
         "saved_deposit": receipt.saved_deposit,
@@ -198,10 +201,7 @@ def _to_optional_number(value: Any) -> float | int | None:
     text = str(value).strip()
     if not text:
         return None
-    try:
-        return float(text)
-    except ValueError:
-        return None
+    return _parse_decimal_text(text)
 
 
 def _to_optional_float(value: Any) -> float | None:
@@ -212,8 +212,25 @@ def _to_optional_float(value: Any) -> float | None:
     text = str(value).strip()
     if not text:
         return None
+    return _parse_decimal_text(text)
+
+
+def _parse_decimal_text(text: str) -> float | None:
+    """Parse decimal text with comma/dot separators into a float."""
+    normalized = text.strip()
+    if not normalized:
+        return None
+
+    if "," in normalized and "." in normalized:
+        if normalized.rfind(",") > normalized.rfind("."):
+            normalized = normalized.replace(".", "").replace(",", ".")
+        else:
+            normalized = normalized.replace(",", "")
+    else:
+        normalized = normalized.replace(",", ".")
+
     try:
-        return float(text)
+        return float(normalized)
     except ValueError:
         return None
 
