@@ -13,9 +13,9 @@ function text(value: unknown) {
     <article
       v-for="item in items"
       :key="text(item.label)"
-      class="grid gap-1 rounded-2xl border border-sky-200 bg-sky-50/80 p-4 shadow-sm ring-1 ring-sky-100/60"
+      class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm ring-1 ring-slate-100/70"
     >
-      <span class="text-xs font-medium uppercase tracking-[0.22em] text-sky-700">{{ text(item.label) }}</span>
+      <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">{{ text(item.label) }}</span>
       <strong class="text-2xl font-semibold tracking-tight text-slate-900">{{ text(item.value) }}</strong>
     </article>
   </div>

@@ -17,6 +17,9 @@ describe("dashboard panels", () => {
 
     expect(kpi.text()).toContain("Ausgaben gesamt");
     expect(kpi.text()).toContain("€10.00");
+    expect(kpi.find("article").classes()).toEqual(
+      expect.arrayContaining(["rounded-2xl", "border", "border-slate-200", "bg-slate-50/80", "shadow-sm"]),
+    );
 
     const trend = mount(TrendChartPanel, {
       props: { items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }] },
@@ -44,5 +47,8 @@ describe("dashboard panels", () => {
     const skeleton = mount(DashboardSkeleton);
     expect(skeleton.text()).toBe("");
     expect(skeleton.findAll(".dashboard-skeleton__block")).toHaveLength(4);
+    expect(skeleton.find(".dashboard-skeleton__block--wide").classes()).toEqual(
+      expect.arrayContaining(["h-32", "animate-pulse"]),
+    );
   });
 });
