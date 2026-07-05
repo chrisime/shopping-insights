@@ -9,31 +9,16 @@ function text(value: unknown) {
 </script>
 
 <template>
-  <ul class="panel-list">
-    <li v-for="item in items" :key="text(item.weekday_name ?? item.weekday)" class="weekday-item">
-      <span>{{ text(item.weekday_name ?? item.weekday) }}</span>
-      <span>{{ text(item.trip_count) }} Einkäufe</span>
-      <span>Ø {{ text(item.avg_spent) }}</span>
-      <span>{{ text(item.total_spent) }}</span>
+  <ul class="grid gap-3">
+    <li
+      v-for="item in items"
+      :key="text(item.weekday_name ?? item.weekday)"
+      class="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700 shadow-sm sm:grid-cols-[1.2fr_1fr_0.8fr_0.8fr] sm:items-center"
+    >
+      <span class="font-medium text-slate-900">{{ text(item.weekday_name ?? item.weekday) }}</span>
+      <span class="sm:text-right">{{ text(item.trip_count) }} Einkäufe</span>
+      <span class="text-slate-500 sm:text-right">Ø {{ text(item.avg_spent) }}</span>
+      <span class="sm:text-right">{{ text(item.total_spent) }}</span>
     </li>
   </ul>
 </template>
-
-<style scoped>
-.panel-list {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.weekday-item {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 0.8fr 0.8fr;
-  gap: 0.75rem;
-  padding: 0.75rem 0.9rem;
-  border-radius: 10px;
-  background: #f7f9fc;
-}
-</style>

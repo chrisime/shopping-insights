@@ -9,30 +9,15 @@ function text(value: unknown) {
 </script>
 
 <template>
-  <ul class="panel-list">
-    <li v-for="item in items" :key="text(item.period)" class="panel-list__item">
-      <span>{{ text(item.period) }}</span>
-      <span>{{ text(item.total_spent) }}</span>
-      <span>{{ text(item.receipt_count) }} Belege</span>
+  <ul class="grid gap-3">
+    <li
+      v-for="item in items"
+      :key="text(item.period)"
+      class="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+    >
+      <span class="font-medium text-slate-900">{{ text(item.period) }}</span>
+      <span class="sm:text-right">{{ text(item.total_spent) }}</span>
+      <span class="text-slate-500 sm:text-right">{{ text(item.receipt_count) }} Belege</span>
     </li>
   </ul>
 </template>
-
-<style scoped>
-.panel-list {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.panel-list__item {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 0.75rem;
-  padding: 0.75rem 0.9rem;
-  border-radius: 10px;
-  background: #f7f9fc;
-}
-</style>
