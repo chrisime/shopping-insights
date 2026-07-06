@@ -28,6 +28,13 @@ class MockEventSource {
       listener(event);
     }
   }
+
+  emitEmptyError() {
+    const event = { data: "" } as MessageEvent<string>;
+    for (const listener of this.listeners.get("error") ?? []) {
+      listener(event);
+    }
+  }
 }
 
 afterEach(() => {
@@ -127,5 +134,24 @@ describe("useImportJob", () => {
 
     expect(MockEventSource.instances).toHaveLength(1);
     expect(MockEventSource.instances[0].close).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores transport error events and keeps the stream open", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("EventSource", MockEventSource as never);
+
+    const scope = effectScope();
+    const job = scope.run(() => useImportJob(() => undefined));
+    expect(job).toBeDefined();
+
+    await job!.startImport("lidl");
+    MockEventSource.instances[0].emitEmptyError();
+
+    expect(job!.error.value).toBeNull();
+    expect(job!.loading.value).toBe(true);
+    expect(MockEventSource.instances[0].close).not.toHaveBeenCalled();
+
+    scope.stop();
   });
 });

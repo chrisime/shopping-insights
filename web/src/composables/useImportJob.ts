@@ -61,8 +61,12 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
       }
     };
 
-    const handleError = (event: MessageEvent<string>) => {
+    const handleError = (event: MessageEvent<string> | Event) => {
       if (token !== activeToken) {
+        return;
+      }
+
+      if (!("data" in event) || typeof event.data !== "string" || event.data.length === 0) {
         return;
       }
 
