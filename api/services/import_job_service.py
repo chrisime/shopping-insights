@@ -32,15 +32,14 @@ def start_import_job(retailer: str) -> str:
         if active_job is not None:
             raise RuntimeError(f"Import job already running: {active_job.job_id}")
 
-    job_id = uuid4().hex
-    _store_job(
-        ImportJobSnapshot(
+        job_id = uuid4().hex
+        _jobs[job_id] = ImportJobSnapshot(
             job_id=job_id,
             retailer=retailer,
             status="running",
             progress=_empty_progress(),
         )
-    )
+
     thread = Thread(target=_run_import_job, args=(job_id, retailer), daemon=True)
     thread.start()
     return job_id
@@ -62,7 +61,7 @@ def _run_import_job(job_id: str, retailer: str) -> None:
             started = cast(Callable[..., object], trigger_service.run_rewe_initial)(progress_listener=progress_listener)
         else:
             raise ValueError(f"Unsupported retailer: {retailer}")
-        if started is False:
+        if not started:
             raise RuntimeError(f"Import workflow returned False for retailer: {retailer}")
     except Exception as exc:
         _update_job(job_id, status="error", message=str(exc))
@@ -79,13 +78,6 @@ def _build_progress_listener(job_id: str, retailer: str) -> Callable[[ProgressSt
 
 def _empty_progress() -> ProgressState:
     return ProgressState(current=0, total=0, added=0, skipped=0, errors=0, items=0, current_receipt="-")
-
-
-def _store_job(snapshot: ImportJobSnapshot) -> None:
-    with _jobs_lock:
-        _jobs[snapshot.job_id] = snapshot
-
-
 def _update_job(
     job_id: str,
     *,
