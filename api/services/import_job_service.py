@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from threading import Lock, Thread
-import time
+from threading import Condition, Lock, Thread
 from typing import Callable, Literal, cast
 from uuid import uuid4
 
@@ -24,6 +23,8 @@ class ImportJobSnapshot:
 
 
 _jobs: dict[str, ImportJobSnapshot] = {}
+_job_events: dict[str, list[dict[str, object]]] = {}
+_job_conditions: dict[str, Condition] = {}
 _jobs_lock = Lock()
 
 
@@ -40,6 +41,10 @@ def start_import_job(retailer: str) -> str:
             status="running",
             progress=_empty_progress(),
         )
+        _job_events[job_id] = []
+        _job_conditions[job_id] = Condition()
+
+    _append_job_event(job_id, "progress", get_import_job(job_id))
 
     thread = Thread(target=_run_import_job, args=(job_id, retailer), daemon=True)
     try:
@@ -47,6 +52,8 @@ def start_import_job(retailer: str) -> str:
     except Exception:
         with _jobs_lock:
             _jobs.pop(job_id, None)
+            _job_events.pop(job_id, None)
+            _job_conditions.pop(job_id, None)
         raise
     return job_id
 
@@ -66,23 +73,29 @@ def get_import_job(job_id: str) -> ImportJobSnapshot | None:
 
 
 def iter_import_job_events(job_id: str):
-    last_seen: ImportJobSnapshot | None = None
+    condition = _get_job_condition(job_id)
+    if condition is None:
+        yield {"event": "error", "data": {"job_id": job_id, "message": "job_not_found"}}
+        return
 
+    next_index = 0
     while True:
-        snapshot = get_import_job(job_id)
-        if snapshot is None:
-            yield {"event": "error", "data": {"job_id": job_id, "message": "job_not_found"}}
+        with condition:
+            events = _job_events.get(job_id)
+            if events is None:
+                yield {"event": "error", "data": {"job_id": job_id, "message": "job_not_found"}}
+                return
+
+            if next_index < len(events):
+                event = events[next_index]
+                next_index += 1
+            else:
+                condition.wait()
+                continue
+
+        yield event
+        if event["event"] in {"success", "error"}:
             return
-
-        if last_seen != snapshot:
-            event_type = "progress" if snapshot.status == "running" else snapshot.status
-            yield {"event": event_type, "data": _snapshot_to_dict(snapshot)}
-            last_seen = snapshot
-
-        if snapshot.status != "running":
-            return
-
-        time.sleep(0.05)
 
 
 def _run_import_job(job_id: str, retailer: str) -> None:
@@ -115,6 +128,29 @@ def _empty_progress() -> ProgressState:
     return ProgressState(current=0, total=0, added=0, skipped=0, errors=0, items=0, current_receipt="-")
 
 
+def _get_job_condition(job_id: str) -> Condition | None:
+    with _jobs_lock:
+        return _job_conditions.get(job_id)
+
+
+def _append_job_event(job_id: str, event_type: str, snapshot: ImportJobSnapshot | None) -> None:
+    if snapshot is None:
+        return
+
+    condition = _get_job_condition(job_id)
+    if condition is None:
+        return
+
+    event = {"event": event_type, "data": _snapshot_to_dict(snapshot)}
+    with condition:
+        with _jobs_lock:
+            events = _job_events.get(job_id)
+            if events is None:
+                return
+            events.append(event)
+        condition.notify_all()
+
+
 def _snapshot_to_dict(snapshot: ImportJobSnapshot) -> dict[str, object]:
     return {
         "job_id": snapshot.job_id,
@@ -131,6 +167,8 @@ def _snapshot_to_dict(snapshot: ImportJobSnapshot) -> dict[str, object]:
         },
         "message": snapshot.message,
     }
+
+
 def _update_job(
     job_id: str,
     *,
@@ -143,10 +181,14 @@ def _update_job(
         current = _jobs.get(job_id)
         if current is None:
             return
-        _jobs[job_id] = ImportJobSnapshot(
+        updated = ImportJobSnapshot(
             job_id=current.job_id,
             retailer=retailer if retailer is not None else current.retailer,
             status=status if status is not None else current.status,
             progress=replace(progress) if progress is not None else replace(current.progress),
             message=message if message is not None else current.message,
         )
+        _jobs[job_id] = updated
+
+    event_type = status if status in {"success", "error"} else "progress"
+    _append_job_event(job_id, event_type, updated)
