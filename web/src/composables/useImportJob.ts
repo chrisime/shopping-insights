@@ -20,6 +20,7 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
 
   let eventSource: EventSource | null = null;
   let activeToken = 0;
+  let disposed = false;
 
   function closeEventSource() {
     if (eventSource) {
@@ -79,14 +80,14 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
 
     try {
       const response = await startImportJob(retailer);
-      if (token !== activeToken) {
+      if (disposed || token !== activeToken) {
         return;
       }
 
       eventSource = openImportJobEvents(response.job_id);
       attachStreamHandlers(eventSource, token);
     } catch (cause) {
-      if (token !== activeToken) {
+      if (disposed || token !== activeToken) {
         return;
       }
 
@@ -99,6 +100,8 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
   const running = computed(() => loading.value || eventSource !== null);
 
   onScopeDispose(() => {
+    disposed = true;
+    activeToken += 1;
     closeEventSource();
   });
 

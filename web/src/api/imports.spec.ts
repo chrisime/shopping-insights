@@ -14,6 +14,14 @@ describe("import api helpers", () => {
     await startImportJob("lidl");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(URL),
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retailer: "lidl" }),
+      }),
+    );
     expect(String(fetchMock.mock.calls[0][0])).toContain("/imports/start");
   });
 
