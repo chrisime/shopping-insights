@@ -50,7 +50,7 @@ function dashboardErrorMessage(detail: string) {
 }
 
 function metricData(items: Array<Record<string, unknown>>): Record<string, number> {
-  return items[0] as Record<string, number>;
+  return items.length ? (items[0] as Record<string, number>) : {};
 }
 
 async function handleExport() {

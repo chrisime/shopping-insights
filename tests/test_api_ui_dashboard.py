@@ -88,6 +88,7 @@ def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
     assert metrics["items"][0]["total_savings"] == 19.0
     assert metrics["items"][0]["rewe_discount_amount"] == 10.0
     assert metrics["items"][0]["rewe_bonus_collected"] == 1.0
+    assert metrics["items"][0]["rewe_bonus_balance"] == 2.0
     assert metrics["items"][0]["rewe_bonus_redeemed"] == 3.0
     assert metrics["items"][0]["rewe_bonus_open"] == 0.0
     assert metrics["items"][0]["lidlplus_discount_amount"] == 4.0
