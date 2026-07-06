@@ -47,7 +47,7 @@ describe("DashboardPage import", () => {
         },
           DashboardSection: true,
           DashboardSkeleton: true,
-          KpiGroupGrid: true,
+          DashboardKpiGrid: true,
           TrendChartPanel: true,
           WeekdayPanel: true,
           TopItemsPanel: true,

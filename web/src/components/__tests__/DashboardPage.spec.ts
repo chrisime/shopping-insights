@@ -27,11 +27,13 @@ describe("DashboardPage", () => {
               title: "Kennzahlen",
               items: [
                 {
-                  layout: "pair",
-                  cards: [
-                    { title: "Ausgaben", items: [{ label: "Ausgaben gesamt", value: "€10.00" }] },
-                    { title: "Kassenbons", items: [{ label: "Kassenbons gesamt", value: "1" }] },
-                  ],
+                  spendings: 10.0,
+                  spendings_without_discount: 12.0,
+                  receipt_count: 1,
+                  avg_receipt_amount: 10.0,
+                  saved_deposit: 0.0,
+                  total_savings: 2.0,
+                  total_savings_pct: 16.7,
                 },
               ],
             },

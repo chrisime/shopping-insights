@@ -23,21 +23,6 @@ export interface DashboardSection {
   items: Array<Record<string, unknown>>;
 }
 
-export interface DashboardKpiItem {
-  label: string;
-  value: string;
-}
-
-export interface DashboardKpiCard {
-  title: string;
-  items: DashboardKpiItem[];
-}
-
-export interface DashboardKpiGroup {
-  layout: "single" | "pair" | "triple";
-  cards: DashboardKpiCard[];
-}
-
 export interface DashboardError {
   error_code: number;
   detail: string;

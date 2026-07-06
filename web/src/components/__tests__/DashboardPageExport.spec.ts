@@ -55,7 +55,7 @@ describe("DashboardPage export", () => {
             DashboardFilterBar: true,
             DashboardSection: true,
             DashboardSkeleton: true,
-            KpiGroupGrid: true,
+            DashboardKpiGrid: true,
             TrendChartPanel: true,
             WeekdayPanel: true,
             TopItemsPanel: true,

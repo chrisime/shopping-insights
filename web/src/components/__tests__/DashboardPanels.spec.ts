@@ -4,46 +4,12 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
 import DashboardSkeleton from "../DashboardSkeleton.vue";
-import KpiGroupGrid from "../KpiGroupGrid.vue";
-import KpiRow from "../KpiRow.vue";
 import TopItemsPanel from "../TopItemsPanel.vue";
 import TrendChartPanel from "../TrendChartPanel.vue";
 import WeekdayPanel from "../WeekdayPanel.vue";
 
 describe("dashboard panels", () => {
   it("renders the payload fields and skeleton state", () => {
-    const kpi = mount(KpiRow, {
-      props: { items: [{ label: "REWE Bonus", value: "€10.00" }, { label: "Rabatt-Sparquote", value: "12.5%" }] },
-    });
-
-    expect(kpi.text()).toContain("REWE Bonus");
-    expect(kpi.text()).toContain("€10.00");
-    expect(kpi.find("article").classes()).toEqual(
-      expect.arrayContaining(["rounded-2xl", "border", "border-slate-200", "bg-slate-50/80", "shadow-sm"]),
-    );
-
-    const grouped = mount(KpiGroupGrid, {
-      props: {
-        groups: [
-          {
-            layout: "pair",
-            cards: [
-              {
-                title: "Rewe Rabatte",
-                items: [
-                  { label: "Gespart", value: "€319.33" },
-                  { label: "Sparquote", value: "19.0%" },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    });
-
-    expect(grouped.text()).toContain("Sparquote");
-    expect(grouped.get(".justify-items-end").text()).toContain("Sparquote");
-
     const monthly = mount(TrendChartPanel, {
       props: {
         timeGranularity: "Monatlich",

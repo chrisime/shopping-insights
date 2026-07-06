@@ -5,7 +5,7 @@ import DashboardFilterBar from "./DashboardFilterBar.vue";
 import ImportJobControls from "./ImportJobControls.vue";
 import DashboardSection from "./DashboardSection.vue";
 import DashboardSkeleton from "./DashboardSkeleton.vue";
-import KpiGroupGrid from "./KpiGroupGrid.vue";
+import DashboardKpiGrid from "./DashboardKpiGrid.vue";
 import TopItemsPanel from "./TopItemsPanel.vue";
 import TrendChartPanel from "./TrendChartPanel.vue";
 import WeekdayPanel from "./WeekdayPanel.vue";
@@ -13,7 +13,6 @@ import { useDashboard } from "../composables/useDashboard";
 import { exportReceiptsJson } from "../api/exports";
 import { useImportJob } from "../composables/useImportJob";
 import type { ImportRetailer } from "../types/imports";
-import type { DashboardKpiGroup } from "../types/dashboard";
 
 const {
   retailer,
@@ -50,8 +49,8 @@ function dashboardErrorMessage(detail: string) {
   return "Dashboard data is unavailable. Import receipts to initialize the dashboard.";
 }
 
-function metricGroups(items: Array<Record<string, unknown>>) {
-  return items as DashboardKpiGroup[];
+function metricData(items: Array<Record<string, unknown>>): Record<string, number> {
+  return items[0] as Record<string, number>;
 }
 
 async function handleExport() {
@@ -125,7 +124,7 @@ async function handleExport() {
           :title="section.title"
           :empty="section.items.length === 0"
         >
-          <KpiGroupGrid v-if="section.kind === 'metrics'" :groups="metricGroups(section.items)" />
+          <DashboardKpiGrid v-if="section.kind === 'metrics'" :data="metricData(section.items)" />
           <TrendChartPanel
             v-else-if="section.kind === 'time_series'"
             :items="section.items"
