@@ -68,3 +68,26 @@ def test_get_import_job_returns_none_for_missing_job():
     from api.services import trigger_service
 
     assert trigger_service.get_import_job("missing") is None
+
+
+def test_start_import_job_marks_false_return_as_error(monkeypatch):
+    from api.services import trigger_service
+
+    def fake_run_lidl_initial(*, browser=None, cookies_file=None, country=None, output_dir=None, progress_listener=None):
+        return False
+
+    monkeypatch.setattr(trigger_service, "run_lidl_initial", fake_run_lidl_initial)
+
+    job_id = trigger_service.start_import_job("lidl")
+
+    deadline = time.time() + 2
+    state = None
+    while time.time() < deadline:
+        state = trigger_service.get_import_job(job_id)
+        if state is not None and state.status != "running":
+            break
+        time.sleep(0.01)
+
+    assert state is not None
+    assert state.status == "error"
+    assert "returned False" in (state.message or "")

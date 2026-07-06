@@ -52,11 +52,13 @@ def _run_import_job(job_id: str, retailer: str) -> None:
         from api.services import trigger_service
 
         if retailer == "lidl":
-            cast(Callable[..., object], trigger_service.run_lidl_initial)(progress_listener=progress_listener)
+            started = cast(Callable[..., object], trigger_service.run_lidl_initial)(progress_listener=progress_listener)
         elif retailer == "rewe":
-            cast(Callable[..., object], trigger_service.run_rewe_initial)(progress_listener=progress_listener)
+            started = cast(Callable[..., object], trigger_service.run_rewe_initial)(progress_listener=progress_listener)
         else:
             raise ValueError(f"Unsupported retailer: {retailer}")
+        if started is False:
+            raise RuntimeError(f"Import workflow returned False for retailer: {retailer}")
     except Exception as exc:
         _update_job(job_id, status="error", message=str(exc))
     else:
