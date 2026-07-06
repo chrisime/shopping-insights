@@ -15,6 +15,7 @@ describe("DashboardPage import", () => {
       progress: ref({ current: 0, total: 0, added: 0, skipped: 0, errors: 0, items: 0, current_receipt: "-" }),
       loading: ref(false),
       running: ref(false),
+      message: ref(null as string | null),
       error: ref(null as string | null),
       startImport,
       closeEventSource: vi.fn(),
