@@ -7,6 +7,8 @@ from typing import Any
 from workflows.lidl_workflow import run_lidl_initial
 from workflows.rewe_workflow import run_rewe_initial
 
+from api.services.import_job_service import get_import_job, start_import_job
+
 
 def trigger_lidl_fetch(days_back: int = 30) -> dict[str, Any]:
     started = run_lidl_initial()
