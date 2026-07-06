@@ -1,6 +1,7 @@
 """Storage module for receipt persistence (DB-first)."""
 from shared.receipt_store import ReceiptStore
 
+from .kpi_store import MetricsStore
 from .receipt_repository import add_receipt_to_json, sort_receipts_by_date, upsert_receipts
 from .sqlite_receipt_store import SqliteReceiptStore
 
@@ -12,6 +13,7 @@ def create_receipt_store() -> ReceiptStore:
 __all__ = [
     "add_receipt_to_json",
     "ReceiptStore",
+    "MetricsStore",
     "SqliteReceiptStore",
     "create_receipt_store",
     "sort_receipts_by_date",

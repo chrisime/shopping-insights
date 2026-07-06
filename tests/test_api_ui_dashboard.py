@@ -5,7 +5,7 @@ import sqlite3
 def test_build_dashboard_state_turns_kumulativ_time_series_cumulative():
     from frontend.dashboard_state import DashboardDerivedMetrics, build_dashboard_state
     from frontend.ui_model import build_dashboard_page_model
-    from metrics import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
+    from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
     class DummyProvider:
         def basic_kpis(self, retailer=None, start_date=None, end_date=None):
@@ -55,7 +55,7 @@ def test_build_dashboard_state_turns_kumulativ_time_series_cumulative():
 def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
     from frontend.dashboard_state import DashboardDerivedMetrics, DashboardState
     from frontend.ui_model import build_dashboard_page_model
-    from metrics import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
+    from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
     state = DashboardState(
         retailer=None,
@@ -81,23 +81,26 @@ def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
     assert page["min_date"] == "2024-01-01"
     assert page["max_date"] == "2024-01-31"
     metrics = next(section for section in page["sections"] if section["kind"] == "metrics")
-    bonus_rewe = next(section for section in page["sections"] if section["kind"] == "bonus_rewe")
-    bonus_lidl = next(section for section in page["sections"] if section["kind"] == "bonus_lidl")
 
-    assert metrics["items"][0]["value"] == "€100.00"
-    assert metrics["items"][2]["value"] == "4"
-    assert bonus_rewe["items"][0]["value"] == "€1.00"
-    assert bonus_lidl["items"][1]["value"] == "4.0%"
+    assert metrics["items"][0]["layout"] == "pair"
+    assert metrics["items"][0]["cards"][0]["items"][0]["value"] == "€100.00"
+    assert metrics["items"][0]["cards"][1]["items"][0]["value"] == "4"
+    assert metrics["items"][2]["layout"] == "triple"
+    assert metrics["items"][2]["cards"][0]["title"] == "Rewe Rabatte"
+    assert metrics["items"][2]["cards"][1]["title"] == "Rewe Bonus gesammelt"
+    assert metrics["items"][2]["cards"][2]["title"] == "Rewe Bonus eingelöst"
+    assert metrics["items"][2]["cards"][2]["items"][0]["value"] == "€3.00"
+    assert metrics["items"][2]["cards"][2]["items"][1]["value"] == "€0.00"
 
 
 def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
     from fastapi.testclient import TestClient
 
     from api.main import app
-    from api.services import ui_service
+    from api.routes import dashboard as dashboard_route
     from frontend.dashboard_state import DashboardDerivedMetrics, DashboardState
     from frontend.ui_model import DashboardPageModel, DashboardSection
-    from metrics import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
+    from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
     state = DashboardState(
         retailer="lidl",
@@ -120,13 +123,26 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
 
     page = DashboardPageModel(
         title="Shopping Analyzer Dashboard",
-        sections=[DashboardSection(kind="metrics", title="Kennzahlen", items=[{"label": "A", "value": "1"}])],
+        sections=[
+            DashboardSection(
+                kind="metrics",
+                title="Kennzahlen",
+                items=[{"layout": "single", "cards": [{"title": "A", "items": [{"label": "A", "value": "1"}]}]}],
+            )
+        ],
         min_date="2024-01-01",
         max_date="2024-01-31",
     )
 
-    monkeypatch.setattr(ui_service, "build_dashboard_state", lambda *args, **kwargs: state)
-    monkeypatch.setattr(ui_service, "build_dashboard_page_model", lambda *_: page)
+    monkeypatch.setattr(
+        dashboard_route,
+        "dashboard_service",
+        type(
+            "FakeDashboardService",
+            (),
+            {"get_vue_dashboard_payload": lambda self, **kwargs: type("Payload", (), {"to_dict": lambda self: page.to_dict()})()},
+        )(),
+    )
 
     response = TestClient(app).get(
         "/ui/dashboard",
@@ -144,7 +160,7 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
     assert response.status_code == 200
     assert response.json()["title"] == "Shopping Analyzer Dashboard"
     assert response.json()["sections"][0]["kind"] == "metrics"
-    assert response.json()["sections"][0]["items"][0]["label"] == "A"
+    assert response.json()["sections"][0]["items"][0]["cards"][0]["items"][0]["label"] == "A"
     assert response.json()["min_date"] == "2024-01-01"
     assert response.json()["max_date"] == "2024-01-31"
 
@@ -153,21 +169,27 @@ def test_ui_dashboard_allows_vite_dev_origin(monkeypatch):
     from fastapi.testclient import TestClient
 
     from api.main import app
-    from api.routes import ui as ui_route
+    from api.routes import dashboard as dashboard_route
 
     monkeypatch.setattr(
-        ui_route,
-        "get_vue_dashboard_payload",
-        lambda **kwargs: type(
-            "Payload",
+        dashboard_route,
+        "dashboard_service",
+        type(
+            "FakeDashboardService",
             (),
             {
-                "to_dict": lambda self: {
-                    "title": "Shopping Analyzer Dashboard",
-                    "sections": [],
-                    "min_date": None,
-                    "max_date": None,
-                }
+                "get_vue_dashboard_payload": lambda self, **kwargs: type(
+                    "Payload",
+                    (),
+                    {
+                        "to_dict": lambda self: {
+                            "title": "Shopping Analyzer Dashboard",
+                            "sections": [],
+                            "min_date": None,
+                            "max_date": None,
+                        }
+                    },
+                )(),
             },
         )(),
     )
@@ -231,7 +253,7 @@ def test_build_dashboard_state_returns_empty_payload_when_database_tables_are_mi
 def test_build_dashboard_state_returns_no_receipts_error_for_empty_database():
     from frontend.dashboard_state import build_dashboard_state
     from frontend.ui_model import build_dashboard_page_model
-    from metrics import BasicKPIs, RetailerBonusKPIs
+    from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs
 
     class EmptyProvider:
         def basic_kpis(self, retailer=None, start_date=None, end_date=None):

@@ -71,19 +71,7 @@ def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
             error=state.error,
         )
 
-    sections = [DashboardSection(kind="metrics", title="Kennzahlen", items=_build_metric_items(state))]
-
-    rewe_items = _build_rewe_bonus_items(state)
-    if rewe_items:
-        sections.append(DashboardSection(kind="bonus_rewe", title="REWE Bonus", items=rewe_items))
-
-    lidl_items = _build_lidl_bonus_items(state)
-    if lidl_items:
-        sections.append(DashboardSection(kind="bonus_lidl", title="Lidl Plus Ersparnisse", items=lidl_items))
-
-    total_bonus_items = _build_total_bonus_items(state)
-    if total_bonus_items:
-        sections.append(DashboardSection(kind="bonus_total", title="Gesamt", items=total_bonus_items))
+    sections = [DashboardSection(kind="metrics", title="Kennzahlen", items=_build_kpi_groups(state))]
 
     sections.extend(
         [
@@ -134,46 +122,116 @@ def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
     )
 
 
-def _build_metric_items(state: DashboardState) -> list[dict[str, Any]]:
-    return [
-        {"label": "Ausgaben gesamt", "value": _currency(state.kpis.total_spent)},
-        {"label": "Ausgaben ohne Rabatte", "value": _currency(state.derived.total_before_discount)},
-        {"label": "Kassenbons gesamt", "value": str(state.kpis.total_receipts)},
-        {"label": "Ø Bon-Betrag", "value": _currency(state.kpis.avg_receipt)},
-        {"label": "Pfandrückgabe", "value": _currency(state.kpis.total_saved_deposit)},
-        {"label": "Rabatte gespart", "value": _currency(state.kpis.total_discount)},
-        {"label": "Rabatt-Sparquote", "value": _percent(state.derived.discount_pct)},
-        {"label": "Gesamt-Ersparnis (ohne Pfand)", "value": _currency(state.derived.total_savings_no_deposit)},
-        {"label": "Gesamt-Sparquote", "value": _percent(state.derived.total_savings_pct)},
+def _build_kpi_groups(state: DashboardState) -> list[dict[str, Any]]:
+    groups: list[dict[str, Any]] = [
+        _pair_group(
+            "Ausgaben",
+            [
+                {"label": "Ausgaben gesamt", "value": _currency(state.kpis.total_spent)},
+                {"label": "Ausgaben ohne Rabatte", "value": _currency(state.derived.total_before_discount)},
+            ],
+            "Kassenbons",
+            [
+                {"label": "Kassenbons gesamt", "value": _selected_receipts(state)},
+                {"label": "Durchschnittl. Bon-Betrag", "value": _currency(state.kpis.avg_receipt)},
+            ],
+        ),
+        _single_group(
+            "Pfandrückgabe",
+            [{"label": "Pfandrückgabe", "value": _currency(state.kpis.total_saved_deposit)}],
+        ),
     ]
 
+    if state.retailer in (None, "rewe"):
+        rewe_regular = state.rewe_kpis.total_discount if state.retailer is None and state.rewe_kpis is not None else state.kpis.total_discount
+        rewe_bonus = state.rewe_bonus_kpis if state.retailer is None and state.rewe_bonus_kpis is not None else state.bonus_kpis
+        rewe_bonus_open = max(0.0, rewe_bonus.rewe_bonus_collected - rewe_bonus.rewe_bonus_redeemed)
+        groups.append(
+            _triple_group(
+                "Rewe Rabatte",
+                [
+                    {"label": "Gespart", "value": _currency(rewe_regular)},
+                    {"label": "Sparquote", "value": _percent(_pct(rewe_regular, _retailer_spent(state, "rewe")))},
+                ],
+                "Rewe Bonus gesammelt",
+                [
+                    {"label": "Gesammelt", "value": _currency(rewe_bonus.rewe_bonus_collected)},
+                    {"label": "Guthaben", "value": _currency(rewe_bonus.rewe_bonus_balance)},
+                ],
+                "Rewe Bonus eingelöst",
+                [
+                    {"label": "Eingelöst", "value": _currency(rewe_bonus.rewe_bonus_redeemed)},
+                    {"label": "Offen", "value": _currency(rewe_bonus_open)},
+                ],
+            )
+        )
 
-def _build_rewe_bonus_items(state: DashboardState) -> list[dict[str, Any]]:
-    items = []
-    if state.retailer is None and (state.bonus_kpis.rewe_bonus_collected > 0 or state.bonus_kpis.rewe_bonus_balance > 0):
-        items.append({"label": "Bonus gesammelt (Zeitraum)", "value": _currency(state.bonus_kpis.rewe_bonus_collected)})
-        items.append({"label": "Bonus Guthaben (aktuell)", "value": _currency(state.bonus_kpis.rewe_bonus_balance)})
-    return items
+    if state.retailer in (None, "lidl"):
+        lidl_bonus = state.lidl_bonus_kpis if state.retailer is None and state.lidl_bonus_kpis is not None else state.bonus_kpis
+        lidl_regular = state.lidl_kpis.total_discount if state.retailer is None and state.lidl_kpis is not None else state.kpis.total_discount
+        groups.append(
+            _triple_group(
+                "Lidl Plus",
+                [
+                    {"label": "Gespart", "value": _currency(lidl_bonus.lidlplus_discount)},
+                    {"label": "Sparquote", "value": _percent(_pct(lidl_bonus.lidlplus_discount, _retailer_spent(state, "lidl")))},
+                ],
+                "Sticker Rabatte",
+                [
+                    {"label": "Gespart", "value": _currency(lidl_bonus.sticker_discount)},
+                    {"label": "Sparquote", "value": _percent(_pct(lidl_bonus.sticker_discount, _retailer_spent(state, "lidl")))},
+                ],
+                "Preisvorteil",
+                [
+                    {"label": "Gespart", "value": _currency(lidl_regular)},
+                    {"label": "Sparquote", "value": _percent(_pct(lidl_regular, _retailer_spent(state, "lidl")))},
+                ],
+            )
+        )
+
+    groups.append(
+        _single_group(
+            "Gesamter Preisvorteil",
+            [
+                {"label": "Gespart", "value": _currency(state.derived.total_savings_no_deposit)},
+                {"label": "Sparvorteil", "value": _percent(state.derived.total_savings_pct)},
+            ],
+        )
+    )
+    return groups
 
 
-def _build_lidl_bonus_items(state: DashboardState) -> list[dict[str, Any]]:
-    items = []
-    if state.retailer is None and (state.bonus_kpis.lidlplus_discount > 0 or state.bonus_kpis.sticker_discount > 0):
-        items.append({"label": "Lidl Plus gespart", "value": _currency(state.bonus_kpis.lidlplus_discount)})
-        items.append({"label": "Lidl Plus Sparquote", "value": _percent(_pct(state.bonus_kpis.lidlplus_discount, state.kpis.total_spent))})
-        items.append({"label": "Sticker-Rabatte", "value": _currency(state.bonus_kpis.sticker_discount)})
-        items.append({"label": "Sticker-Sparquote", "value": _percent(_pct(state.bonus_kpis.sticker_discount, state.kpis.total_spent))})
-    return items
+def _pair_group(title_left: str, left_items: list[dict[str, Any]], title_right: str, right_items: list[dict[str, Any]]) -> dict[str, Any]:
+    return {"layout": "pair", "cards": [{"title": title_left, "items": left_items}, {"title": title_right, "items": right_items}]}
 
 
-def _build_total_bonus_items(state: DashboardState) -> list[dict[str, Any]]:
-    total_bonus_redeemed = state.derived.total_bonus_redeemed
-    if state.retailer is not None or total_bonus_redeemed <= 0:
-        return []
-    return [
-        {"label": "Bonus eingelöst", "value": _currency(total_bonus_redeemed)},
-        {"label": "Bonus-Sparquote", "value": _percent(state.derived.bonus_redeemed_pct)},
-    ]
+def _triple_group(title_one: str, items_one: list[dict[str, Any]], title_two: str, items_two: list[dict[str, Any]], title_three: str, items_three: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "layout": "triple",
+        "cards": [
+            {"title": title_one, "items": items_one},
+            {"title": title_two, "items": items_two},
+            {"title": title_three, "items": items_three},
+        ],
+    }
+
+
+def _single_group(title: str, items: list[dict[str, Any]]) -> dict[str, Any]:
+    return {"layout": "single", "cards": [{"title": title, "items": items}]}
+
+
+def _selected_receipts(state: DashboardState) -> str:
+    return str(state.kpis.total_receipts)
+
+
+def _retailer_spent(state: DashboardState, retailer: str) -> float:
+    if state.retailer == retailer:
+        return state.kpis.total_spent
+    if retailer == "rewe" and state.rewe_kpis is not None:
+        return state.rewe_kpis.total_spent
+    if retailer == "lidl" and state.lidl_kpis is not None:
+        return state.lidl_kpis.total_spent
+    return state.kpis.total_spent
 
 
 def _currency(value: float) -> str:

@@ -8,7 +8,8 @@ from urllib.parse import urljoin
 
 import requests
 
-from metrics import BasicKPIs, MetricsStore, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
+from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
+from storage.kpi_store import MetricsStore
 
 
 class DbDashboardDataProvider:

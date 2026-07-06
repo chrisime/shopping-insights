@@ -1,6 +1,6 @@
 from datetime import date
 
-from metrics import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
+from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
 
 def test_build_dashboard_page_model_maps_state_to_ui_sections():
@@ -30,7 +30,10 @@ def test_build_dashboard_page_model_maps_state_to_ui_sections():
 
     assert page.title == "Shopping Analyzer Dashboard"
     assert page.sections[0].kind == "metrics"
-    assert page.sections[0].items[0]["label"] == "Ausgaben gesamt"
+    assert page.sections[0].items[0]["layout"] == "pair"
+    assert page.sections[0].items[0]["cards"][0]["title"] == "Ausgaben"
+    assert page.sections[0].items[2]["layout"] == "triple"
+    assert page.sections[0].items[2]["cards"][0]["title"] == "Lidl Plus"
     assert page.sections[1].title == "Ausgaben über Zeit"
     assert page.sections[3].title == "Top-Artikel"
 
@@ -41,7 +44,11 @@ def test_dashboard_page_model_roundtrip_serializer():
     page = DashboardPageModel(
         title="Shopping Analyzer Dashboard",
         sections=[
-            DashboardSection(kind="metrics", title="Kennzahlen", items=[{"label": "A", "value": "1"}]),
+            DashboardSection(
+                kind="metrics",
+                title="Kennzahlen",
+                items=[{"layout": "single", "cards": [{"title": "A", "items": [{"label": "A", "value": "1"}]}]}],
+            ),
             DashboardSection(kind="chart", title="Ausgaben über Zeit", items=[{"period": "2024-01", "total_spent": 10.0}]),
         ],
     )
@@ -52,7 +59,7 @@ def test_dashboard_page_model_roundtrip_serializer():
     assert payload == {
         "title": "Shopping Analyzer Dashboard",
         "sections": [
-            {"kind": "metrics", "title": "Kennzahlen", "items": [{"label": "A", "value": "1"}]},
+            {"kind": "metrics", "title": "Kennzahlen", "items": [{"layout": "single", "cards": [{"title": "A", "items": [{"label": "A", "value": "1"}]}]}]},
             {"kind": "chart", "title": "Ausgaben über Zeit", "items": [{"period": "2024-01", "total_spent": 10.0}]},
         ],
     }
@@ -64,7 +71,13 @@ def test_dashboard_page_model_json_roundtrip_serializer():
 
     page = DashboardPageModel(
         title="Shopping Analyzer Dashboard",
-        sections=[DashboardSection(kind="metrics", title="Kennzahlen", items=[{"label": "A", "value": "1"}])],
+        sections=[
+            DashboardSection(
+                kind="metrics",
+                title="Kennzahlen",
+                items=[{"layout": "single", "cards": [{"title": "A", "items": [{"label": "A", "value": "1"}]}]}],
+            )
+        ],
     )
 
     payload = page.to_json()

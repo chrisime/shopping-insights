@@ -113,6 +113,7 @@ export function useDashboard() {
     payload,
     loading,
     error,
+    filters,
     refresh,
   };
 }

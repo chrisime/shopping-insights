@@ -12,8 +12,12 @@ router = APIRouter(prefix="/exports", tags=["exports"])
 
 
 @router.get("/receipts", response_model=ItemResponse)
-def export_receipts_endpoint(retailer: Optional[str] = None) -> dict:
-    return export_service.export_receipts(retailer=retailer)
+def export_receipts_endpoint(
+    retailer: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> dict:
+    return export_service.export_receipts(retailer=retailer, start_date=start_date, end_date=end_date)
 
 
 @router.get("/kpis", response_model=ItemResponse)

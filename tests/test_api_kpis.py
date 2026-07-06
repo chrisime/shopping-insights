@@ -1,4 +1,4 @@
-from metrics import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
+from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
 
 def test_kpi_summary_returns_snake_case_data(monkeypatch):

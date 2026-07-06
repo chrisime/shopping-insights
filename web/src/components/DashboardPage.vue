@@ -5,7 +5,7 @@ import DashboardFilterBar from "./DashboardFilterBar.vue";
 import ImportJobControls from "./ImportJobControls.vue";
 import DashboardSection from "./DashboardSection.vue";
 import DashboardSkeleton from "./DashboardSkeleton.vue";
-import KpiRow from "./KpiRow.vue";
+import KpiGroupGrid from "./KpiGroupGrid.vue";
 import TopItemsPanel from "./TopItemsPanel.vue";
 import TrendChartPanel from "./TrendChartPanel.vue";
 import WeekdayPanel from "./WeekdayPanel.vue";
@@ -13,6 +13,7 @@ import { useDashboard } from "../composables/useDashboard";
 import { exportReceiptsJson } from "../api/exports";
 import { useImportJob } from "../composables/useImportJob";
 import type { ImportRetailer } from "../types/imports";
+import type { DashboardKpiGroup } from "../types/dashboard";
 
 const {
   retailer,
@@ -47,6 +48,10 @@ function dashboardErrorMessage(detail: string) {
   }
 
   return "Dashboard data is unavailable. Import receipts to initialize the dashboard.";
+}
+
+function metricGroups(items: Array<Record<string, unknown>>) {
+  return items as DashboardKpiGroup[];
 }
 
 async function handleExport() {
@@ -91,7 +96,8 @@ async function handleExport() {
         :progress="importJob.progress.value"
         :message="importJob.message.value"
         :error="importJob.error.value"
-        @start-import="importJob.startImport(importRetailer)"
+        :technical-error="importJob.technicalError.value"
+        @start-import="importJob.startImport($event)"
       />
 
       <DashboardFilterBar
@@ -119,11 +125,13 @@ async function handleExport() {
           :title="section.title"
           :empty="section.items.length === 0"
         >
-          <KpiRow
-            v-if="section.kind === 'metrics' || section.kind === 'bonus_rewe' || section.kind === 'bonus_lidl' || section.kind === 'bonus_total'"
+          <KpiGroupGrid v-if="section.kind === 'metrics'" :groups="metricGroups(section.items)" />
+          <TrendChartPanel
+            v-else-if="section.kind === 'time_series'"
             :items="section.items"
+            :spending-view="spendingView"
+            :time-granularity="timeGranularity"
           />
-          <TrendChartPanel v-else-if="section.kind === 'time_series'" :items="section.items" :spending-view="spendingView" />
           <WeekdayPanel v-else-if="section.kind === 'weekday'" :items="section.items" />
           <TopItemsPanel v-else-if="section.kind === 'top_items'" :items="section.items" />
           <pre v-else class="m-0 whitespace-pre-wrap text-sm text-slate-600">{{ section.items }}</pre>

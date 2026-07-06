@@ -11,7 +11,8 @@ Das Dashboard wird als Vue-Frontend betrieben und liest seine Daten aus einer se
 - `frontend/dashboard_state.py` berechnet die Dashboard-Daten.
 - `frontend/ui_model.py` formt daraus ein neutrales, sektioniertes Page-Model.
 - `frontend/schema.py` serialisiert dieses Model als Vue-freundliches JSON.
-- `api/routes/ui.py` stellt `GET /ui/dashboard` bereit.
+- `api/routes/dashboard.py` stellt `GET /ui/dashboard` bereit.
+- `api/routes/exports.py` stellt `GET /exports/receipts` für den JSON-Export bereit.
 - `web/` enthält die Vue-App.
 
 ## Datenfluss

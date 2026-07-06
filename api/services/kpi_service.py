@@ -2,7 +2,7 @@
 
 from typing import Any, Optional
 
-from metrics import MetricsStore
+from storage.kpi_store import MetricsStore
 
 from api.schemas.kpis import KpiBonus, KpiSummary, TimeSeriesRow, TopItemRow, WeekdayRow
 

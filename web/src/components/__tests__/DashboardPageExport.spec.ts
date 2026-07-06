@@ -49,17 +49,17 @@ describe("DashboardPage export", () => {
       global: {
         stubs: {
           ImportJobControls: {
-            props: ["retailer", "running", "progress", "message", "error"],
+            props: ["retailer", "running", "progress", "message", "error", "technicalError"],
             template: "<div />",
           },
-          DashboardFilterBar: true,
-          DashboardSection: true,
-          DashboardSkeleton: true,
-          KpiRow: true,
-          TrendChartPanel: true,
-          WeekdayPanel: true,
-          TopItemsPanel: true,
-        },
+            DashboardFilterBar: true,
+            DashboardSection: true,
+            DashboardSkeleton: true,
+            KpiGroupGrid: true,
+            TrendChartPanel: true,
+            WeekdayPanel: true,
+            TopItemsPanel: true,
+          },
       },
     });
 

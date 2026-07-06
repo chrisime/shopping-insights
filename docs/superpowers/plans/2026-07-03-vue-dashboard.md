@@ -24,8 +24,8 @@
 
 **Files:**
 - Modify: `frontend/schema.py`
-- Create: `api/services/ui_service.py`
-- Create: `api/routes/ui.py`
+- Create: `api/services/dashboard_service.py`
+- Create: `api/routes/dashboard.py`
 - Modify: `api/main.py`
 - Create: `tests/test_api_ui_dashboard.py`
 
@@ -41,7 +41,7 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
     from datetime import date
 
     from api.main import app
-    from api.services import ui_service
+    from api.routes import dashboard as dashboard_route
     from frontend.dashboard_state import DashboardDerivedMetrics, DashboardState
     from frontend.ui_model import DashboardPageModel, DashboardSection
     from metrics import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
@@ -70,8 +70,7 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
         sections=[DashboardSection(kind="metrics", title="Kennzahlen", items=[{"label": "A", "value": "1"}])],
     )
 
-    monkeypatch.setattr(ui_service, "build_dashboard_state", lambda *args, **kwargs: state)
-    monkeypatch.setattr(ui_service, "build_dashboard_page_model", lambda *_: page)
+    monkeypatch.setattr(dashboard_route, "dashboard_service", ...)
 
     response = TestClient(app).get(
         "/ui/dashboard",
@@ -95,7 +94,7 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
 
 Run: `.venv/bin/python -m pytest tests/test_api_ui_dashboard.py -q`
 
-Expected: FAIL with `404 Not Found` or missing `ui_service` / `ui` route imports.
+Expected: FAIL with `404 Not Found` or missing dashboard route imports.
 
 - [ ] **Step 3: Write the minimal implementation**
 
@@ -105,21 +104,26 @@ Expected: FAIL with `404 Not Found` or missing `ui_service` / `ui` route imports
 def from_page_model(cls, page: DashboardPageModel) -> "VueDashboardPayload":
     return cls.from_dict(page.to_dict())
 
-# api/services/ui_service.py
+# api/services/dashboard_service.py
 from frontend.dashboard_state import build_dashboard_state
 from frontend.ui_model import build_dashboard_page_model
 from frontend.schema import VueDashboardPayload
 
-def get_vue_dashboard_payload(**filters) -> VueDashboardPayload:
-    state = build_dashboard_state(**filters)
+class DashboardService:
+    def __init__(self, store):
+        self._store = store
+
+    def get_vue_dashboard_payload(**filters) -> VueDashboardPayload:
+    state = build_dashboard_state(self._store, **filters)
     page = build_dashboard_page_model(state)
     return VueDashboardPayload.from_page_model(page)
 
-# api/routes/ui.py
+# api/routes/dashboard.py
 from fastapi import APIRouter
-from api.services.ui_service import get_vue_dashboard_payload
+from api.services.dashboard_service import DashboardService
 
 router = APIRouter(prefix="/ui", tags=["ui"])
+dashboard_service = DashboardService(...)
 
 @router.get("/dashboard")
 def read_dashboard(
@@ -131,7 +135,7 @@ def read_dashboard(
     top_view: str = "Menge",
     top_limit: int = 20,
 ):
-    return get_vue_dashboard_payload(
+    return dashboard_service.get_vue_dashboard_payload(
         retailer=retailer,
         start_date=start_date,
         end_date=end_date,
@@ -151,7 +155,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/schema.py api/services/ui_service.py api/routes/ui.py api/main.py tests/test_api_ui_dashboard.py
+ git add frontend/schema.py api/services/dashboard_service.py api/routes/dashboard.py api/main.py tests/test_api_ui_dashboard.py
 git commit -m "feat: add vue dashboard payload endpoint"
 ```
 

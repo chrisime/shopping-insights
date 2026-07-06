@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
 import DashboardSkeleton from "../DashboardSkeleton.vue";
+import KpiGroupGrid from "../KpiGroupGrid.vue";
 import KpiRow from "../KpiRow.vue";
 import TopItemsPanel from "../TopItemsPanel.vue";
 import TrendChartPanel from "../TrendChartPanel.vue";
@@ -20,6 +21,63 @@ describe("dashboard panels", () => {
     expect(kpi.find("article").classes()).toEqual(
       expect.arrayContaining(["rounded-2xl", "border", "border-slate-200", "bg-slate-50/80", "shadow-sm"]),
     );
+
+    const grouped = mount(KpiGroupGrid, {
+      props: {
+        groups: [
+          {
+            layout: "pair",
+            cards: [
+              {
+                title: "Rewe Rabatte",
+                items: [
+                  { label: "Gespart", value: "€319.33" },
+                  { label: "Sparquote", value: "19.0%" },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(grouped.text()).toContain("Sparquote");
+    expect(grouped.get(".justify-items-end").text()).toContain("Sparquote");
+
+    const monthly = mount(TrendChartPanel, {
+      props: {
+        timeGranularity: "Monatlich",
+        items: [
+          { period: "2023-01", total_spent: 10, receipt_count: 1 },
+          { period: "2023-02", total_spent: 20, receipt_count: 2 },
+          { period: "2024-01", total_spent: 30, receipt_count: 3 },
+        ],
+      },
+    });
+
+    expect(monthly.text()).toContain("2023");
+    expect(monthly.text()).toContain("Jan");
+    expect(monthly.text()).toContain("Feb");
+    expect(monthly.findAll("details")).toHaveLength(5);
+    expect(monthly.findAll("svg")).toHaveLength(5);
+
+    const daily = mount(TrendChartPanel, {
+      props: {
+        timeGranularity: "Täglich",
+        items: [
+          { period: "2024-01-01", total_spent: 10, receipt_count: 1 },
+          { period: "2024-01-02", total_spent: 20, receipt_count: 2 },
+          { period: "2024-02-01", total_spent: 30, receipt_count: 3 },
+        ],
+      },
+    });
+
+    expect(daily.text()).toContain("2024");
+    expect(daily.text()).toContain("Jan");
+    expect(daily.text()).toContain("Feb");
+    expect(daily.text()).toContain("01");
+    expect(daily.findAll("details")).toHaveLength(3);
+    expect(daily.findAll("svg")).toHaveLength(3);
 
     const trend = mount(TrendChartPanel, {
       props: { items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }, { period: "2024-02", total_spent: 5, receipt_count: 2 }] },

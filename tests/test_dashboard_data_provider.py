@@ -1,4 +1,4 @@
-from metrics import BasicKPIs
+from shared.kpi_dtos import BasicKPIs
 
 
 def test_api_dashboard_provider_basic_kpis_parses_json():
@@ -32,7 +32,7 @@ def test_api_dashboard_provider_basic_kpis_parses_json():
                 }
             )
 
-    provider = ApiDashboardDataProvider("https://example.test", session=FakeSession())
+    provider = ApiDashboardDataProvider("https://example.test", session=FakeSession())  # type: ignore[arg-type]
 
     result = provider.basic_kpis(retailer="lidl", start_date="2024-01-01", end_date="2024-01-31")
 
@@ -79,7 +79,7 @@ def test_api_dashboard_provider_bonus_and_trend_paths():
                 )
             return FakeResponse({"data": [{"period": "2024-01", "total_spent": 9.0, "receipt_count": 1}]})
 
-    provider = ApiDashboardDataProvider("https://example.test", session=FakeSession())
+    provider = ApiDashboardDataProvider("https://example.test", session=FakeSession())  # type: ignore[arg-type]
 
     bonus = provider.retailer_bonus_kpis(retailer="rewe")
     trend = provider.spending_by_month(retailer="lidl", start_date="2024-01-01", end_date="2024-01-31")
@@ -121,7 +121,7 @@ def test_api_dashboard_provider_top_items_and_weekday_paths():
                 {"data": [{"weekday": 0, "weekday_name": "Montag", "trip_count": 2, "avg_spent": 12.5, "total_spent": 25.0}]}
             )
 
-    provider = ApiDashboardDataProvider("https://example.test", session=FakeSession())
+    provider = ApiDashboardDataProvider("https://example.test", session=FakeSession())  # type: ignore[arg-type]
 
     items = provider.top_items_by_spend(limit=7)
     weekdays = provider.weekday_analysis(retailer="rewe")

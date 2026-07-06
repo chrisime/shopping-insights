@@ -30,3 +30,4 @@ pnpm build
 ## API
 
 Das Frontend liest das Dashboard über `GET /ui/dashboard`.
+Der Export-Button lädt die aktuell gefilterten Belege als JSON über `GET /exports/receipts` herunter.

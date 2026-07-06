@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from frontend.dashboard_errors import DashboardError, missing_database_error, no_receipts_error
-from metrics import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
+from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
 
 class DashboardMetricsProvider(Protocol):
@@ -104,6 +104,10 @@ class DashboardState:
     min_date: Any
     max_date: Any
     error: DashboardError | None = None
+    rewe_kpis: BasicKPIs | None = None
+    lidl_kpis: BasicKPIs | None = None
+    rewe_bonus_kpis: RetailerBonusKPIs | None = None
+    lidl_bonus_kpis: RetailerBonusKPIs | None = None
 
 
 def build_dashboard_state(
@@ -132,6 +136,13 @@ def build_dashboard_state(
                 available_kpis=available_kpis,
             )
         bonus_kpis = provider.retailer_bonus_kpis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
+        rewe_kpis = lidl_kpis = None
+        rewe_bonus_kpis = lidl_bonus_kpis = None
+        if normalized_retailer is None:
+            rewe_kpis = provider.basic_kpis(retailer="rewe", start_date=start_date, end_date=end_date)
+            lidl_kpis = provider.basic_kpis(retailer="lidl", start_date=start_date, end_date=end_date)
+            rewe_bonus_kpis = provider.retailer_bonus_kpis(retailer="rewe", start_date=start_date, end_date=end_date)
+            lidl_bonus_kpis = provider.retailer_bonus_kpis(retailer="lidl", start_date=start_date, end_date=end_date)
         time_series = _build_time_series(provider, normalized_retailer, start_date, end_date, time_granularity)
         if spending_view == "Kumulativ":
             time_series = _cumulative_time_series(time_series)
@@ -161,6 +172,10 @@ def build_dashboard_state(
         available_kpis=available_kpis,
         kpis=kpis,
         bonus_kpis=bonus_kpis,
+        rewe_kpis=rewe_kpis,
+        lidl_kpis=lidl_kpis,
+        rewe_bonus_kpis=rewe_bonus_kpis,
+        lidl_bonus_kpis=lidl_bonus_kpis,
         derived=derived,
         time_series=time_series,
         weekday=weekday,
@@ -194,6 +209,10 @@ def _empty_dashboard_state(
         available_kpis=empty_kpis,
         kpis=empty_kpis,
         bonus_kpis=empty_bonus_kpis,
+        rewe_kpis=None,
+        lidl_kpis=None,
+        rewe_bonus_kpis=None,
+        lidl_bonus_kpis=None,
         derived=empty_derived,
         time_series=[],
         weekday=[],
@@ -228,6 +247,10 @@ def _empty_no_receipts_state(
         available_kpis=available_kpis,
         kpis=empty_kpis,
         bonus_kpis=empty_bonus_kpis,
+        rewe_kpis=None,
+        lidl_kpis=None,
+        rewe_bonus_kpis=None,
+        lidl_bonus_kpis=None,
         derived=empty_derived,
         time_series=[],
         weekday=[],

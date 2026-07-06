@@ -25,12 +25,15 @@ describe("DashboardPage", () => {
             {
               kind: "metrics",
               title: "Kennzahlen",
-              items: [{ label: "Ausgaben gesamt", value: "€10.00" }],
-            },
-            {
-              kind: "bonus_rewe",
-              title: "REWE Bonus",
-              items: [{ label: "Bonus gesammelt (Zeitraum)", value: "€1.00" }],
+              items: [
+                {
+                  layout: "pair",
+                  cards: [
+                    { title: "Ausgaben", items: [{ label: "Ausgaben gesamt", value: "€10.00" }] },
+                    { title: "Kassenbons", items: [{ label: "Kassenbons gesamt", value: "1" }] },
+                  ],
+                },
+              ],
             },
             {
               kind: "time_series",
@@ -47,7 +50,6 @@ describe("DashboardPage", () => {
     expect(html).toContain("Monatsübersicht");
     expect(html).toContain("Kennzahlen");
     expect(html).toContain("Ausgaben gesamt");
-    expect(html).toContain("REWE Bonus");
     expect(html).toContain("Ausgaben über Zeit");
   });
 

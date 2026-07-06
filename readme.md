@@ -128,6 +128,7 @@ npm run dev
 ```
 
 Das Frontend liest Daten über `GET /ui/dashboard` vom FastAPI-Backend.
+Über den Export-Button kannst du die aktuell gefilterten Tickets als JSON über `GET /exports/receipts` herunterladen.
 Setze dafür bei Bedarf `VITE_API_BASE_URL`, zum Beispiel auf `http://localhost:8000`.
 
 Details und Projektkontext stehen in [`docs/architecture/frontend-transition.md`](./docs/architecture/frontend-transition.md) und [`web/README.md`](./web/README.md).
