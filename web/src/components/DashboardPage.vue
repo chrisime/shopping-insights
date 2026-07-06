@@ -89,7 +89,7 @@ async function handleExport() {
         v-model:retailer="importRetailer"
         :running="importJob.running.value"
         :progress="importJob.progress.value"
-        :message="null"
+        :message="importJob.message"
         :error="importJob.error.value"
         @start-import="importJob.startImport(importRetailer)"
       />

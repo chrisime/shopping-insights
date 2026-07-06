@@ -48,7 +48,10 @@ describe("DashboardPage export", () => {
     const wrapper = mount(DashboardPage, {
       global: {
         stubs: {
-          ImportJobControls: true,
+          ImportJobControls: {
+            props: ["retailer", "running", "progress", "message", "error"],
+            template: "<div />",
+          },
           DashboardFilterBar: true,
           DashboardSection: true,
           DashboardSkeleton: true,

@@ -26,6 +26,8 @@ describe("ImportJobControls", () => {
     expect(wrapper.text()).toContain("Import");
     expect(wrapper.text()).toContain("1/3");
     expect(wrapper.text()).toContain("r1");
+    expect(wrapper.findAll("option")).toHaveLength(2);
+    expect(wrapper.find(".h-2").exists()).toBe(true);
   });
 
   it("emits start-import when the button is clicked", async () => {
