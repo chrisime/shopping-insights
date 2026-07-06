@@ -1,7 +1,7 @@
 import { computed, onScopeDispose, ref } from "vue";
 
-import { openImportJobEvents, startImportJob } from "../api/imports";
-import type { ImportJobEventPayload, ImportProgressState, ImportRetailer } from "../types/imports";
+import { ImportStartError, openImportJobEvents, startImportJob } from "../api/imports";
+import type { ImportJobEventPayload, ImportProgressState, ImportRetailer, ImportStartRequest } from "../types/imports";
 
 const EMPTY_PROGRESS: ImportProgressState = {
   current: 0,
@@ -17,6 +17,8 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
   const progress = ref<ImportProgressState>({ ...EMPTY_PROGRESS });
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const technicalError = ref<{ error_code: number; detail: string } | null>(null);
+  const message = ref<string | null>(null);
 
   let eventSource: EventSource | null = null;
   let activeToken = 0;
@@ -31,6 +33,9 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
 
   function applyEventPayload(data: ImportJobEventPayload) {
     progress.value = { ...data.progress };
+    message.value = data.message;
+    technicalError.value = data.error;
+    error.value = data.error ? data.message ?? data.error.detail : null;
   }
 
   function parseEventPayload(event: MessageEvent<string>) {
@@ -72,7 +77,8 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
 
       try {
         const payload = JSON.parse(event.data) as Partial<ImportJobEventPayload>;
-        error.value = payload.message ?? "Import stream failed";
+        technicalError.value = payload.error ?? { error_code: 2103, detail: payload.message ?? "Import stream failed" };
+        error.value = payload.message ?? technicalError.value.detail;
       } catch {
         error.value = "Import stream failed";
       }
@@ -85,15 +91,16 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
     stream.addEventListener("error", handleError as EventListener);
   }
 
-  async function startImport(retailer: ImportRetailer) {
+  async function startImport(payload: ImportStartRequest) {
     const token = ++activeToken;
     closeEventSource();
     loading.value = true;
     error.value = null;
     progress.value = { ...EMPTY_PROGRESS };
+    message.value = null;
 
     try {
-      const response = await startImportJob(retailer);
+      const response = await startImportJob(payload);
       if (disposed || token !== activeToken) {
         return;
       }
@@ -105,7 +112,12 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
         return;
       }
 
-      error.value = cause instanceof Error ? cause.message : "Failed to start import";
+      if (cause instanceof ImportStartError) {
+        technicalError.value = { error_code: cause.errorCode, detail: cause.message };
+        error.value = cause.message;
+      } else {
+        error.value = cause instanceof Error ? cause.message : "Failed to start import";
+      }
       loading.value = false;
       closeEventSource();
     }
@@ -124,6 +136,8 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
     loading,
     running,
     error,
+    technicalError,
+    message,
     startImport,
     closeEventSource,
   };

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from reporting.shared_reporting import print_import_summary
 from shared.receipt_store import ReceiptStore
@@ -29,7 +29,12 @@ class ImportWorkflow(ABC):
         return output_dir / self._source_subdir_name()
 
     @abstractmethod
-    def _download_sources(self, output_dir: Path, store: ReceiptStore) -> bool:
+    def _download_sources(
+        self,
+        output_dir: Path,
+        store: ReceiptStore,
+        progress_listener: Callable[[object], None] | None = None,
+    ) -> bool:
         """Prepare session and download raw source files.
 
         Return ``False`` to abort the workflow (e.g. authentication failure).
@@ -38,7 +43,12 @@ class ImportWorkflow(ABC):
         """
 
     @abstractmethod
-    def _run_local_import(self, output_dir: Path, store: ReceiptStore) -> WorkflowResult:
+    def _run_local_import(
+        self,
+        output_dir: Path,
+        store: ReceiptStore,
+        progress_listener: Callable[[object], None] | None = None,
+    ) -> WorkflowResult:
         """Parse, validate and persist all local source files."""
 
     @abstractmethod
@@ -64,21 +74,31 @@ class ImportWorkflow(ABC):
     def _post_import(self, result: WorkflowResult, output_dir: Path) -> None:
         """Called after a successful initial import (default: no-op)."""
 
-    def run_initial(self, output_dir: Path, store: ReceiptStore) -> bool:
+    def run_initial(
+        self,
+        output_dir: Path,
+        store: ReceiptStore,
+        progress_listener: Callable[[object], None] | None = None,
+    ) -> bool:
         """Template: download sources → local import → summary → post-import hook."""
-        if not self._download_sources(output_dir, store):
+        if not self._download_sources(output_dir, store, progress_listener=progress_listener):
             return False
-        result = self._run_local_import(output_dir, store)
+        result = self._run_local_import(output_dir, store, progress_listener=progress_listener)
         self._print_import_summary(result)
         self._post_import(result, output_dir)
         return result.success
 
-    def run_update(self, output_dir: Path, store: ReceiptStore) -> bool:
+    def run_update(
+        self,
+        output_dir: Path,
+        store: ReceiptStore,
+        progress_listener: Callable[[object], None] | None = None,
+    ) -> bool:
         """Template: no-download info → precondition check → import → summary."""
         self._print_no_download_info()
         if not self._validate_update_preconditions(output_dir):
             return False
-        result = self._run_local_import(output_dir, store)
+        result = self._run_local_import(output_dir, store, progress_listener=progress_listener)
         self._print_import_summary(result)
         return result.success
 

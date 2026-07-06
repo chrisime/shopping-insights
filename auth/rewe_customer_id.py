@@ -1,6 +1,7 @@
 """Utilities for resolving and caching the REWE customerId used by the ZIP endpoint."""
 
 import re
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -11,6 +12,9 @@ import requests
 from config import ReweConfig
 
 from .shared_file_auth import read_utf8_text_file
+
+
+logger = logging.getLogger(__name__)
 
 
 CUSTOMER_ID_PATTERN = re.compile(
@@ -58,9 +62,16 @@ def _read_customer_id_from_session(session: Optional[requests.Session]) -> Optio
             },
         )
         if response.status_code != 200:
+            logger.info(
+                "REWE couponwallet antwortete mit HTTP %s statt 200.",
+                response.status_code,
+            )
             return None
 
-        return extract_rewe_customer_id_from_text(response.text)
+        customer_id = extract_rewe_customer_id_from_text(response.text)
+        if not customer_id:
+            logger.info("REWE couponwallet lieferte keine customerUUID in der Antwort.")
+        return customer_id
     except requests.exceptions.RequestException:
         return None
     finally:
@@ -112,5 +123,4 @@ def _normalize_customer_id(value: str) -> Optional[str]:
         return str(UUID(value.strip()))
     except (AttributeError, TypeError, ValueError):
         return None
-
 

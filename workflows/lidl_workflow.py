@@ -2,7 +2,7 @@
 
 import time
 from pathlib import Path
-from typing import Any, List, Optional, Sequence
+from typing import Any, Callable, List, Optional, Sequence
 
 import simplejson
 from client.lidl_client import collect_lidl_receipt_ids, get_lidl_ticket, test_lidl_session
@@ -19,6 +19,7 @@ from .import_pipeline import ImportPipeline
 from .pipeline_types import WorkflowResult
 from .progress_display import ReceiptProgressDisplay
 from .workflow_constants import RETAILER_LIDL, REASON_KIND_LIDL_FETCH
+from .workflow_errors import clear_last_workflow_error, lidl_initial_error, set_last_workflow_error
 
 __all__ = [
     "run_lidl_initial",
@@ -52,7 +53,12 @@ class _LidlImportWorkflow(ImportWorkflow):
     def _source_subdir_name(self) -> str:
         return "tickets"
 
-    def _download_sources(self, output_dir: Path, store: ReceiptStore) -> bool:
+    def _download_sources(
+        self,
+        output_dir: Path,
+        store: ReceiptStore,
+        progress_listener: Callable[[object], None] | None = None,
+    ) -> bool:
         session = _prepare_lidl_session(self._browser, self._cookies_file, self._country)
         if not session:
             return False
@@ -73,7 +79,7 @@ class _LidlImportWorkflow(ImportWorkflow):
         print(f"ℹ Neue Kassenbons zu verarbeiten: {len(receipt_ids)}")
 
         if receipt_ids:
-            _download_lidl_tickets(session, receipt_ids, tickets_dir)
+            _download_lidl_tickets(session, receipt_ids, tickets_dir, progress_listener=progress_listener)
         return True
 
     def _validate_update_preconditions(self, output_dir: Path) -> bool:
@@ -83,7 +89,12 @@ class _LidlImportWorkflow(ImportWorkflow):
             return False
         return True
 
-    def _run_local_import(self, output_dir: Path, store: ReceiptStore) -> WorkflowResult:
+    def _run_local_import(
+        self,
+        output_dir: Path,
+        store: ReceiptStore,
+        progress_listener: Callable[[object], None] | None = None,
+    ) -> WorkflowResult:
         tickets_dir = self._source_dir(output_dir)
         return _LidlImportPipeline().run(
             source_paths=sorted(tickets_dir.glob("*.json")),
@@ -92,6 +103,7 @@ class _LidlImportWorkflow(ImportWorkflow):
             receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
             store=store,
             checked_pages=self._checked_pages,
+            progress_listener=progress_listener,
         )
 
     def _import_summary_label(self) -> str:
@@ -111,18 +123,30 @@ def run_lidl_initial(
     cookies_file: Optional[str] = None,
     country: Optional[str] = None,
     output_dir: str = LidlConfig.DEFAULT_OUTPUT_DIR,
+    progress_listener: Callable[[object], None] | None = None,
 ) -> bool:
     """Download new Lidl ticket JSONs and import them into the DB."""
     base_output_dir = Path(output_dir)
     store = create_receipt_store()
-    return _LidlImportWorkflow(browser, cookies_file, country).run_initial(base_output_dir, store)
+    return _LidlImportWorkflow(browser, cookies_file, country).run_initial(
+        base_output_dir,
+        store,
+        progress_listener=progress_listener,
+    )
 
 
-def run_lidl_update(output_dir: str = LidlConfig.DEFAULT_OUTPUT_DIR) -> bool:
+def run_lidl_update(
+    output_dir: str = LidlConfig.DEFAULT_OUTPUT_DIR,
+    progress_listener: Callable[[object], None] | None = None,
+) -> bool:
     """Re-import all locally downloaded Lidl JSONs into the configured store via upsert."""
     base_output_dir = Path(output_dir)
     store = create_receipt_store()
-    return _LidlImportWorkflow(None, None, None).run_update(base_output_dir, store)
+    return _LidlImportWorkflow(None, None, None).run_update(
+        base_output_dir,
+        store,
+        progress_listener=progress_listener,
+    )
 
 
 def _prepare_lidl_session(browser: Optional[str], cookies_file: Optional[str], country: Optional[str]) -> Optional[Session]:
@@ -132,15 +156,24 @@ def _prepare_lidl_session(browser: Optional[str], cookies_file: Optional[str], c
 
     auth_method = resolve_auth_method(browser, cookies_file, "LIDL")
     if not auth_method:
+        info = lidl_initial_error("missing_auth")
+        set_last_workflow_error(info)
+        print(f"✗ {info.detail}")
         return None
 
     session = setup_session(RETAILER_LIDL, auth_method, cookies_file)
     if not session:
+        info = lidl_initial_error("browser_no_cookies")
+        set_last_workflow_error(info)
+        print(f"✗ {info.detail}")
         return None
 
     if not _test_lidl_workflow_session(session):
+        info = lidl_initial_error("session_check_failed")
+        set_last_workflow_error(info)
         return None
 
+    clear_last_workflow_error()
     return session
 
 
@@ -148,17 +181,24 @@ def _test_lidl_workflow_session(session: Session) -> bool:
     """Run the workflow-level LIDL session test including reporting side effects."""
     print("ℹ Teste LIDL-Session...")
     if not test_lidl_session(session):
-        print(f"✗ API-Verbindungsfehler: LIDL-Session konnte nicht geprüft werden")
+        info = lidl_initial_error("session_check_failed")
+        print(f"✗ API-Verbindungsfehler: {info.detail}")
         return False
     print("✓ LIDL-Session erfolgreich getestet")
     return True
 
 
-def _download_lidl_tickets(session: Session, receipt_ids: List[str], tickets_dir: Path) -> None:
+def _download_lidl_tickets(
+    session: Session,
+    receipt_ids: List[str],
+    tickets_dir: Path,
+    progress_listener: Callable[[object], None] | None = None,
+) -> None:
     """Download Lidl ticket JSONs and save them to the local tickets directory."""
     progress = ReceiptProgressDisplay(
         added_label="Gespeichert",
         items_label="Artikel",
+        listener=progress_listener,
     )
     total_receipts = len(receipt_ids)
     total_items = 0

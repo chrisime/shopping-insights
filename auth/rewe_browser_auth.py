@@ -14,7 +14,7 @@ from .cookie_policies import (
     RECOMMENDED_REWE_WAF_COOKIE_NAMES,
 )
 from .jwt_expiry import extract_jwt_expiry_epoch, is_jwt_expired
-from .session_cookie_recovery import check_sessionstore_privacy_level
+from .session_cookie_recovery import check_sessionstore_privacy_level, diagnose_session_cookies_for_domain
 
 
 _SESSION_COOKIE_EXPLANATION = (
@@ -24,6 +24,24 @@ _SESSION_COOKIE_EXPLANATION = (
     "Es kann nur aus der Session-Restore-Datei (recovery.jsonlz4)\n"
     "wiederhergestellt werden.\n"
 )
+
+
+class ReweBrowserAuthError(RuntimeError):
+    pass
+
+
+def _looks_like_locked_browser_profile(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return any(
+        needle in message
+        for needle in (
+            "database is locked",
+            "permission denied",
+            "resource busy",
+            "file is locked",
+            "profile in use",
+        )
+    )
 
 
 def _session_cookie_hint(browser_label: str) -> None:
@@ -71,6 +89,25 @@ def _session_cookie_hint(browser_label: str) -> None:
         )
 
 
+def _log_rewe_firefox_session_diagnostics(browser_label: str) -> None:
+    diagnostics = diagnose_session_cookies_for_domain("firefox" if "firefox" in browser_label.lower() else "librewolf", ReweConfig.get_cookie_domain())
+
+    if diagnostics.reason == "profiles_dir_missing":
+        logger.info("  ✗ Kein lokales %s-Profilverzeichnis gefunden.", browser_label)
+    elif diagnostics.reason == "profile_missing":
+        logger.info("  ✗ Kein passendes %s-Profil mit Session-Daten gefunden.", browser_label)
+    elif diagnostics.reason == "recovery_missing":
+        logger.info("  ✗ Im %s-Profil fehlt sessionstore-backups/recovery.jsonlz4.", browser_label)
+    elif diagnostics.reason == "recovery_unreadable":
+        logger.info("  ✗ sessionstore-backups/recovery.jsonlz4 im %s-Profil ist nicht lesbar.", browser_label)
+    elif diagnostics.reason == "recovery_empty":
+        logger.info("  ✗ sessionstore-backups/recovery.jsonlz4 enthält keine Session-Cookies.", browser_label)
+    elif diagnostics.reason == "no_matching_cookies":
+        logger.info("  ✗ recovery.jsonlz4 enthält keine REWE-Cookies für %s.", ReweConfig.get_cookie_domain())
+    elif diagnostics.reason == "ok":
+        logger.info("  ℹ %d REWE-Session-Cookie(s) für %s im Firefox-Profil gefunden.", diagnostics.matched_cookie_count, ReweConfig.get_cookie_domain())
+
+
 class ReweBrowserCookieExtractor(BrowserCookieExtractor):
     """Extract REWE session cookies from a local browser profile."""
 
@@ -88,18 +125,34 @@ class ReweBrowserCookieExtractor(BrowserCookieExtractor):
 
     def _on_load_error(self, browser_label: str, exc: Exception) -> None:
         super()._on_load_error(browser_label, exc)
+        if _looks_like_locked_browser_profile(exc):
+            message = "Browserprofil gesperrt"
+            logger.info(
+                "  Der %s laeuft vermutlich noch oder das Profil ist gesperrt. "
+                "Bitte den Browser vollstaendig schliessen und den Import erneut starten.",
+                browser_label,
+            )
+            raise ReweBrowserAuthError(message) from exc
         if "librewolf" in browser_label.lower() or "firefox" in browser_label.lower():
             logger.info(_SESSION_COOKIE_EXPLANATION)
+            _log_rewe_firefox_session_diagnostics(browser_label)
             _session_cookie_hint(browser_label)
 
     def _on_no_cookies(self, browser_label: str) -> None:
         super()._on_no_cookies(browser_label)
+        diagnostics = diagnose_session_cookies_for_domain(
+            "firefox" if "firefox" in browser_label.lower() else "librewolf",
+            ReweConfig.get_cookie_domain(),
+        )
+        if diagnostics.reason in {"recovery_missing", "recovery_unreadable", "recovery_empty"}:
+            raise ReweBrowserAuthError("rstp nicht aus Browser-Session lesbar")
         logger.info(
             "Bitte melde dich zuerst bei www.rewe.de an oder nutze "
             "--cookies-file als Fallback."
         )
         if "librewolf" in browser_label.lower() or "firefox" in browser_label.lower():
             logger.info(_SESSION_COOKIE_EXPLANATION)
+            _log_rewe_firefox_session_diagnostics(browser_label)
             _session_cookie_hint(browser_label)
 
     def _on_missing_required(
@@ -110,14 +163,22 @@ class ReweBrowserCookieExtractor(BrowserCookieExtractor):
                 "Es wurden zwar REWE-/Keycloak-SSO-Cookies gefunden, aber kein rstp."
             )
             logger.info(_SESSION_COOKIE_EXPLANATION)
+            _log_rewe_firefox_session_diagnostics(browser_label)
             _session_cookie_hint(browser_label)
+            raise ReweBrowserAuthError(
+                "rstp nicht aus Browser-Session lesbar"
+            )
         else:
             logger.info(
                 "Es wurde kein rstp-Cookie gefunden. Firefox/LibreWolf "
                 "speichert Session-Cookies nur im Arbeitsspeicher."
             )
             if "librewolf" in browser_label.lower() or "firefox" in browser_label.lower():
+                _log_rewe_firefox_session_diagnostics(browser_label)
                 _session_cookie_hint(browser_label)
+            raise ReweBrowserAuthError(
+                "rstp fehlt im Browserprofil"
+            )
 
         logger.info(
             "Alternativ: --cookies-file verwenden (Cookies per Browser-"

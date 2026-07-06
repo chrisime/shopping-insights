@@ -1,11 +1,13 @@
 import tempfile
 import unittest
 from pathlib import Path
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 from auth.session_cookie_recovery import (
     _find_default_profile,
     _find_firefox_profiles_dir,
+    diagnose_session_cookies_for_domain,
     _read_jsonlz4,
     _read_pref_value,
     check_sessionstore_privacy_level,
@@ -77,7 +79,9 @@ class SessionCookieRecoveryTests(unittest.TestCase):
             self._make_profile_with_cookies(profiles_dir, "abc123.default-release")
 
             result = _find_default_profile(profiles_dir)
-            self.assertIn("default-release", result.name)
+            self.assertIsNotNone(result)
+            profile = cast(Path, result)
+            self.assertIn("default-release", profile.name)
 
     def test_find_default_profile_falls_back_to_any_profile(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -85,7 +89,9 @@ class SessionCookieRecoveryTests(unittest.TestCase):
             self._make_profile_with_cookies(profiles_dir, "random-profile")
 
             result = _find_default_profile(profiles_dir)
-            self.assertEqual(result.name, "random-profile")
+            self.assertIsNotNone(result)
+            profile = cast(Path, result)
+            self.assertEqual(profile.name, "random-profile")
 
     def test_find_default_profile_returns_none_when_no_cookies_sqlite(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -95,6 +101,18 @@ class SessionCookieRecoveryTests(unittest.TestCase):
             result = _find_default_profile(profiles_dir)
             self.assertIsNone(result)
 
+    def test_find_default_profile_accepts_session_restore_only_profiles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profiles_dir = Path(tmp)
+            profile_dir = profiles_dir / "session-only.default-release"
+            (profile_dir / "sessionstore-backups").mkdir(parents=True)
+            (profile_dir / "sessionstore-backups" / "recovery.jsonlz4").touch()
+
+            result = _find_default_profile(profiles_dir)
+            self.assertIsNotNone(result)
+            profile = cast(Path, result)
+            self.assertEqual(profile.name, "session-only.default-release")
+
     def test_find_default_profile_skips_bkp_in_initial_search(self):
         with tempfile.TemporaryDirectory() as tmp:
             profiles_dir = Path(tmp)
@@ -102,7 +120,9 @@ class SessionCookieRecoveryTests(unittest.TestCase):
             self._make_profile_with_cookies(profiles_dir, "normal-profile")
 
             result = _find_default_profile(profiles_dir)
-            self.assertEqual(result.name, "normal-profile")
+            self.assertIsNotNone(result)
+            profile = cast(Path, result)
+            self.assertEqual(profile.name, "normal-profile")
 
     # --- _read_pref_value ---
     def test_read_pref_value_finds_value(self):
@@ -227,6 +247,11 @@ class SessionCookieRecoveryTests(unittest.TestCase):
 
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["name"], "authToken")
+
+    @patch("auth.session_cookie_recovery._find_firefox_profiles_dir", return_value=None)
+    def test_diagnose_session_cookies_reports_missing_profiles_dir(self, _mock_find):
+        diag = diagnose_session_cookies_for_domain("firefox", "rewe.de")
+        self.assertEqual(diag.reason, "profiles_dir_missing")
 
     # --- check_sessionstore_privacy_level ---
     @patch(

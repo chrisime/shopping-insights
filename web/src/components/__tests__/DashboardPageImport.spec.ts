@@ -17,6 +17,7 @@ describe("DashboardPage import", () => {
       running: ref(false),
       message: ref(null as string | null),
       error: ref(null as string | null),
+      technicalError: ref(null as { error_code: number; detail: string } | null),
       startImport,
       closeEventSource: vi.fn(),
     };
@@ -40,13 +41,13 @@ describe("DashboardPage import", () => {
     const wrapper = mount(DashboardPage, {
       global: {
         stubs: {
-          DashboardFilterBar: true,
-          ImportJobControls: {
-            template: '<button class="import-control" @click="$emit(\'start-import\')">Import</button>',
-          },
+        DashboardFilterBar: true,
+        ImportJobControls: {
+          template: '<button class="import-control" @click="$emit(\'start-import\', { retailer: \'lidl\', browser: \'firefox\' })">Import</button>',
+        },
           DashboardSection: true,
           DashboardSkeleton: true,
-          KpiRow: true,
+          KpiGroupGrid: true,
           TrendChartPanel: true,
           WeekdayPanel: true,
           TopItemsPanel: true,
@@ -57,6 +58,6 @@ describe("DashboardPage import", () => {
     expect(wrapper.text()).toContain("Import");
     await wrapper.get(".import-control").trigger("click");
 
-    expect(startImport).toHaveBeenCalledWith("lidl");
+    expect(startImport).toHaveBeenCalledWith({ retailer: "lidl", browser: "firefox" });
   });
 });

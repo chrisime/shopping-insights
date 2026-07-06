@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable
 
 
 @dataclass
@@ -28,12 +29,14 @@ class ReceiptProgressDisplay:
         skipped_label: str = "Übersprungen",
         errors_label: str = "Fehler",
         items_label: str = "Artikel",
+        listener: Callable[[ProgressState], None] | None = None,
     ):
         self.bar_width = bar_width
         self.added_label = added_label
         self.skipped_label = skipped_label
         self.errors_label = errors_label
         self.items_label = items_label
+        self.listener = listener
         self._initialized = False
 
     def render(self, state: ProgressState) -> None:
@@ -64,6 +67,8 @@ class ReceiptProgressDisplay:
         print(f"\r\033[K{line1}")
         print(f"\r\033[K{line2}")
         print(f"\r\033[K{line3}", flush=True)
+        if self.listener is not None:
+            self.listener(state)
 
     def render_step(self, index: int, total: int, added: int, skipped: int, items: int, source_id: str = "-") -> None:
         self.render(ProgressState(

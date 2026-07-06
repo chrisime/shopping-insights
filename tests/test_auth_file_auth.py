@@ -3,7 +3,10 @@ import tempfile
 import unittest
 import base64
 from pathlib import Path
+from typing import cast
 from unittest.mock import Mock
+
+import requests
 
 from auth.lidl_file_auth import load_lidl_cookies_from_file
 from auth.rewe_customer_id import (
@@ -44,7 +47,8 @@ class AuthFileAuthTests(unittest.TestCase):
             session = load_lidl_cookies_from_file(str(cookie_file))
 
         self.assertIsNotNone(session)
-        self.assertEqual({cookie.name for cookie in session.cookies}, {"authToken"})
+        loaded_session = cast(requests.Session, session)
+        self.assertEqual({cookie.name for cookie in loaded_session.cookies}, {"authToken"})
 
     def test_load_lidl_cookies_from_file_rejects_missing_required_auth_cookie(self):
         cookies_payload = {
@@ -117,7 +121,8 @@ class AuthFileAuthTests(unittest.TestCase):
             session = load_rewe_cookies_from_file(str(cookie_file))
 
         self.assertIsNotNone(session)
-        self.assertEqual({cookie.name for cookie in session.cookies}, {"rstp"})
+        loaded_session = cast(requests.Session, session)
+        self.assertEqual({cookie.name for cookie in loaded_session.cookies}, {"rstp"})
 
     def test_load_rewe_cookies_from_file_rejects_expired_rstp(self):
         expired_token = self._build_jwt_like_token({"exp": 1})
@@ -186,6 +191,26 @@ class AuthFileAuthTests(unittest.TestCase):
             )
 
         self.assertEqual(customer_id, "12345678-1234-1234-1234-abcdefabcdef")
+        response.close.assert_called_once()
+
+    def test_resolve_rewe_customer_id_reads_customer_uuid_from_couponwallet_response(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            response = Mock()
+            response.status_code = 200
+            response.text = '{"customerUUID":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}'
+            response.close = Mock()
+
+            session = Mock()
+            session.get.return_value = response
+
+            customer_id = resolve_rewe_customer_id(
+                customer_id=None,
+                session=session,
+                cookies_file=None,
+                output_dir=Path(tmp_dir),
+            )
+
+        self.assertEqual(customer_id, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
         response.close.assert_called_once()
 
     def test_resolve_rewe_customer_id_reads_customer_id_from_input_file(self):

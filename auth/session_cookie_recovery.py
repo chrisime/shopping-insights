@@ -19,7 +19,55 @@ logger = logging.getLogger(__name__)
 import simplejson
 import platform
 from pathlib import Path
+from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set
+
+
+@dataclass(frozen=True)
+class SessionCookieDiagnostics:
+    browser: str
+    domain_suffix: str
+    reason: str
+    profiles_dir: Optional[Path]
+    profile: Optional[Path]
+    recovery_file: Optional[Path]
+    matched_cookie_count: int
+
+
+def diagnose_session_cookies_for_domain(browser: str, domain_suffix: str) -> SessionCookieDiagnostics:
+    profiles_dir = _find_firefox_profiles_dir(browser)
+    if profiles_dir is None:
+        return SessionCookieDiagnostics(browser, domain_suffix, "profiles_dir_missing", None, None, None, 0)
+
+    profile = _find_default_profile(profiles_dir)
+    if profile is None:
+        return SessionCookieDiagnostics(browser, domain_suffix, "profile_missing", profiles_dir, None, None, 0)
+
+    recovery = profile / "sessionstore-backups" / "recovery.jsonlz4"
+    if not recovery.exists():
+        return SessionCookieDiagnostics(browser, domain_suffix, "recovery_missing", profiles_dir, profile, recovery, 0)
+
+    data = _read_jsonlz4(recovery)
+    if data is None:
+        return SessionCookieDiagnostics(browser, domain_suffix, "recovery_unreadable", profiles_dir, profile, recovery, 0)
+
+    raw_cookies: List[dict] = list(data.get("cookies", []))
+    for window in data.get("windows", []):
+        raw_cookies.extend(window.get("cookies", []))
+
+    if not raw_cookies:
+        return SessionCookieDiagnostics(browser, domain_suffix, "recovery_empty", profiles_dir, profile, recovery, 0)
+
+    domain_suffix_dot = f".{domain_suffix}"
+    matched_count = sum(
+        1
+        for c in raw_cookies
+        if (host := c.get("host", "")) and (host == domain_suffix or host.endswith(domain_suffix_dot))
+    )
+    if matched_count == 0:
+        return SessionCookieDiagnostics(browser, domain_suffix, "no_matching_cookies", profiles_dir, profile, recovery, 0)
+
+    return SessionCookieDiagnostics(browser, domain_suffix, "ok", profiles_dir, profile, recovery, matched_count)
 
 
 def _find_firefox_profiles_dir(browser: str) -> Optional[Path]:
@@ -50,7 +98,7 @@ def _find_firefox_profiles_dir(browser: str) -> Optional[Path]:
 
 
 def _find_default_profile(profiles_dir: Path) -> Optional[Path]:
-    """Heuristic: pick the profile directory with a ``cookies.sqlite``."""
+    """Heuristic: pick the profile directory with persistent or session cookies."""
     if not profiles_dir.is_dir():
         return None
 
@@ -60,8 +108,17 @@ def _find_default_profile(profiles_dir: Path) -> Optional[Path]:
         if ".bkp" not in str(p)
     ]
     if not candidates:
-        # Fallback: accept backup profiles too
         candidates = [p.parent for p in profiles_dir.rglob("cookies.sqlite")]
+
+    if not candidates:
+        candidates = [
+            p.parent.parent
+            for p in profiles_dir.rglob("sessionstore-backups/recovery.jsonlz4")
+            if p.parent.parent.is_dir()
+        ]
+
+    if not candidates:
+        candidates = [p.parent for p in profiles_dir.rglob("prefs.js")]
 
     # Prefer default-default, default-release or *.default profiles
     for c in candidates:
@@ -106,19 +163,11 @@ def read_session_cookies_for_domain(
     Returns an empty list when the file is missing, unreadable, or contains
     no matching cookies.
     """
-    profiles_dir = _find_firefox_profiles_dir(browser)
-    if profiles_dir is None:
+    diagnostics = diagnose_session_cookies_for_domain(browser, domain_suffix)
+    if diagnostics.reason != "ok" or diagnostics.profile is None or diagnostics.recovery_file is None:
         return []
 
-    profile = _find_default_profile(profiles_dir)
-    if profile is None:
-        return []
-
-    recovery = profile / "sessionstore-backups" / "recovery.jsonlz4"
-    if not recovery.exists():
-        return []
-
-    data = _read_jsonlz4(recovery)
+    data = _read_jsonlz4(diagnostics.recovery_file)
     if data is None:
         return []
 

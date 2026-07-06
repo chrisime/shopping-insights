@@ -54,7 +54,7 @@ describe("useImportJob", () => {
     const job = scope.run(() => useImportJob(refreshDashboard));
     expect(job).toBeDefined();
 
-    await job!.startImport("lidl");
+    await job!.startImport({ retailer: "lidl", browser: "firefox" });
     expect(job!.loading.value).toBe(true);
     expect(MockEventSource.instances).toHaveLength(1);
 
@@ -111,8 +111,8 @@ describe("useImportJob", () => {
     const job = scope.run(() => useImportJob(() => undefined));
     expect(job).toBeDefined();
 
-    await job!.startImport("lidl");
-    await job!.startImport("rewe");
+    await job!.startImport({ retailer: "lidl", browser: "firefox" });
+    await job!.startImport({ retailer: "rewe", cookies_file: "rewe_cookies.json" });
 
     expect(MockEventSource.instances).toHaveLength(2);
     expect(MockEventSource.instances[0].close).toHaveBeenCalledTimes(1);
@@ -129,7 +129,7 @@ describe("useImportJob", () => {
     const job = scope.run(() => useImportJob(() => undefined));
     expect(job).toBeDefined();
 
-    await job!.startImport("lidl");
+    await job!.startImport({ retailer: "lidl", browser: "firefox" });
     scope.stop();
 
     expect(MockEventSource.instances).toHaveLength(1);
@@ -145,12 +145,101 @@ describe("useImportJob", () => {
     const job = scope.run(() => useImportJob(() => undefined));
     expect(job).toBeDefined();
 
-    await job!.startImport("lidl");
+    await job!.startImport({ retailer: "lidl", browser: "firefox" });
     MockEventSource.instances[0].emitEmptyError();
 
     expect(job!.error.value).toBeNull();
     expect(job!.loading.value).toBe(true);
     expect(MockEventSource.instances[0].close).not.toHaveBeenCalled();
+
+    scope.stop();
+  });
+
+  it("surfaces structured backend error details", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("EventSource", MockEventSource as never);
+
+    const scope = effectScope();
+    const job = scope.run(() => useImportJob(() => undefined));
+    expect(job).toBeDefined();
+
+    await job!.startImport({ retailer: "lidl", browser: "firefox" });
+    MockEventSource.instances[0].emit("error", {
+      job_id: "job-1",
+      retailer: "lidl",
+      status: "error",
+      progress: {
+        current: 0,
+        total: 1,
+        added: 0,
+        skipped: 0,
+        errors: 1,
+        items: 0,
+        current_receipt: "-",
+      },
+      error: { error_code: 2102, detail: "Nicht autorisiert (401)" },
+      message: "Import fehlgeschlagen",
+    });
+
+    expect(job!.technicalError.value).toEqual({ error_code: 2102, detail: "Nicht autorisiert (401)" });
+    expect(job!.error.value).toBe("Import fehlgeschlagen");
+
+    scope.stop();
+  });
+
+  it("surfaces structured error details in the visible error string", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("EventSource", MockEventSource as never);
+
+    const scope = effectScope();
+    const job = scope.run(() => useImportJob(() => undefined));
+    expect(job).toBeDefined();
+
+    await job!.startImport({ retailer: "lidl", browser: "firefox" });
+    MockEventSource.instances[0].emit("error", {
+      job_id: "job-1",
+      retailer: "lidl",
+      status: "error",
+      progress: {
+        current: 0,
+        total: 1,
+        added: 0,
+        skipped: 0,
+        errors: 1,
+        items: 0,
+        current_receipt: "-",
+      },
+      error: { error_code: 2102, detail: "Nicht autorisiert (401)" },
+      message: "Import fehlgeschlagen",
+    });
+
+    expect(job!.error.value).toBe("Import fehlgeschlagen");
+    expect(job!.technicalError.value?.error_code).toBe(2102);
+
+    scope.stop();
+  });
+
+  it("surfaces concurrent import conflicts as a structured start error", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ detail: { error_code: 4091, detail: "Import bereits aktiv" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("EventSource", MockEventSource as never);
+
+    const scope = effectScope();
+    const job = scope.run(() => useImportJob(() => undefined));
+    expect(job).toBeDefined();
+
+    await job!.startImport({ retailer: "lidl", browser: "firefox" });
+
+    expect(job!.error.value).toBe("Import bereits aktiv");
+    expect(job!.technicalError.value).toEqual({ error_code: 4091, detail: "Import bereits aktiv" });
+    expect(job!.loading.value).toBe(false);
+    expect(MockEventSource.instances).toHaveLength(0);
 
     scope.stop();
   });

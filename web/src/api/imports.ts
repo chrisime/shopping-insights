@@ -1,11 +1,23 @@
 import type { ImportRetailer, ImportStartRequest, ImportStartResponse } from "../types/imports";
 
+const CONCURRENT_IMPORT_MESSAGE = "Import bereits aktiv";
+const CONCURRENT_IMPORT_CODE = 4091;
+
+export class ImportStartError extends Error {
+  constructor(
+    message: string,
+    public errorCode: number,
+  ) {
+    super(message);
+    this.name = "ImportStartError";
+  }
+}
+
 const DEFAULT_API_BASE_URL = "http://localhost:8000";
 
-export async function startImportJob(retailer: ImportRetailer): Promise<ImportStartResponse> {
+export async function startImportJob(payload: ImportStartRequest): Promise<ImportStartResponse> {
   const baseUrl = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
   const url = new URL("/imports/start", baseUrl);
-  const payload: ImportStartRequest = { retailer };
 
   const response = await fetch(url, {
     method: "POST",
@@ -16,6 +28,10 @@ export async function startImportJob(retailer: ImportRetailer): Promise<ImportSt
   });
 
   if (!response.ok) {
+    if (response.status === 409) {
+      const payload = (await response.json()) as { detail?: { error_code?: number; detail?: string } };
+      throw new ImportStartError(payload.detail?.detail ?? CONCURRENT_IMPORT_MESSAGE, payload.detail?.error_code ?? CONCURRENT_IMPORT_CODE);
+    }
     throw new Error(`HTTP ${response.status}`);
   }
 

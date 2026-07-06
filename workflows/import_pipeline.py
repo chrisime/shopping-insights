@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence
 
 from result_types import WorkflowSummary
 from reporting.shared_reporting import write_skipped_receipts_report
@@ -32,6 +32,7 @@ class ImportPipeline(ABC):
         receipts_file: str,
         store: ReceiptStore,
         checked_pages: Optional[int] = None,
+        progress_listener: Callable[[object], None] | None = None,
     ) -> WorkflowResult:
         """Parse, validate and persist a set of local receipt source files."""
         active_source_paths = list(source_paths)
@@ -56,8 +57,18 @@ class ImportPipeline(ABC):
                     )
                 )
 
-        parse_result = parse_receipts(raw_records, retailer=retailer, detail_key=self.detail_key)
-        validation_result = validate_receipts(parse_result.records, retailer=retailer, detail_key=self.detail_key)
+        parse_result = parse_receipts(
+            raw_records,
+            retailer=retailer,
+            detail_key=self.detail_key,
+            progress_listener=progress_listener,
+        )
+        validation_result = validate_receipts(
+            parse_result.records,
+            retailer=retailer,
+            detail_key=self.detail_key,
+            progress_listener=progress_listener,
+        )
         receipt_dtos = [receipt_dict_to_dto(record, retailer) for record in validation_result.records]
         persist_result = store.persist_receipts(receipt_dtos, retailer=retailer)
 

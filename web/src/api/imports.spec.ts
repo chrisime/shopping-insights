@@ -11,18 +11,33 @@ describe("import api helpers", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
     vi.stubGlobal("fetch", fetchMock);
 
-    await startImportJob("lidl");
+    await startImportJob({ retailer: "lidl", browser: "firefox" });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
       expect.any(URL),
-      expect.objectContaining({
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ retailer: "lidl" }),
-      }),
+        body: JSON.stringify({ retailer: "lidl", browser: "firefox" }),
+      },
     );
     expect(String(fetchMock.mock.calls[0][0])).toContain("/imports/start");
+  });
+
+  it("surfaces structured conflict details for a concurrent import", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ detail: { error_code: 4091, detail: "Import bereits aktiv" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(startImportJob({ retailer: "rewe", browser: "firefox" })).rejects.toMatchObject({
+      name: "ImportStartError",
+      errorCode: 4091,
+      message: "Import bereits aktiv",
+    });
   });
 
   it("opens the import event stream for a job", () => {

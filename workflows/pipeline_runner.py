@@ -20,7 +20,7 @@ from .pipeline_types import (
     ReceiptIssue,
     StageResult,
 )
-from .progress_display import ReceiptProgressDisplay
+from .progress_display import ProgressState, ReceiptProgressDisplay
 from .workflow_constants import RETAILER_LIDL, RETAILER_REWE
 
 T = TypeVar("T")
@@ -71,9 +71,10 @@ def parse_receipts(
     retailer: str,
     detail_key: str = "receipt_id",
     unexpected_error_kind: Optional[str] = None,
+    progress_listener: Callable[["ProgressState"], None] | None = None,
 ) -> StageResult[ParsedReceiptRecord]:
     """Parse raw retailer payloads into normalized receipt records."""
-    progress = ReceiptProgressDisplay(added_label="Geparst")
+    progress = ReceiptProgressDisplay(added_label="Geparst", listener=progress_listener)
     parsed_records: list[ParsedReceiptRecord] = []
     issues: list[ReceiptIssue] = []
     total_records = len(raw_records)
@@ -138,9 +139,10 @@ def validate_receipts(
     parsed_records: Sequence[ParsedReceiptRecord],
     retailer: str,
     detail_key: str = "receipt_id",
+    progress_listener: Callable[["ProgressState"], None] | None = None,
 ) -> StageResult[dict]:
     """Validate parsed receipt records before persistence."""
-    progress = ReceiptProgressDisplay(added_label="Validiert")
+    progress = ReceiptProgressDisplay(added_label="Validiert", listener=progress_listener)
     valid_receipts: list[dict] = []
     issues: list[ReceiptIssue] = []
     total_records = len(parsed_records)

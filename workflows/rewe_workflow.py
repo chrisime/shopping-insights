@@ -1,12 +1,14 @@
 """Central REWE workflows for eBon download, PDF import and diagnostics."""
 
+import logging
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 import zipfile
 
 from requests import Session
 
 from client.rewe_client import download_receipts_zip, test_rewe_session
+from auth.rewe_browser_auth import ReweBrowserAuthError
 from auth.rewe_customer_id import cache_customer_id, resolve_rewe_customer_id
 from auth.session_manager import setup_session
 from config import storage_config, ReweConfig
@@ -17,6 +19,10 @@ from .import_workflow import ImportWorkflow, resolve_auth_method
 from .import_pipeline import ImportPipeline
 from .pipeline_types import WorkflowResult
 from .workflow_constants import RETAILER_REWE, REASON_KIND_REWE_PDF_PARSE
+from .workflow_errors import rewe_initial_error
+
+
+logger = logging.getLogger(__name__)
 
 
 __all__ = [
@@ -43,7 +49,12 @@ class _ReweImportWorkflow(ImportWorkflow):
     def _source_subdir_name(self) -> str:
         return "pdfs"
 
-    def _download_sources(self, output_dir: Path, store: ReceiptStore) -> bool:
+    def _download_sources(
+        self,
+        output_dir: Path,
+        store: ReceiptStore,
+        progress_listener: Callable[[object], None] | None = None,
+    ) -> bool:
         session_and_customer_id = _prepare_rewe_session(self._customer_id, self._browser, self._cookies_file, output_dir)
         if not session_and_customer_id:
             return False
@@ -56,8 +67,13 @@ class _ReweImportWorkflow(ImportWorkflow):
 
         return _download_and_extract_rewe_zip(session, self._resolved_customer_id, zip_path, target_dir)
 
-    def _run_local_import(self, output_dir: Path, store: ReceiptStore) -> WorkflowResult:
-        return _run_rewe_pdf_import_pipeline(self._source_dir(output_dir), store)
+    def _run_local_import(
+        self,
+        output_dir: Path,
+        store: ReceiptStore,
+        progress_listener: Callable[[object], None] | None = None,
+    ) -> WorkflowResult:
+        return _run_rewe_pdf_import_pipeline(self._source_dir(output_dir), store, progress_listener=progress_listener)
 
     def _import_summary_label(self) -> str:
         return "REWE-eBons importiert"
@@ -77,25 +93,47 @@ class _ReweImportWorkflow(ImportWorkflow):
             cache_customer_id(self._resolved_customer_id, output_dir)
 
 
+class ReweInitialSessionError(RuntimeError):
+    def __init__(self, message: str, error_code: int) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+
+
 def run_rewe_initial(
         customer_id: Optional[str] = None,
         browser: Optional[str] = None,
         cookies_file: Optional[str] = None,
         output_dir: str = ReweConfig.REWE_DEFAULT_OUTPUT_DIR,
+        progress_listener: Callable[[object], None] | None = None,
 ) -> bool:
     """Run the full REWE eBon workflow: download ZIP, extract PDFs, import into DB."""
     base_output_dir = Path(output_dir)
     store = create_receipt_store()
-    return _ReweImportWorkflow(customer_id, browser, cookies_file).run_initial(base_output_dir, store)
+    return _ReweImportWorkflow(customer_id, browser, cookies_file).run_initial(
+        base_output_dir,
+        store,
+        progress_listener=progress_listener,
+    )
 
 
-def run_rewe_update(output_dir: str = ReweConfig.REWE_DEFAULT_OUTPUT_DIR) -> bool:
+def run_rewe_update(
+    output_dir: str = ReweConfig.REWE_DEFAULT_OUTPUT_DIR,
+    progress_listener: Callable[[object], None] | None = None,
+) -> bool:
     """Re-import all locally downloaded REWE PDFs into the configured store via upsert."""
     store = create_receipt_store()
-    return _ReweImportWorkflow(None, None, None).run_update(Path(output_dir), store)
+    return _ReweImportWorkflow(None, None, None).run_update(
+        Path(output_dir),
+        store,
+        progress_listener=progress_listener,
+    )
 
 
-def _run_rewe_pdf_import_pipeline(pdf_dir: Path, store: ReceiptStore) -> WorkflowResult:
+def _run_rewe_pdf_import_pipeline(
+    pdf_dir: Path,
+    store: ReceiptStore,
+    progress_listener: Callable[[object], None] | None = None,
+) -> WorkflowResult:
     """Parse, validate and persist extracted REWE PDFs and return a normalized workflow result."""
     active_pdf_paths = sorted(pdf_dir.glob("*.pdf"))
     return _ReweImportPipeline().run(
@@ -104,6 +142,7 @@ def _run_rewe_pdf_import_pipeline(pdf_dir: Path, store: ReceiptStore) -> Workflo
         retailer=RETAILER_REWE,
         receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
         store=store,
+        progress_listener=progress_listener,
     )
 
 
@@ -116,18 +155,54 @@ def _prepare_rewe_session(
     """Load the REWE session and resolve the customer id for the initial import."""
     auth_method = resolve_auth_method(browser, cookies_file, "REWE")
     if not auth_method:
-        return None
+        raise _rewe_initial_error(2201)
 
-    session = setup_session(RETAILER_REWE, auth_method, cookies_file)
+    try:
+        session = setup_session(RETAILER_REWE, auth_method, cookies_file)
+    except ReweBrowserAuthError as exc:
+        raise _rewe_initial_error(2205, str(exc)) from exc
+
     if not session:
-        return None
+        if auth_method == "file":
+            raise _rewe_initial_error(2202)
+        raise _rewe_initial_error(2203)
 
     resolved_customer_id = resolve_rewe_customer_id(customer_id, session, cookies_file, output_dir)
-    print("Teste REWE-Session...")
-    if not test_rewe_session(session, resolved_customer_id):
-        return None
-    print("✓ REWE-Session erfolgreich getestet")
+    if not resolved_customer_id:
+        if auth_method == "file":
+            raise _rewe_initial_error(2204)
+        logger.info("REWE customerId konnte aus dem Browserprofil nicht ermittelt werden; versuche ZIP-Abruf ohne customerId.")
+
+    if auth_method == "file" or resolved_customer_id is not None:
+        print("Teste REWE-Session...")
+        if not test_rewe_session(session, resolved_customer_id):
+            if auth_method == "file":
+                raise _rewe_initial_error(2206)
+            raise _rewe_initial_error(2207)
+        print("✓ REWE-Session erfolgreich getestet")
+    else:
+        logger.info("REWE-Browser-Session wird ohne ZIP-Healthcheck verwendet, weil keine customerId verfügbar ist.")
     return session, resolved_customer_id
+
+
+def _rewe_initial_error(error_code: int, detail: str | None = None) -> ReweInitialSessionError:
+    info = rewe_initial_error(error_code)
+    if error_code == 2205 and detail is not None:
+        normalized = detail.lower()
+        if "gesperrt" in normalized or "locked" in normalized:
+            detail = "Browserprofil gesperrt"
+        elif "rstp nicht aus browser-session lesbar" in normalized:
+            detail = "rstp nicht aus Browser-Session lesbar"
+        elif "rstp fehlt im browserprofil" in normalized:
+            detail = "rstp fehlt im Browserprofil"
+        elif "cookies liefern" in normalized:
+            detail = "Browserprofil konnte keine Cookies liefern"
+        else:
+            detail = info.detail
+    else:
+        detail = detail or info.detail
+
+    return ReweInitialSessionError(detail, error_code)
 
 
 def _download_and_extract_rewe_zip(
@@ -140,7 +215,9 @@ def _download_and_extract_rewe_zip(
     downloaded_zip = download_receipts_zip(session, customer_id, zip_path)
 
     if not downloaded_zip:
-        return False
+        if customer_id:
+            raise ReweInitialSessionError("REWE ZIP-Abruf mit customerId fehlgeschlagen.", 2208)
+        raise ReweInitialSessionError("REWE ZIP-Abruf ohne customerId fehlgeschlagen.", 2209)
     print(f"✓ REWE-eBons ZIP gespeichert: {downloaded_zip}")
 
     with zipfile.ZipFile(downloaded_zip, "r") as archive:

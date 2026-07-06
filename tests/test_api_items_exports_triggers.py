@@ -39,7 +39,7 @@ def test_receipt_export_reuses_receipt_data(monkeypatch):
     class FakeStore:
         @staticmethod
         def list_receipts(retailer):
-            return [{"id": "r1", "total_price": 10.0}]
+            return [{"id": "r1", "total_price": 10.0}] if retailer == "lidl" else []
 
     monkeypatch.setattr(export_service, "SqliteReceiptStore", FakeStore)
 
@@ -47,6 +47,64 @@ def test_receipt_export_reuses_receipt_data(monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"data": [{"id": "r1", "total_price": 10.0}]}
+
+
+def test_receipt_export_without_retailer_merges_all_retailers(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from api.main import app
+    from api.services import export_service
+
+    calls = []
+
+    class FakeStore:
+        @staticmethod
+        def list_receipts(retailer):
+            calls.append(retailer)
+            if retailer == "lidl":
+                return [{"id": "l1", "purchase_date": "2024-02-01", "total_price": 20.0}]
+            if retailer == "rewe":
+                return [{"id": "r1", "purchase_date": "2024-01-01", "total_price": 10.0}]
+            return []
+
+    monkeypatch.setattr(export_service, "SqliteReceiptStore", FakeStore)
+
+    response = TestClient(app).get("/exports/receipts")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "data": [
+            {"id": "l1", "purchase_date": "2024-02-01", "total_price": 20.0},
+            {"id": "r1", "purchase_date": "2024-01-01", "total_price": 10.0},
+        ]
+    }
+    assert calls == ["lidl", "rewe"]
+
+
+def test_receipt_export_filters_by_retailer_and_date_range(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from api.main import app
+    from api.services import export_service
+
+    class FakeStore:
+        @staticmethod
+        def list_receipts(retailer):
+            assert retailer == "lidl"
+            return [
+                {"id": "r1", "purchase_date": "2024-01-01", "total_price": 10.0},
+                {"id": "r2", "purchase_date": "2024-02-01", "total_price": 20.0},
+            ]
+
+    monkeypatch.setattr(export_service, "SqliteReceiptStore", FakeStore)
+
+    response = TestClient(app).get(
+        "/exports/receipts",
+        params={"retailer": "lidl", "start_date": "2024-01-01", "end_date": "2024-01-31"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"data": [{"id": "r1", "purchase_date": "2024-01-01", "total_price": 10.0}]}
 
 
 def test_kpi_export_returns_summary_and_bonus(monkeypatch):

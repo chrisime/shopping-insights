@@ -131,7 +131,29 @@ class AuthCookieValidationTests(unittest.TestCase):
         is_valid = extractor._validate_cookies(session, "Firefox")
         self.assertTrue(is_valid)
 
+    def test_rewe_browser_missing_required_logs_precise_session_diagnostics(self):
+        extractor = ReweBrowserCookieExtractor()
+        session = requests.Session()
+
+        with self.assertLogs("auth", level="INFO") as logs:
+            with self.assertRaises(Exception) as ctx:
+                extractor._validate_cookies(session, "Firefox")
+
+        output = "\n".join(logs.output)
+        self.assertIn("sessionstore-backups/recovery.jsonlz4", output)
+        self.assertEqual(str(ctx.exception), "rstp fehlt im Browserprofil")
+
+    def test_rewe_browser_load_error_mentions_locked_profile(self):
+        extractor = ReweBrowserCookieExtractor()
+
+        with self.assertLogs("auth", level="INFO") as logs:
+            with self.assertRaises(Exception) as ctx:
+                extractor._on_load_error("Firefox", Exception("database is locked"))
+
+        output = "\n".join(logs.output)
+        self.assertIn("vollstaendig schliessen", output)
+        self.assertEqual(str(ctx.exception), "Browserprofil gesperrt")
+
 
 if __name__ == "__main__":
     unittest.main()
-

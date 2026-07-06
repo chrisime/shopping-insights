@@ -105,7 +105,12 @@ class LidlWorkflowTests(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(store.find_existing_ids.call_args.kwargs["retailer"], "lidl")
         expected_tickets_dir = Path(tmp_dir) / "tickets"
-        download_tickets.assert_called_once_with(session, ["23000987220230201728424"], expected_tickets_dir)
+        download_tickets.assert_called_once_with(
+            session,
+            ["23000987220230201728424"],
+            expected_tickets_dir,
+            progress_listener=None,
+        )
         import_pipeline.assert_called_once()
         import_kwargs = import_pipeline.call_args.kwargs
         self.assertEqual(import_kwargs["source_dir"], expected_tickets_dir)
@@ -199,7 +204,12 @@ class LidlWorkflowTests(unittest.TestCase):
 
         self.assertTrue(success)
         collect_receipt_ids.assert_called_once_with(session)
-        download_tickets.assert_called_once_with(session, ["new-receipt"], Path("tmp/lidl/tickets"))
+        download_tickets.assert_called_once_with(
+            session,
+            ["new-receipt"],
+            Path("tmp/lidl/tickets"),
+            progress_listener=None,
+        )
         self.assertIn("Geprüfte Seiten: 3", stdout.getvalue())
 
     def test_lidl_skipped_output_handles_file_detail_key_fallback(self):
@@ -280,6 +290,7 @@ class LidlWorkflowTests(unittest.TestCase):
 
         self.assertFalse(success)
         collect_receipt_ids.assert_not_called()
+        self.assertIn("LIDL-Session konnte nicht geprüft werden.", stdout.getvalue())
 
     def test_run_lidl_initial_fails_without_browser_or_cookie_file(self):
         stdout = io.StringIO()
@@ -289,6 +300,17 @@ class LidlWorkflowTests(unittest.TestCase):
 
         self.assertFalse(success)
         self.assertIn("✗ LIDL benötigt --cookies-file oder --browser.", stdout.getvalue())
+
+    def test_run_lidl_initial_reports_missing_browser_or_cookie_file_via_central_detail(self):
+        stdout = io.StringIO()
+
+        with patch("workflows.lidl_workflow.setup_session", return_value=None), patch(
+            "sys.stdout", new=stdout
+        ):
+            success = run_lidl_initial(browser="firefox")
+
+        self.assertFalse(success)
+        self.assertIn("LIDL-Browserprofil konnte keine Cookies liefern.", stdout.getvalue())
 
 
 if __name__ == "__main__":

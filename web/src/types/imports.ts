@@ -12,6 +12,9 @@ export interface ImportProgressState {
 
 export interface ImportStartRequest {
   retailer: ImportRetailer;
+  browser?: string | null;
+  cookies_file?: string | null;
+  customer_id?: string | null;
 }
 
 export interface ImportStartResponse {
@@ -24,5 +27,6 @@ export interface ImportJobEventPayload {
   retailer: ImportRetailer;
   status: "running" | "success" | "error";
   progress: ImportProgressState;
+  error: { error_code: number; detail: string } | null;
   message: string | null;
 }
