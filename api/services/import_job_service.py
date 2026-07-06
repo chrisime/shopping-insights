@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from threading import Lock, Thread
+import time
 from typing import Callable, Literal, cast
 from uuid import uuid4
 
@@ -64,6 +65,26 @@ def get_import_job(job_id: str) -> ImportJobSnapshot | None:
         )
 
 
+def iter_import_job_events(job_id: str):
+    last_seen: ImportJobSnapshot | None = None
+
+    while True:
+        snapshot = get_import_job(job_id)
+        if snapshot is None:
+            yield {"event": "error", "data": {"job_id": job_id, "message": "job_not_found"}}
+            return
+
+        if last_seen != snapshot:
+            event_type = "progress" if snapshot.status == "running" else snapshot.status
+            yield {"event": event_type, "data": _snapshot_to_dict(snapshot)}
+            last_seen = snapshot
+
+        if snapshot.status != "running":
+            return
+
+        time.sleep(0.05)
+
+
 def _run_import_job(job_id: str, retailer: str) -> None:
     progress_listener = _build_progress_listener(job_id, retailer)
     try:
@@ -92,6 +113,24 @@ def _build_progress_listener(job_id: str, retailer: str) -> Callable[[ProgressSt
 
 def _empty_progress() -> ProgressState:
     return ProgressState(current=0, total=0, added=0, skipped=0, errors=0, items=0, current_receipt="-")
+
+
+def _snapshot_to_dict(snapshot: ImportJobSnapshot) -> dict[str, object]:
+    return {
+        "job_id": snapshot.job_id,
+        "retailer": snapshot.retailer,
+        "status": snapshot.status,
+        "progress": {
+            "current": snapshot.progress.current,
+            "total": snapshot.progress.total,
+            "added": snapshot.progress.added,
+            "skipped": snapshot.progress.skipped,
+            "errors": snapshot.progress.errors,
+            "items": snapshot.progress.items,
+            "current_receipt": snapshot.progress.current_receipt,
+        },
+        "message": snapshot.message,
+    }
 def _update_job(
     job_id: str,
     *,
