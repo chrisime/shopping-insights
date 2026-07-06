@@ -53,15 +53,25 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
       applyEventPayload(parseEventPayload(event));
       closeEventSource();
       loading.value = false;
-      await refreshDashboard();
+
+      try {
+        await refreshDashboard();
+      } catch (cause) {
+        error.value = cause instanceof Error ? cause.message : "Failed to refresh dashboard";
+      }
     };
 
-    const handleError = () => {
+    const handleError = (event: MessageEvent<string>) => {
       if (token !== activeToken) {
         return;
       }
 
-      error.value = "Import stream failed";
+      try {
+        const payload = JSON.parse(event.data) as Partial<ImportJobEventPayload>;
+        error.value = payload.message ?? "Import stream failed";
+      } catch {
+        error.value = "Import stream failed";
+      }
       loading.value = false;
       closeEventSource();
     };
