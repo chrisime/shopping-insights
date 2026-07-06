@@ -41,7 +41,12 @@ def start_import_job(retailer: str) -> str:
         )
 
     thread = Thread(target=_run_import_job, args=(job_id, retailer), daemon=True)
-    thread.start()
+    try:
+        thread.start()
+    except Exception:
+        with _jobs_lock:
+            _jobs.pop(job_id, None)
+        raise
     return job_id
 
 

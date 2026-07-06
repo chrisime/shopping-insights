@@ -186,3 +186,23 @@ def test_get_import_job_returns_snapshot_copy(monkeypatch):
     fresh_state = trigger_service.get_import_job(job_id)
     assert fresh_state is not None
     assert fresh_state.progress.current == 1
+
+
+def test_start_import_job_rolls_back_if_thread_start_fails(monkeypatch):
+    from api.services import import_job_service
+    from api.services import trigger_service
+
+    before_count = len(import_job_service._jobs)
+
+    def fake_start(self):
+        raise RuntimeError("thread start failed")
+
+    monkeypatch.setattr(import_job_service.Thread, "start", fake_start)
+
+    try:
+        trigger_service.start_import_job("lidl")
+        raise AssertionError("expected RuntimeError")
+    except RuntimeError as exc:
+        assert "thread start failed" in str(exc)
+
+    assert len(import_job_service._jobs) == before_count
