@@ -2,6 +2,8 @@ import { createSSRApp, nextTick, effectScope } from "vue";
 import { renderToString } from "@vue/server-renderer";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../ImportJobControls.vue", () => ({ default: { template: "<div />" } }));
+
 import DashboardPage from "../DashboardPage.vue";
 import { useDashboard } from "../../composables/useDashboard";
 
