@@ -158,3 +158,31 @@ def test_start_import_job_rejects_second_running_job(monkeypatch):
 
     assert state is not None
     assert state.status == "success"
+
+
+def test_get_import_job_returns_snapshot_copy(monkeypatch):
+    from api.services import trigger_service
+    from workflows.progress_display import ProgressState
+
+    def fake_run_lidl_initial(*, browser=None, cookies_file=None, country=None, output_dir=None, progress_listener=None):
+        if progress_listener is not None:
+            progress_listener(ProgressState(current=1, total=2, added=1, skipped=0, errors=0, items=4, current_receipt="r1"))
+        return True
+
+    monkeypatch.setattr(trigger_service, "run_lidl_initial", fake_run_lidl_initial)
+
+    job_id = trigger_service.start_import_job("lidl")
+    deadline = time.time() + 2
+    state = None
+    while time.time() < deadline:
+        state = trigger_service.get_import_job(job_id)
+        if state is not None and state.status != "running":
+            break
+        time.sleep(0.01)
+
+    assert state is not None
+    state.progress.current = 99
+
+    fresh_state = trigger_service.get_import_job(job_id)
+    assert fresh_state is not None
+    assert fresh_state.progress.current == 1

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from threading import Lock, Thread
 from typing import Callable, Literal, cast
 from uuid import uuid4
@@ -13,7 +13,7 @@ from workflows.progress_display import ProgressState
 ImportJobStatus = Literal["running", "success", "error"]
 
 
-@dataclass
+@dataclass(frozen=True)
 class ImportJobSnapshot:
     job_id: str
     retailer: str
@@ -47,7 +47,16 @@ def start_import_job(retailer: str) -> str:
 
 def get_import_job(job_id: str) -> ImportJobSnapshot | None:
     with _jobs_lock:
-        return _jobs.get(job_id)
+        current = _jobs.get(job_id)
+        if current is None:
+            return None
+        return ImportJobSnapshot(
+            job_id=current.job_id,
+            retailer=current.retailer,
+            status=current.status,
+            progress=replace(current.progress),
+            message=current.message,
+        )
 
 
 def _run_import_job(job_id: str, retailer: str) -> None:
@@ -94,6 +103,6 @@ def _update_job(
             job_id=current.job_id,
             retailer=retailer if retailer is not None else current.retailer,
             status=status if status is not None else current.status,
-            progress=progress if progress is not None else current.progress,
+            progress=replace(progress) if progress is not None else replace(current.progress),
             message=message if message is not None else current.message,
         )
