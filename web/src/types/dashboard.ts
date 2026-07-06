@@ -30,7 +30,7 @@ export interface DashboardError {
 
 export interface DashboardPayload {
   title: string;
-  sections: Array<DashboardSection | (DashboardSection & { kind: "metrics"; items: DashboardKpiGroup[] })>;
+  sections: DashboardSection[];
   min_date?: string | null;
   max_date?: string | null;
   error?: DashboardError | null;
