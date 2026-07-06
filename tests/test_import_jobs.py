@@ -1,4 +1,5 @@
 import time
+from threading import Event
 
 
 def test_start_import_job_tracks_progress(monkeypatch):
@@ -91,3 +92,46 @@ def test_start_import_job_marks_false_return_as_error(monkeypatch):
     assert state is not None
     assert state.status == "error"
     assert "returned False" in (state.message or "")
+
+
+def test_start_import_job_rejects_second_running_job(monkeypatch):
+    from api.services import trigger_service
+    from workflows.progress_display import ProgressState
+
+    release = Event()
+
+    def fake_run_lidl_initial(*, browser=None, cookies_file=None, country=None, output_dir=None, progress_listener=None):
+        if progress_listener is not None:
+            progress_listener(ProgressState(current=0, total=1, added=0, skipped=0, errors=0, items=0, current_receipt="-"))
+        release.wait(timeout=2)
+        return True
+
+    monkeypatch.setattr(trigger_service, "run_lidl_initial", fake_run_lidl_initial)
+
+    job_id = trigger_service.start_import_job("lidl")
+    deadline = time.time() + 2
+    while time.time() < deadline:
+        state = trigger_service.get_import_job(job_id)
+        if state is not None and state.status == "running":
+            break
+        time.sleep(0.01)
+
+    try:
+        try:
+            trigger_service.start_import_job("rewe")
+            raise AssertionError("expected RuntimeError")
+        except RuntimeError as exc:
+            assert "already running" in str(exc)
+    finally:
+        release.set()
+
+    deadline = time.time() + 2
+    state = None
+    while time.time() < deadline:
+        state = trigger_service.get_import_job(job_id)
+        if state is not None and state.status != "running":
+            break
+        time.sleep(0.01)
+
+    assert state is not None
+    assert state.status == "success"

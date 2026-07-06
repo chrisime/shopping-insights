@@ -27,6 +27,11 @@ _jobs_lock = Lock()
 
 
 def start_import_job(retailer: str) -> str:
+    with _jobs_lock:
+        active_job = next((job for job in _jobs.values() if job.status == "running"), None)
+        if active_job is not None:
+            raise RuntimeError(f"Import job already running: {active_job.job_id}")
+
     job_id = uuid4().hex
     _store_job(
         ImportJobSnapshot(
