@@ -30,10 +30,18 @@ def test_build_dashboard_page_model_maps_state_to_ui_sections():
 
     assert page.title == "Shopping Analyzer Dashboard"
     assert page.sections[0].kind == "metrics"
-    assert page.sections[0].items[0]["layout"] == "pair"
-    assert page.sections[0].items[0]["cards"][0]["title"] == "Ausgaben"
-    assert page.sections[0].items[2]["layout"] == "triple"
-    assert page.sections[0].items[2]["cards"][0]["title"] == "Lidl Plus"
+    metrics = page.sections[0].items[0]
+    assert metrics["spendings"] == 100.0
+    assert metrics["spendings_without_discount"] == 122.0
+    assert metrics["receipt_count"] == 4
+    assert metrics["avg_receipt_amount"] == 25.0
+    assert metrics["saved_deposit"] == 2.0
+    assert metrics["total_savings"] == 22.0
+    assert metrics["total_savings_pct"] == 22.0
+    assert metrics["lidlplus_discount_amount"] == 4.0
+    assert metrics["sticker_discount_amount"] == 5.0
+    assert metrics["lidl_discount_amount"] == 10.0
+    assert "rewe_discount_amount" not in metrics
     assert page.sections[1].title == "Ausgaben über Zeit"
     assert page.sections[3].title == "Top-Artikel"
 

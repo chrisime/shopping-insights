@@ -82,15 +82,17 @@ def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
     assert page["max_date"] == "2024-01-31"
     metrics = next(section for section in page["sections"] if section["kind"] == "metrics")
 
-    assert metrics["items"][0]["layout"] == "pair"
-    assert metrics["items"][0]["cards"][0]["items"][0]["value"] == "€100.00"
-    assert metrics["items"][0]["cards"][1]["items"][0]["value"] == "4"
-    assert metrics["items"][2]["layout"] == "triple"
-    assert metrics["items"][2]["cards"][0]["title"] == "Rewe Rabatte"
-    assert metrics["items"][2]["cards"][1]["title"] == "Rewe Bonus gesammelt"
-    assert metrics["items"][2]["cards"][2]["title"] == "Rewe Bonus eingelöst"
-    assert metrics["items"][2]["cards"][2]["items"][0]["value"] == "€3.00"
-    assert metrics["items"][2]["cards"][2]["items"][1]["value"] == "€0.00"
+    assert metrics["items"][0]["spendings"] == 100.0
+    assert metrics["items"][0]["receipt_count"] == 4
+    assert metrics["items"][0]["saved_deposit"] == 2.0
+    assert metrics["items"][0]["total_savings"] == 19.0
+    assert metrics["items"][0]["rewe_discount_amount"] == 10.0
+    assert metrics["items"][0]["rewe_bonus_collected"] == 1.0
+    assert metrics["items"][0]["rewe_bonus_redeemed"] == 3.0
+    assert metrics["items"][0]["rewe_bonus_open"] == 0.0
+    assert metrics["items"][0]["lidlplus_discount_amount"] == 4.0
+    assert metrics["items"][0]["sticker_discount_amount"] == 5.0
+    assert metrics["items"][0]["lidl_discount_amount"] == 10.0
 
 
 def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
