@@ -1,12 +1,10 @@
 #!/bin/sh
-set -eu
+set -u
 
 cd "$(dirname "$0")/web"
-if command -v corepack >/dev/null 2>&1; then
-  exec corepack pnpm dev
-elif command -v pnpm >/dev/null 2>&1; then
-  exec pnpm dev
-else
-  echo "Error: neither corepack nor pnpm found. Install Node.js + corepack or pnpm." >&2
-  exit 1
-fi
+pnpm dev 2>/dev/null && exit 0
+corepack pnpm dev 2>/dev/null && exit 0
+npx pnpm dev 2>/dev/null && exit 0
+
+echo "Error: pnpm not found. Install it via: npm install -g pnpm" >&2
+exit 1

@@ -37,7 +37,7 @@ Installation:
 
 ```bash
 git clone <repository-url>
-cd shopping-analyzer
+cd shopping-insights
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
