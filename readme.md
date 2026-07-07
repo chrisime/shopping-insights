@@ -79,34 +79,7 @@ python fetch_tickets.py export --retailer rewe --db-path shopping_receipts.sqlit
 
 ## Händler-spezifische Anleitungen
 
-- [`docs/LIDL_RECEIPTS.md`](./docs/LIDL_RECEIPTS.md) – LIDL-Workflow, Authentifizierung, Limitierungen und Ausgaben
-- [`docs/README_REWE_EBONS.md`](./docs/README_REWE_EBONS.md) – REWE-eBon-Workflow, `customerId`, ZIP/PDF-Import und Fehlersuche
-- [`docs/README_DATA_HARMONIZATION.md`](./docs/README_DATA_HARMONIZATION.md) – Stand und Unterschiede der Harmonisierung zwischen LIDL und REWE
 - [`docs/LIBREWOLF_SESSION_COOKIES.md`](./docs/LIBREWOLF_SESSION_COOKIES.md) – ergänzende Hinweise zur Cookie-Gewinnung aus LibreWolf
-
-## Architektur und Beitragshinweise
-
-Für neue Änderungen gelten explizite Paket- und Workflow-Regeln. Der empfohlene Einstieg ist:
-
-1. [`docs/architecture/code-reading-guide.md`](./docs/architecture/code-reading-guide.md)
-2. [`docs/architecture/package-layer-rules.md`](./docs/architecture/package-layer-rules.md)
-3. [`docs/architecture/workflow-overview.md`](./docs/architecture/workflow-overview.md)
-4. [`docs/adr/README.md`](./docs/adr/README.md)
-5. [`docs/adr/0003-package-layer-rules-and-wrapper-removal.md`](./docs/adr/0003-package-layer-rules-and-wrapper-removal.md)
-
-Wichtige Kurzfassung:
-
-- `workflows/*` ist die einzige Orchestrierungsschicht
-- `workflows/pipeline_runner.py` ist die gemeinsame Parse-/Validierungs-/Persistenz-Strecke für beide Händler und arbeitet nur mit injizierten Funktionen/Ports
-- Persistenz erfolgt standardmäßig DB-first nach `shopping_receipts.sqlite`; externe Formate werden über Export-Adapter erzeugt
-- gemeinsame neutrale Bausteine liegen unter `shared/*` sowie in `result_types.py`
-
-Kanonische Importpfade für neue Beiträge sind insbesondere:
-
-- `shared.receipt_schema`
-- `shared.addresses`
-- `shared.ports`
-- `result_types`
 
 ## Ausgaben
 
@@ -131,13 +104,9 @@ Das Frontend liest Daten über `GET /ui/dashboard` vom FastAPI-Backend.
 Über den Export-Button kannst du die aktuell gefilterten Tickets als JSON über `GET /exports/receipts` herunterladen.
 Setze dafür bei Bedarf `VITE_API_BASE_URL`, zum Beispiel auf `http://localhost:8000`.
 
-Details und Projektkontext stehen in [`docs/architecture/frontend-transition.md`](./docs/architecture/frontend-transition.md) und [`web/README.md`](./web/README.md).
+Details und Projektkontext stehen in [`web/README.md`](./web/README.md).
 
 Wenn `API_BASE_URL` gesetzt ist, bezieht das Dashboard seine Daten über die FastAPI-Schicht statt direkt aus SQLite.
-
-Die Zwischenebenen für den Übergang zum Vue-Frontend sind dokumentiert in:
-
-- [`docs/architecture/frontend-transition.md`](./docs/architecture/frontend-transition.md)
 
 Aktuell bewusst noch nicht umgesetzt:
 
