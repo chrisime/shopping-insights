@@ -9,5 +9,7 @@ tmp/
 node_modules/
 web/dist/
 
+.superpowers/
+
 shopping_receipts.sqlite
 
