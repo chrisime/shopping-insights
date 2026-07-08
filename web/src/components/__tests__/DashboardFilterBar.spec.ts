@@ -11,7 +11,7 @@ afterEach(() => {
 });
 
 describe("DashboardFilterBar", () => {
-  it("emits model updates when the user changes search or page size", async () => {
+  it("emits model updates when the user changes search or sort", async () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn().mockImplementation((query: string) => ({
@@ -29,7 +29,7 @@ describe("DashboardFilterBar", () => {
     const wrapper = mount(DashboardFilterBar, {
       props: {
         search: "",
-        topLimit: 20,
+        topView: "Menge",
       },
       global: {
         plugins: [Oruga],
@@ -42,8 +42,8 @@ describe("DashboardFilterBar", () => {
     expect(wrapper.findComponent({ name: "OField" }).exists()).toBe(true);
     expect(wrapper.find("form").classes()).toContain("rounded-2xl");
 
-    await wrapper.find("select").setValue(50);
+    await wrapper.find("select").setValue("Ausgaben");
 
-    expect(wrapper.emitted("update:topLimit")?.at(-1)).toEqual([50]);
+    expect(wrapper.emitted("update:topView")?.at(-1)).toEqual(["Ausgaben"]);
   });
 });

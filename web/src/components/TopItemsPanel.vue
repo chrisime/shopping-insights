@@ -1,13 +1,17 @@
 <script setup lang="ts">
+import { OField, OSelect } from "@oruga-ui/oruga-next";
+
 const props = defineProps<{
   items: Array<Record<string, unknown>>;
   page: number;
   pageSize: number;
   totalCount: number;
+  topLimit: number;
 }>();
 
 const emit = defineEmits<{
   (e: "update:page", value: number): void;
+  (e: "update:topLimit", value: number): void;
 }>();
 
 import { computed } from "vue";
@@ -62,27 +66,36 @@ function quantity(value: unknown, unit: unknown) {
       </tbody>
     </table>
 
-    <div v-if="totalCount > 0" class="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+    <div v-if="totalCount > 0" class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
       <p class="text-sm text-slate-500">
         {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, totalCount) }} von {{ totalCount }}
       </p>
-      <div class="flex gap-2">
-        <button
-          type="button"
-          :disabled="page <= 1"
-          class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          @click="prev"
-        >
-          Zurück
-        </button>
-        <button
-          type="button"
-          :disabled="page >= totalPages"
-          class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          @click="next"
-        >
-          Weiter
-        </button>
+      <div class="flex items-center gap-3">
+        <OField label="Einträge pro Seite" class="mb-0">
+          <OSelect :model-value="topLimit" @update:model-value="emit('update:topLimit', $event)" expanded>
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+          </OSelect>
+        </OField>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            :disabled="page <= 1"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            @click="prev"
+          >
+            Zurück
+          </button>
+          <button
+            type="button"
+            :disabled="page >= totalPages"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            @click="next"
+          >
+            Weiter
+          </button>
+        </div>
       </div>
     </div>
   </div>

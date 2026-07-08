@@ -73,7 +73,7 @@ describe("dashboard panels", () => {
     expect(weekday.findAll(".bg-indigo-500")).toHaveLength(4);
 
     const topItems = mount(TopItemsPanel, {
-      props: { items: [{ name: "Apfel", total_quantity: 2, total_spent: 4, purchase_count: 1, unit: "pc" }], page: 1, pageSize: 20, totalCount: 1 },
+      props: { items: [{ name: "Apfel", total_quantity: 2, total_spent: 4, purchase_count: 1, unit: "pc" }], page: 1, pageSize: 20, totalCount: 1, topLimit: 20 },
     });
     expect(topItems.find("table").exists()).toBe(true);
     expect(topItems.text()).toContain("Artikel");
@@ -111,7 +111,7 @@ describe("dashboard panels", () => {
     expect(trend.text()).toContain("€5.00");
 
     const topItems = mount(TopItemsPanel, {
-      props: { items: [{ name: "Tomaten", total_quantity: 0.696, total_spent: 3.99, purchase_count: 1, unit: "kg" }], page: 1, pageSize: 20, totalCount: 1 },
+      props: { items: [{ name: "Tomaten", total_quantity: 0.696, total_spent: 3.99, purchase_count: 1, unit: "kg" }], page: 1, pageSize: 20, totalCount: 1, topLimit: 20 },
     });
 
     expect(topItems.text()).toContain("Tomaten");

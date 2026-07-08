@@ -195,7 +195,7 @@ async function handleExport() {
         <template v-else-if="activeTab === 'artikel'">
           <DashboardFilterBar
             v-model:search="search"
-            v-model:top-limit="topLimit"
+            v-model:top-view="topView"
             class="mb-4"
           />
           <DashboardSection
@@ -209,7 +209,9 @@ async function handleExport() {
               :page="page"
               :page-size="(section.items[0] as any)?.page_size ?? 20"
               :total-count="(section.items[0] as any)?.total_count ?? 0"
+              :top-limit="topLimit"
               @update:page="page = $event"
+              @update:top-limit="topLimit = $event"
             />
           </DashboardSection>
         </template>
