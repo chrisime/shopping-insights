@@ -30,6 +30,8 @@ describe("DashboardPage import", () => {
       spendingView: ref("Absolut"),
       topView: ref("Menge"),
       topLimit: ref(20),
+      search: ref(""),
+      page: ref(1),
       payload: ref({ title: "Shopping Analyzer Dashboard", sections: [], min_date: null, max_date: null }),
       loading: ref(false),
       error: ref(null),
@@ -56,6 +58,7 @@ describe("DashboardPage import", () => {
     });
 
     expect(wrapper.text()).toContain("Import");
+    await wrapper.find("nav button").trigger("click");
     await wrapper.get(".import-control").trigger("click");
 
     expect(startImport).toHaveBeenCalledWith({ retailer: "lidl", browser: "firefox" });

@@ -19,6 +19,8 @@ def read_dashboard(
     spending_view: str = "Absolut",
     top_view: str = "Menge",
     top_limit: int = 20,
+    search: str | None = None,
+    page: int = 1,
 ):
     return dashboard_service.get_vue_dashboard_payload(
         retailer=retailer,
@@ -28,4 +30,6 @@ def read_dashboard(
         spending_view=spending_view,
         top_view=top_view,
         top_limit=top_limit,
+        search=search,
+        page=page,
     ).to_dict()

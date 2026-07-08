@@ -1,7 +1,26 @@
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   items: Array<Record<string, unknown>>;
+  page: number;
+  pageSize: number;
+  totalCount: number;
 }>();
+
+const emit = defineEmits<{
+  (e: "update:page", value: number): void;
+}>();
+
+import { computed } from "vue";
+
+const totalPages = computed(() => Math.max(1, Math.ceil(props.totalCount / props.pageSize)));
+
+function prev() {
+  if (props.page > 1) emit("update:page", props.page - 1);
+}
+
+function next() {
+  if (props.page < totalPages) emit("update:page", props.page + 1);
+}
 
 function text(value: unknown) {
   return value == null ? "-" : String(value);
@@ -42,5 +61,29 @@ function quantity(value: unknown, unit: unknown) {
         </tr>
       </tbody>
     </table>
+
+    <div v-if="totalCount > 0" class="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+      <p class="text-sm text-slate-500">
+        {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, totalCount) }} von {{ totalCount }}
+      </p>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          :disabled="page <= 1"
+          class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          @click="prev"
+        >
+          Zurück
+        </button>
+        <button
+          type="button"
+          :disabled="page >= totalPages"
+          class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          @click="next"
+        >
+          Weiter
+        </button>
+      </div>
+    </div>
   </div>
 </template>

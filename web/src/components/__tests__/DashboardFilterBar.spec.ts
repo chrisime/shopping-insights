@@ -11,7 +11,7 @@ afterEach(() => {
 });
 
 describe("DashboardFilterBar", () => {
-  it("emits model updates when the user changes a filter", async () => {
+  it("emits model updates when the user changes search or page size", async () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn().mockImplementation((query: string) => ({
@@ -28,14 +28,7 @@ describe("DashboardFilterBar", () => {
 
     const wrapper = mount(DashboardFilterBar, {
       props: {
-        retailer: "",
-        startDate: "",
-        endDate: "",
-        minDate: "2024-01-01",
-        maxDate: "2024-01-31",
-        timeGranularity: "Täglich",
-        spendingView: "Absolut",
-        topView: "Menge",
+        search: "",
         topLimit: 20,
       },
       global: {
@@ -43,12 +36,14 @@ describe("DashboardFilterBar", () => {
       },
     });
 
-    await wrapper.find("select").setValue("lidl");
+    await wrapper.find("input").setValue("milch");
 
-    expect(wrapper.emitted("update:retailer")?.at(-1)).toEqual(["lidl"]);
+    expect(wrapper.emitted("update:search")?.at(-1)).toEqual(["milch"]);
     expect(wrapper.findComponent({ name: "OField" }).exists()).toBe(true);
     expect(wrapper.find("form").classes()).toContain("rounded-2xl");
-    expect(wrapper.findAll('input[type="date"]')[0].attributes("min")).toBe("2024-01-01");
-    expect(wrapper.findAll('input[type="date"]')[1].attributes("max")).toBe("2024-01-31");
+
+    await wrapper.find("select").setValue(50);
+
+    expect(wrapper.emitted("update:topLimit")?.at(-1)).toEqual([50]);
   });
 });

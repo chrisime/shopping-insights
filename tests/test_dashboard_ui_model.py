@@ -15,6 +15,8 @@ def test_build_dashboard_page_model_maps_state_to_ui_sections():
         spending_view="Absolut",
         top_view="Menge",
         top_limit=10,
+        search=None,
+        page=1,
         available_kpis=BasicKPIs(100.0, 4, 25.0, 10.0, 2.0, "2024-01-01", "2024-01-31"),
         kpis=BasicKPIs(100.0, 4, 25.0, 10.0, 2.0, "2024-01-01", "2024-01-31"),
         bonus_kpis=RetailerBonusKPIs(1.0, 2.0, 3.0, 4.0, 5.0),
@@ -22,6 +24,7 @@ def test_build_dashboard_page_model_maps_state_to_ui_sections():
         time_series=[TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1)],
         weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
         top_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
+        top_items_total=0,
         min_date=date(2024, 1, 1),
         max_date=date(2024, 1, 31),
     )

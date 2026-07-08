@@ -289,13 +289,16 @@ class MetricsStore:
             for row in rows
         ]
 
-    def top_items_by_quantity(
+    def _top_items_query(
         self,
+        order_col: str,
         retailer: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        limit: int = 20,
-    ) -> list[TopItemRow]:
+        search: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[TopItemRow], int]:
         where_parts = ["WHERE 1=1"]
         params: list = []
 
@@ -312,7 +315,24 @@ class MetricsStore:
             params.append(end_date)
 
         where_parts.append("AND UPPER(pi.name) NOT LIKE '%PFAND%'")
+
+        if search:
+            where_parts.append("AND UPPER(pi.name) LIKE ?")
+            params.append(f"%{search.upper()}%")
+
         where = " ".join(where_parts)
+
+        count_sql = f"""
+            SELECT COUNT(*) AS total
+            FROM (
+                SELECT 1
+                FROM purchase_item pi
+                JOIN purchase p ON p.id = pi.purchase_id
+                JOIN store s ON s.id = p.store_id
+                {where}
+                GROUP BY UPPER(pi.name), pi.unit
+            )
+        """
 
         sql = f"""
             SELECT
@@ -326,13 +346,15 @@ class MetricsStore:
             JOIN store s ON s.id = p.store_id
             {where}
             GROUP BY UPPER(pi.name), pi.unit
-            ORDER BY total_quantity DESC
-            LIMIT ?
+            ORDER BY {order_col} DESC
+            LIMIT ? OFFSET ?
         """
-        params.append(limit)
+        offset = (page - 1) * page_size
+        data_params = list(params) + [page_size, offset]
 
         with closing(_connect()) as conn:
-            rows = conn.execute(sql, tuple(params)).fetchall()
+            total = conn.execute(count_sql, tuple(params)).fetchone()["total"]
+            rows = conn.execute(sql, tuple(data_params)).fetchall()
 
         return [
             TopItemRow(
@@ -343,63 +365,45 @@ class MetricsStore:
                 unit=str(row["unit"]),
             )
             for row in rows
-        ]
+        ], int(total)
+
+    def top_items_by_quantity(
+        self,
+        retailer: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        search: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[TopItemRow], int]:
+        return self._top_items_query(
+            "total_quantity",
+            retailer=retailer,
+            start_date=start_date,
+            end_date=end_date,
+            search=search,
+            page=page,
+            page_size=page_size,
+        )
 
     def top_items_by_spend(
         self,
         retailer: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        limit: int = 20,
-    ) -> list[TopItemRow]:
-        where_parts = ["WHERE 1=1"]
-        params: list = []
-
-        retailer_clause, retailer_params = _retailer_filter(retailer)
-        if retailer_clause:
-            where_parts.append(retailer_clause)
-            params.extend(retailer_params)
-
-        if start_date:
-            where_parts.append("AND p.purchase_date >= ?")
-            params.append(start_date)
-        if end_date:
-            where_parts.append("AND p.purchase_date <= ?")
-            params.append(end_date)
-
-        where_parts.append("AND UPPER(pi.name) NOT LIKE '%PFAND%'")
-        where = " ".join(where_parts)
-
-        sql = f"""
-            SELECT
-                pi.name,
-                SUM(pi.quantity) AS total_quantity,
-                SUM(pi.price * pi.quantity) AS total_spent,
-                COUNT(DISTINCT p.id) AS purchase_count,
-                pi.unit
-            FROM purchase_item pi
-            JOIN purchase p ON p.id = pi.purchase_id
-            JOIN store s ON s.id = p.store_id
-            {where}
-            GROUP BY UPPER(pi.name), pi.unit
-            ORDER BY total_spent DESC
-            LIMIT ?
-        """
-        params.append(limit)
-
-        with closing(_connect()) as conn:
-            rows = conn.execute(sql, tuple(params)).fetchall()
-
-        return [
-            TopItemRow(
-                name=str(row["name"]),
-                total_quantity=float(row["total_quantity"]),
-                total_spent=float(row["total_spent"]),
-                purchase_count=int(row["purchase_count"]),
-                unit=str(row["unit"]),
-            )
-            for row in rows
-        ]
+        search: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[TopItemRow], int]:
+        return self._top_items_query(
+            "total_spent",
+            retailer=retailer,
+            start_date=start_date,
+            end_date=end_date,
+            search=search,
+            page=page,
+            page_size=page_size,
+        )
 
     def weekday_analysis(
         self,

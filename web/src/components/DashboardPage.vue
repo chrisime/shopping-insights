@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
+import { OField, OInput, OSelect } from "@oruga-ui/oruga-next";
+
+import DashboardSidebar from "./DashboardSidebar.vue";
+import type { SidebarTab } from "./DashboardSidebar.vue";
 import DashboardFilterBar from "./DashboardFilterBar.vue";
 import ImportJobControls from "./ImportJobControls.vue";
 import DashboardSection from "./DashboardSection.vue";
@@ -22,6 +26,8 @@ const {
   spendingView,
   topView,
   topLimit,
+  search,
+  page,
   payload,
   loading,
   error,
@@ -32,6 +38,8 @@ const importRetailer = ref<ImportRetailer>("lidl");
 const importJob = useImportJob(refresh);
 
 const exporting = ref(false);
+const sidebarCollapsed = ref(false);
+const activeTab = ref<SidebarTab>("ausgaben");
 
 const bannerMessage = computed(() => {
   if (payload.value?.error) {
@@ -68,8 +76,15 @@ async function handleExport() {
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-    <div class="mx-auto flex w-full max-w-7xl flex-col gap-5">
+  <div class="flex min-h-screen bg-slate-50">
+    <DashboardSidebar
+      :active-tab="activeTab"
+      :collapsed="sidebarCollapsed"
+      @update:active-tab="activeTab = $event"
+      @update:collapsed="sidebarCollapsed = $event"
+    />
+
+    <main class="flex min-w-0 flex-1 flex-col gap-5 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
       <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="space-y-2">
           <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Shopping Analyzer</p>
@@ -89,27 +104,45 @@ async function handleExport() {
         </button>
       </header>
 
-      <ImportJobControls
-        v-model:retailer="importRetailer"
-        :running="importJob.running.value"
-        :progress="importJob.progress.value"
-        :message="importJob.message.value"
-        :error="importJob.error.value"
-        :technical-error="importJob.technicalError.value"
-        @start-import="importJob.startImport($event)"
-      />
+      <form class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-3" @submit.prevent>
+        <OField label="Händler">
+          <OSelect v-model="retailer" expanded>
+            <option value="">Alle</option>
+            <option value="lidl">Lidl</option>
+            <option value="rewe">REWE</option>
+          </OSelect>
+        </OField>
 
-      <DashboardFilterBar
-        v-model:retailer="retailer"
-        v-model:start-date="startDate"
-        v-model:end-date="endDate"
-        :min-date="payload?.min_date ?? undefined"
-        :max-date="payload?.max_date ?? undefined"
-        v-model:time-granularity="timeGranularity"
-        v-model:spending-view="spendingView"
-        v-model:top-view="topView"
-        v-model:top-limit="topLimit"
-      />
+        <OField label="Startdatum">
+          <OInput v-model="startDate" :min="(payload?.min_date ?? undefined) as any" :max="(payload?.max_date ?? undefined) as any" type="date" expanded />
+        </OField>
+
+        <OField label="Enddatum">
+          <OInput v-model="endDate" :min="(payload?.min_date ?? undefined) as any" :max="(payload?.max_date ?? undefined) as any" type="date" expanded />
+        </OField>
+
+        <OField label="Zeitgranularität">
+          <OSelect v-model="timeGranularity" expanded>
+            <option>Täglich</option>
+            <option>Monatlich</option>
+            <option>Jährlich</option>
+          </OSelect>
+        </OField>
+
+        <OField label="Ansicht">
+          <OSelect v-model="spendingView" expanded>
+            <option>Absolut</option>
+            <option>Kumulativ</option>
+          </OSelect>
+        </OField>
+
+        <OField label="Sortieren nach">
+          <OSelect v-model="topView" expanded>
+            <option>Menge</option>
+            <option>Ausgaben</option>
+          </OSelect>
+        </OField>
+      </form>
 
       <p v-if="bannerMessage" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
         {{ bannerMessage }}
@@ -118,24 +151,68 @@ async function handleExport() {
       <DashboardSkeleton v-if="loading && !payload" />
 
       <template v-else-if="payload">
-        <DashboardSection
-          v-for="section in payload.sections"
-          :key="`${section.kind}-${section.title}`"
-          :title="section.title"
-          :empty="section.items.length === 0"
-        >
-          <DashboardKpiGrid v-if="section.kind === 'metrics'" :data="metricData(section.items)" />
-          <TrendChartPanel
-            v-else-if="section.kind === 'time_series'"
-            :items="section.items"
-            :spending-view="spendingView"
-            :time-granularity="timeGranularity"
+        <template v-if="activeTab === 'import'">
+          <ImportJobControls
+            v-model:retailer="importRetailer"
+            :running="importJob.running.value"
+            :progress="importJob.progress.value"
+            :message="importJob.message.value"
+            :error="importJob.error.value"
+            :technical-error="importJob.technicalError.value"
+            @start-import="importJob.startImport($event)"
           />
-          <WeekdayPanel v-else-if="section.kind === 'weekday'" :items="section.items" />
-          <TopItemsPanel v-else-if="section.kind === 'top_items'" :items="section.items" />
-          <pre v-else class="m-0 whitespace-pre-wrap text-sm text-slate-600">{{ section.items }}</pre>
-        </DashboardSection>
+        </template>
+
+        <template v-else-if="activeTab === 'ausgaben'">
+          <DashboardSection
+            v-for="section in payload.sections.filter(s => s.kind === 'metrics' || s.kind === 'time_series')"
+            :key="`${section.kind}-${section.title}`"
+            :title="section.title"
+            :empty="section.items.length === 0"
+          >
+            <DashboardKpiGrid v-if="section.kind === 'metrics'" :data="metricData(section.items)" />
+            <TrendChartPanel
+              v-else-if="section.kind === 'time_series'"
+              :items="section.items"
+              :spending-view="spendingView"
+              :time-granularity="timeGranularity"
+            />
+          </DashboardSection>
+        </template>
+
+        <template v-else-if="activeTab === 'einkauf'">
+          <DashboardSection
+            v-for="section in payload.sections.filter(s => s.kind === 'weekday')"
+            :key="`${section.kind}-${section.title}`"
+            :title="section.title"
+            :empty="section.items.length === 0"
+          >
+            <WeekdayPanel :items="section.items" />
+          </DashboardSection>
+        </template>
+
+        <template v-else-if="activeTab === 'artikel'">
+          <DashboardFilterBar
+            v-model:search="search"
+            v-model:top-limit="topLimit"
+            class="mb-4"
+          />
+          <DashboardSection
+            v-for="section in payload.sections.filter(s => s.kind === 'top_items')"
+            :key="`${section.kind}-${section.title}`"
+            :title="section.title"
+            :empty="section.items.length === 0"
+          >
+            <TopItemsPanel
+              :items="section.items"
+              :page="page"
+              :page-size="(section.items[0] as any)?.page_size ?? 20"
+              :total-count="(section.items[0] as any)?.total_count ?? 0"
+              @update:page="page = $event"
+            />
+          </DashboardSection>
+        </template>
       </template>
-    </div>
-  </main>
+    </main>
+  </div>
 </template>

@@ -45,13 +45,13 @@ def test_build_dashboard_state_computes_derived_metrics():
             calls.append(("weekday", retailer, start_date, end_date))
             return [WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)]
 
-        def top_items_by_quantity(self, retailer=None, start_date=None, end_date=None, limit=20):
-            calls.append(("top", retailer, start_date, end_date, limit))
-            return [TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")]
+        def top_items_by_quantity(self, retailer=None, start_date=None, end_date=None, search=None, page=1, page_size=20):
+            calls.append(("top", retailer, start_date, end_date, page_size))
+            return ([TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")], 1)
 
-        def top_items_by_spend(self, retailer=None, start_date=None, end_date=None, limit=20):
-            calls.append(("top_spend", retailer, start_date, end_date, limit))
-            return [TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")]
+        def top_items_by_spend(self, retailer=None, start_date=None, end_date=None, search=None, page=1, page_size=20):
+            calls.append(("top_spend", retailer, start_date, end_date, page_size))
+            return ([TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")], 1)
 
     state = build_dashboard_state(
         FakeProvider(),

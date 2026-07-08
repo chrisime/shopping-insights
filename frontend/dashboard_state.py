@@ -59,8 +59,10 @@ class DashboardMetricsProvider(Protocol):
         retailer: str | None = None,
         start_date: str | None = None,
         end_date: str | None = None,
-        limit: int = 20,
-    ) -> list[TopItemRow]:
+        search: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[TopItemRow], int]:
         ...
 
     def top_items_by_spend(
@@ -68,8 +70,10 @@ class DashboardMetricsProvider(Protocol):
         retailer: str | None = None,
         start_date: str | None = None,
         end_date: str | None = None,
-        limit: int = 20,
-    ) -> list[TopItemRow]:
+        search: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[TopItemRow], int]:
         ...
 
 
@@ -94,6 +98,8 @@ class DashboardState:
     spending_view: str
     top_view: str
     top_limit: int
+    search: str | None
+    page: int
     available_kpis: BasicKPIs
     kpis: BasicKPIs
     bonus_kpis: RetailerBonusKPIs
@@ -101,6 +107,7 @@ class DashboardState:
     time_series: list[TimeSeriesRow]
     weekday: list[WeekdayRow]
     top_items: list[TopItemRow]
+    top_items_total: int
     min_date: Any
     max_date: Any
     error: DashboardError | None = None
@@ -119,6 +126,8 @@ def build_dashboard_state(
     spending_view: str,
     top_view: str,
     top_limit: int,
+    search: str | None = None,
+    page: int = 1,
 ) -> DashboardState:
     normalized_retailer = retailer.lower() if retailer else None
     try:
@@ -147,7 +156,7 @@ def build_dashboard_state(
         if spending_view == "Kumulativ":
             time_series = _cumulative_time_series(time_series)
         weekday = provider.weekday_analysis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
-        top_items = _build_top_items(provider, normalized_retailer, start_date, end_date, top_view, top_limit)
+        top_items, top_items_total = _build_top_items(provider, normalized_retailer, start_date, end_date, top_view, top_limit, search, page)
         derived = _build_derived_metrics(kpis, bonus_kpis)
     except sqlite3.OperationalError:
         return _empty_dashboard_state(
@@ -169,6 +178,8 @@ def build_dashboard_state(
         spending_view=spending_view,
         top_view=top_view,
         top_limit=top_limit,
+        search=search,
+        page=page,
         available_kpis=available_kpis,
         kpis=kpis,
         bonus_kpis=bonus_kpis,
@@ -180,6 +191,7 @@ def build_dashboard_state(
         time_series=time_series,
         weekday=weekday,
         top_items=top_items,
+        top_items_total=top_items_total,
         min_date=available_kpis.min_date,
         max_date=available_kpis.max_date,
     )
@@ -194,6 +206,8 @@ def _empty_dashboard_state(
     top_view: str,
     top_limit: int,
     error: DashboardError | None = None,
+    search: str | None = None,
+    page: int = 1,
 ) -> DashboardState:
     empty_kpis = BasicKPIs(0.0, 0, 0.0, 0.0, 0.0, None, None)
     empty_bonus_kpis = RetailerBonusKPIs(0.0, 0.0, 0.0, 0.0, 0.0)
@@ -206,6 +220,8 @@ def _empty_dashboard_state(
         spending_view=spending_view,
         top_view=top_view,
         top_limit=top_limit,
+        search=search,
+        page=page,
         available_kpis=empty_kpis,
         kpis=empty_kpis,
         bonus_kpis=empty_bonus_kpis,
@@ -217,6 +233,7 @@ def _empty_dashboard_state(
         time_series=[],
         weekday=[],
         top_items=[],
+        top_items_total=0,
         min_date=None,
         max_date=None,
         error=error,
@@ -232,6 +249,8 @@ def _empty_no_receipts_state(
     top_view: str,
     top_limit: int,
     available_kpis: BasicKPIs,
+    search: str | None = None,
+    page: int = 1,
 ) -> DashboardState:
     empty_kpis = BasicKPIs(0.0, 0, 0.0, 0.0, 0.0, available_kpis.min_date, available_kpis.max_date)
     empty_bonus_kpis = RetailerBonusKPIs(0.0, 0.0, 0.0, 0.0, 0.0)
@@ -244,6 +263,8 @@ def _empty_no_receipts_state(
         spending_view=spending_view,
         top_view=top_view,
         top_limit=top_limit,
+        search=search,
+        page=page,
         available_kpis=available_kpis,
         kpis=empty_kpis,
         bonus_kpis=empty_bonus_kpis,
@@ -255,6 +276,7 @@ def _empty_no_receipts_state(
         time_series=[],
         weekday=[],
         top_items=[],
+        top_items_total=0,
         min_date=available_kpis.min_date,
         max_date=available_kpis.max_date,
         error=no_receipts_error(),
@@ -293,10 +315,19 @@ def _build_top_items(
     end_date: str | None,
     top_view: str,
     top_limit: int,
-) -> list[TopItemRow]:
+    search: str | None = None,
+    page: int = 1,
+) -> tuple[list[TopItemRow], int]:
+    page_size = top_limit
     if top_view == "Ausgaben":
-        return provider.top_items_by_spend(retailer=retailer, start_date=start_date, end_date=end_date, limit=top_limit)
-    return provider.top_items_by_quantity(retailer=retailer, start_date=start_date, end_date=end_date, limit=top_limit)
+        return provider.top_items_by_spend(
+            retailer=retailer, start_date=start_date, end_date=end_date,
+            search=search, page=page, page_size=page_size,
+        )
+    return provider.top_items_by_quantity(
+        retailer=retailer, start_date=start_date, end_date=end_date,
+        search=search, page=page, page_size=page_size,
+    )
 
 
 def _build_derived_metrics(kpis: BasicKPIs, bonus_kpis: RetailerBonusKPIs) -> DashboardDerivedMetrics:

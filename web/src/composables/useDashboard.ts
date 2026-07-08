@@ -11,6 +11,9 @@ export function useDashboard() {
   const spendingView = ref("Absolut");
   const topView = ref("Menge");
   const topLimit = ref(20);
+  const search = ref("");
+  const page = ref(1);
+  let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   const payload = ref<DashboardPayload | null>(null);
   const loading = ref(false);
@@ -27,7 +30,14 @@ export function useDashboard() {
     spending_view: spendingView.value,
     top_view: topView.value,
     top_limit: topLimit.value,
+    search: search.value.length >= 3 ? search.value : undefined,
+    page: page.value > 1 ? page.value : undefined,
   }));
+
+  function scheduleRefresh(delay = 400) {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => void refresh(), delay);
+  }
 
   async function refresh() {
     const token = ++requestToken;
@@ -58,12 +68,19 @@ export function useDashboard() {
     }
   }
 
-  watch([retailer, startDate, endDate, timeGranularity, spendingView, topView, topLimit], () => {
+  watch([retailer, startDate, endDate, timeGranularity, spendingView, topView, topLimit, page], () => {
     if (skipNextAutoRefresh.value) {
       skipNextAutoRefresh.value = false;
       return;
     }
     void refresh();
+  });
+
+  watch(search, (val) => {
+    if (val.length >= 3 || val.length === 0) {
+      if (page.value !== 1) page.value = 1;
+      scheduleRefresh();
+    }
   });
 
   watch(
@@ -77,6 +94,8 @@ export function useDashboard() {
       skipNextAutoRefresh.value = true;
       startDate.value = "";
       endDate.value = "";
+      page.value = 1;
+      search.value = "";
       void refresh();
     },
     { flush: "sync" },
@@ -110,6 +129,8 @@ export function useDashboard() {
     spendingView,
     topView,
     topLimit,
+    search,
+    page,
     payload,
     loading,
     error,

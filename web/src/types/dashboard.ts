@@ -15,6 +15,8 @@ export interface DashboardFilters {
   spending_view?: string;
   top_view?: string;
   top_limit?: number;
+  search?: string;
+  page?: number;
 }
 
 export interface DashboardSection {

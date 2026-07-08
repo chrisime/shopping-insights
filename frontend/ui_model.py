@@ -113,6 +113,18 @@ def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
             ),
         ]
     )
+
+    # append pagination metadata to the top_items section
+    if sections and sections[-1].kind == "top_items":
+        last = sections[-1]
+        sections[-1] = DashboardSection(
+            kind="top_items",
+            title=last.title,
+            items=[
+                {**item, "total_count": state.top_items_total, "page": state.page, "page_size": state.top_limit}
+                for item in last.items
+            ],
+        )
     return DashboardPageModel(
         title="Shopping Analyzer Dashboard",
         sections=sections,

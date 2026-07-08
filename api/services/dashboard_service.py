@@ -22,6 +22,8 @@ class DashboardService:
         spending_view: str = "Absolut",
         top_view: str = "Menge",
         top_limit: int = 20,
+        search: str | None = None,
+        page: int = 1,
     ) -> VueDashboardPayload:
         state = build_dashboard_state(
             self._store,
@@ -32,6 +34,8 @@ class DashboardService:
             spending_view=spending_view,
             top_view=top_view,
             top_limit=top_limit,
+            search=search,
+            page=page,
         )
-        page = build_dashboard_page_model(state)
-        return VueDashboardPayload.from_page_model(page)
+        model = build_dashboard_page_model(state)
+        return VueDashboardPayload.from_page_model(model)

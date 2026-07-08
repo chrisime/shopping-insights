@@ -29,11 +29,11 @@ def test_build_dashboard_state_turns_kumulativ_time_series_cumulative():
         def weekday_analysis(self, retailer=None, start_date=None, end_date=None):
             return [WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)]
 
-        def top_items_by_quantity(self, retailer=None, start_date=None, end_date=None, limit=20):
-            return [TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")]
+        def top_items_by_quantity(self, retailer=None, start_date=None, end_date=None, search=None, page=1, page_size=20):
+            return ([TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")], 1)
 
-        def top_items_by_spend(self, retailer=None, start_date=None, end_date=None, limit=20):
-            return []
+        def top_items_by_spend(self, retailer=None, start_date=None, end_date=None, search=None, page=1, page_size=20):
+            return ([], 0)
 
     state = build_dashboard_state(
         DummyProvider(),
@@ -65,6 +65,8 @@ def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
         spending_view="Absolut",
         top_view="Menge",
         top_limit=10,
+        search=None,
+        page=1,
         available_kpis=BasicKPIs(100.0, 4, 25.0, 10.0, 2.0, "2024-01-01", "2024-01-31"),
         kpis=BasicKPIs(100.0, 4, 25.0, 10.0, 2.0, "2024-01-01", "2024-01-31"),
         bonus_kpis=RetailerBonusKPIs(1.0, 2.0, 3.0, 4.0, 5.0),
@@ -72,6 +74,7 @@ def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
         time_series=[TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1)],
         weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
         top_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
+        top_items_total=0,
         min_date=date(2024, 1, 1),
         max_date=date(2024, 1, 31),
     )
@@ -113,6 +116,8 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
         spending_view="Absolut",
         top_view="Menge",
         top_limit=10,
+        search=None,
+        page=1,
         available_kpis=BasicKPIs(100.0, 4, 25.0, 10.0, 2.0, "2024-01-01", "2024-01-31"),
         kpis=BasicKPIs(100.0, 4, 25.0, 10.0, 2.0, "2024-01-01", "2024-01-31"),
         bonus_kpis=RetailerBonusKPIs(1.0, 2.0, 3.0, 4.0, 5.0),
@@ -120,6 +125,7 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
         time_series=[TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1)],
         weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
         top_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
+        top_items_total=0,
         min_date=date(2024, 1, 1),
         max_date=date(2024, 1, 31),
     )
@@ -277,11 +283,11 @@ def test_build_dashboard_state_returns_no_receipts_error_for_empty_database():
         def weekday_analysis(self, retailer=None, start_date=None, end_date=None):
             return []
 
-        def top_items_by_quantity(self, retailer=None, start_date=None, end_date=None, limit=20):
-            return []
+        def top_items_by_quantity(self, retailer=None, start_date=None, end_date=None, search=None, page=1, page_size=20):
+            return ([], 0)
 
-        def top_items_by_spend(self, retailer=None, start_date=None, end_date=None, limit=20):
-            return []
+        def top_items_by_spend(self, retailer=None, start_date=None, end_date=None, search=None, page=1, page_size=20):
+            return ([], 0)
 
     state = build_dashboard_state(
         EmptyProvider(),

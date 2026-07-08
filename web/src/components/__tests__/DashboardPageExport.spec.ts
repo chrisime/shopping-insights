@@ -22,6 +22,8 @@ describe("DashboardPage export", () => {
       spendingView: ref("Absolut"),
       topView: ref("Menge"),
       topLimit: ref(20),
+      search: ref(""),
+      page: ref(1),
       payload: ref({
         title: "Shopping Analyzer Dashboard",
         sections: [{ kind: "metrics", title: "Kennzahlen", items: [] }],
@@ -63,7 +65,7 @@ describe("DashboardPage export", () => {
       },
     });
 
-    await wrapper.get("button").trigger("click");
+    await wrapper.find("main button").trigger("click");
 
     expect(exportSpy).toHaveBeenCalledWith({
       retailer: "lidl",
