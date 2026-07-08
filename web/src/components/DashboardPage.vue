@@ -121,13 +121,6 @@ async function handleExport() {
           <OInput v-model="endDate" :min="(payload?.min_date ?? undefined) as any" :max="(payload?.max_date ?? undefined) as any" type="date" expanded />
         </OField>
 
-        <OField label="Zeitgranularität">
-          <OSelect v-model="timeGranularity" expanded>
-            <option>Täglich</option>
-            <option>Monatlich</option>
-            <option>Jährlich</option>
-          </OSelect>
-        </OField>
 
         <OField label="Ansicht">
           <OSelect v-model="spendingView" expanded>
@@ -171,12 +164,20 @@ async function handleExport() {
             :empty="section.items.length === 0"
           >
             <DashboardKpiGrid v-if="section.kind === 'metrics'" :data="metricData(section.items)" />
-            <TrendChartPanel
-              v-else-if="section.kind === 'time_series'"
-              :items="section.items"
-              :spending-view="spendingView"
-              :time-granularity="timeGranularity"
-            />
+            <template v-else-if="section.kind === 'time_series'">
+              <OField label="Zeitgranularität">
+                <OSelect v-model="timeGranularity" expanded>
+                  <option>Täglich</option>
+                  <option>Monatlich</option>
+                  <option>Jährlich</option>
+                </OSelect>
+              </OField>
+              <TrendChartPanel
+                :items="section.items"
+                :spending-view="spendingView"
+                :time-granularity="timeGranularity"
+              />
+            </template>
           </DashboardSection>
         </template>
 
