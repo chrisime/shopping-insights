@@ -19,3 +19,14 @@ export async function fetchDashboard(filters: DashboardFilters = {}): Promise<Da
 
   return (await response.json()) as DashboardPayload;
 }
+
+export async function fetchReceiptsByItem(
+  name: string,
+  retailer?: string,
+): Promise<Array<Record<string, unknown>>> {
+  const params = new URLSearchParams({ name });
+  if (retailer) params.set("retailer", retailer);
+  const res = await fetch(`/api/receipts/by-item?${params}`);
+  if (!res.ok) throw new Error(`Failed to fetch receipts: ${res.status}`);
+  return res.json();
+}
