@@ -69,6 +69,16 @@ function retailerLabel(value: unknown): string {
   if (value === "rewe") return "REWE";
   return text(value);
 }
+
+function addressText(addr: unknown): string {
+  if (!addr || typeof addr !== "object") return "";
+  const a = addr as Record<string, unknown>;
+  const parts = [
+    a.street && a.street_no ? `${a.street} ${a.street_no}` : a.street || "",
+    a.zip && a.city ? `${a.zip} ${a.city}` : a.city || a.zip || "",
+  ].filter(Boolean);
+  return parts.join(", ");
+}
 </script>
 
 <template>
@@ -132,23 +142,13 @@ function retailerLabel(value: unknown): string {
 
           <!-- Receipt detail -->
           <div class="overflow-y-auto px-5 py-4">
-            <div class="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-              <div>
-                <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Händler</span>
-                <p class="mt-0.5 font-medium text-slate-900">{{ retailerLabel(current.retailer) }}</p>
+            <div class="mb-4 grid gap-2 text-sm">
+              <div class="flex items-center gap-2">
+                <span class="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.22em]">{{ retailerLabel(current.retailer) }}</span>
+                <span class="font-medium text-slate-900">{{ text(current.store) }}</span>
               </div>
-              <div>
-                <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Datum</span>
-                <p class="mt-0.5 font-medium text-slate-900">{{ text(current.purchase_date) }}</p>
-              </div>
-              <div>
-                <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Markt</span>
-                <p class="mt-0.5 font-medium text-slate-900">{{ text(current.store) }}</p>
-              </div>
-              <div>
-                <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Gesamt</span>
-                <p class="mt-0.5 font-medium text-slate-900">{{ currency(current.total_price) }}</p>
-              </div>
+              <p class="text-xs text-slate-500">{{ addressText(current.address) }}</p>
+              <p class="text-xs text-slate-500">{{ text(current.purchase_date) }}</p>
             </div>
 
             <div class="border-t border-slate-200 pt-3">
@@ -171,6 +171,11 @@ function retailerLabel(value: unknown): string {
                   </span>
                 </div>
               </div>
+            </div>
+
+            <div class="mt-4 border-t border-slate-200 pt-3 text-right">
+              <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Gesamt</span>
+              <p class="text-xl font-semibold text-slate-900">{{ currency(current.total_price) }}</p>
             </div>
           </div>
         </template>
