@@ -107,7 +107,7 @@ function visibleGroups(): KpiCardGroup[] {
           <h3 class="text-sm font-semibold tracking-tight text-slate-900">{{ card.title }}</h3>
         </div>
 
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-3 sm:grid-cols-2">
           <div
             v-for="(field, fi) in card.fields"
             :key="field"
