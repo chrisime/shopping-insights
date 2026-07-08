@@ -7,7 +7,7 @@ defineProps<{
 </script>
 
 <template>
-  <section class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+  <section class="grid gap-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
     <div class="border-b border-slate-100 pb-3">
       <h2 class="text-lg font-semibold tracking-tight text-slate-900">{{ title }}</h2>
     </div>
