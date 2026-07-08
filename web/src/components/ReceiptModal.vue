@@ -142,13 +142,22 @@ function addressText(addr: unknown): string {
 
           <!-- Receipt detail -->
           <div class="overflow-y-auto px-5 py-4">
-            <div class="mb-4 grid gap-2 text-sm">
-              <div class="flex items-center gap-2">
-                <span class="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.22em]">{{ retailerLabel(current.retailer) }}</span>
-                <span class="font-medium text-slate-900">{{ text(current.store) }}</span>
+            <div class="mb-4 text-sm">
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Händler</p>
+                  <p class="mt-0.5 font-bold uppercase text-slate-900">{{ retailerLabel(current.retailer) }}</p>
+                </div>
+                <div>
+                  <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Markt</p>
+                  <p class="mt-0.5 font-medium text-slate-900">{{ text(current.store) }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Datum</p>
+                  <p class="mt-0.5 font-medium text-slate-900">{{ text(current.purchase_date) }}</p>
+                </div>
               </div>
-              <p class="text-xs text-slate-500">{{ addressText(current.address) }}</p>
-              <p class="text-xs text-slate-500">{{ text(current.purchase_date) }}</p>
+              <p class="mt-1 text-xs text-slate-500">{{ addressText(current.address) }}</p>
             </div>
 
             <div class="border-t border-slate-200 pt-3">
