@@ -63,6 +63,12 @@ function currency(value: unknown) {
 function isMatched(item: Record<string, unknown>): boolean {
   return item.matched === true;
 }
+
+function retailerLabel(value: unknown): string {
+  if (value === "lidl") return "Lidl";
+  if (value === "rewe") return "REWE";
+  return text(value);
+}
 </script>
 
 <template>
@@ -76,7 +82,7 @@ function isMatched(item: Record<string, unknown>): boolean {
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h2 class="text-lg font-semibold tracking-tight text-slate-900">
-            {{ articleName }} — Kassenzettel
+            {{ articleName }} — {{ retailerLabel(current.retailer) }} Kassenzettel
           </h2>
           <button
             type="button"
@@ -126,7 +132,11 @@ function isMatched(item: Record<string, unknown>): boolean {
 
           <!-- Receipt detail -->
           <div class="overflow-y-auto px-5 py-4">
-            <div class="mb-4 grid grid-cols-3 gap-3 text-sm">
+            <div class="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <div>
+                <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Händler</span>
+                <p class="mt-0.5 font-medium text-slate-900">{{ retailerLabel(current.retailer) }}</p>
+              </div>
               <div>
                 <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Datum</span>
                 <p class="mt-0.5 font-medium text-slate-900">{{ text(current.purchase_date) }}</p>
