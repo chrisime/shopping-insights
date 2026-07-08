@@ -127,7 +127,7 @@ const treeItems = computed(() => {
   return [] as TimeNode[];
 });
 
-const isGrouped = computed(() => props.timeGranularity === "Monatlich" || props.timeGranularity === "Täglich");
+const isGrouped = computed(() => props.timeGranularity === "Täglich");
 </script>
 
 <template>

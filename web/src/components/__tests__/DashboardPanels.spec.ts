@@ -22,10 +22,11 @@ describe("dashboard panels", () => {
     });
 
     expect(monthly.text()).toContain("2023");
-    expect(monthly.text()).toContain("Jan");
-    expect(monthly.text()).toContain("Feb");
-    expect(monthly.findAll("details")).toHaveLength(5);
-    expect(monthly.findAll("svg")).toHaveLength(5);
+    expect(monthly.text()).toContain("2023-01");
+    expect(monthly.text()).toContain("€10.00");
+    expect(monthly.text()).toContain("1 Belege");
+    expect(monthly.findAll(".bg-indigo-500")).toHaveLength(3);
+    expect(monthly.findAll("details")).toHaveLength(0);
 
     const daily = mount(TrendChartPanel, {
       props: {
