@@ -24,9 +24,11 @@ export async function fetchReceiptsByItem(
   name: string,
   retailer?: string,
 ): Promise<Array<Record<string, unknown>>> {
-  const params = new URLSearchParams({ name });
-  if (retailer) params.set("retailer", retailer);
-  const res = await fetch(`/api/receipts/by-item?${params}`);
+  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+  const url = new URL("/receipts/by-item", baseUrl);
+  url.searchParams.set("name", name);
+  if (retailer) url.searchParams.set("retailer", retailer);
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch receipts: ${res.status}`);
   return res.json();
 }
