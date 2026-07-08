@@ -12,7 +12,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update:page", value: number): void;
   (e: "update:topLimit", value: number): void;
+  (e: "select-article", name: string): void;
 }>();
+
+function handleRowClick(name: string) {
+  emit("select-article", name);
+}
 
 import { computed } from "vue";
 
@@ -57,7 +62,7 @@ function quantity(value: unknown, unit: unknown) {
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100 bg-white">
-        <tr v-for="item in items" :key="text(item.name)">
+        <tr v-for="item in items" :key="text(item.name)" class="cursor-pointer transition hover:bg-slate-50" @click="handleRowClick(text(item.name))">
           <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ text(item.name) }}</td>
           <td class="px-4 py-3 text-right text-sm text-slate-700">{{ quantity(item.total_quantity, item.unit) }}</td>
           <td class="px-4 py-3 text-right text-sm text-slate-700">{{ currency(item.total_spent) }}</td>

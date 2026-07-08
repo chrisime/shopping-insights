@@ -13,6 +13,7 @@ import DashboardKpiGrid from "./DashboardKpiGrid.vue";
 import TopItemsPanel from "./TopItemsPanel.vue";
 import TrendChartPanel from "./TrendChartPanel.vue";
 import WeekdayPanel from "./WeekdayPanel.vue";
+import ReceiptModal from "./ReceiptModal.vue";
 import { useDashboard } from "../composables/useDashboard";
 import { exportReceiptsJson } from "../api/exports";
 import { useImportJob } from "../composables/useImportJob";
@@ -40,6 +41,7 @@ const importJob = useImportJob(refresh);
 const exporting = ref(false);
 const sidebarCollapsed = ref(false);
 const activeTab = ref<SidebarTab>("ausgaben");
+const selectedArticle = ref<string | null>(null);
 
 const bannerMessage = computed(() => {
   if (payload.value?.error) {
@@ -59,6 +61,14 @@ function dashboardErrorMessage(detail: string) {
 
 function metricData(items: Array<Record<string, unknown>>): Record<string, number> {
   return items.length ? (items[0] as Record<string, number>) : {};
+}
+
+function onSelectArticle(name: string) {
+  selectedArticle.value = name;
+}
+
+function onCloseReceiptModal() {
+  selectedArticle.value = null;
 }
 
 async function handleExport() {
@@ -200,10 +210,18 @@ async function handleExport() {
               :top-limit="topLimit"
               @update:page="page = $event"
               @update:top-limit="topLimit = $event"
+              @select-article="onSelectArticle"
             />
           </DashboardSection>
         </template>
       </template>
     </main>
   </div>
+
+  <ReceiptModal
+    :article-name="selectedArticle ?? ''"
+    :retailer="retailer"
+    :visible="!!selectedArticle"
+    @close="onCloseReceiptModal"
+  />
 </template>
