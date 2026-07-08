@@ -104,7 +104,7 @@ async function handleExport() {
         </button>
       </header>
 
-      <form class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-3" @submit.prevent>
+      <form v-if="activeTab !== 'import'" class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-3" @submit.prevent>
         <OField label="Händler">
           <OSelect v-model="retailer" expanded>
             <option value="">Alle</option>

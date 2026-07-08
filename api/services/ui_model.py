@@ -6,8 +6,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from frontend.dashboard_errors import DashboardError
-from frontend.dashboard_state import DashboardState
+from api.services.dashboard_errors import DashboardError
+from api.services.dashboard_state import DashboardState
 
 
 @dataclass(frozen=True)

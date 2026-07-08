@@ -4,8 +4,8 @@ from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItem
 
 
 def test_build_dashboard_page_model_maps_state_to_ui_sections():
-    from frontend.ui_model import build_dashboard_page_model
-    from frontend.dashboard_state import DashboardDerivedMetrics, DashboardState
+    from api.services.ui_model import build_dashboard_page_model
+    from api.services.dashboard_state import DashboardDerivedMetrics, DashboardState
 
     state = DashboardState(
         retailer="lidl",
@@ -50,7 +50,7 @@ def test_build_dashboard_page_model_maps_state_to_ui_sections():
 
 
 def test_dashboard_page_model_roundtrip_serializer():
-    from frontend.ui_model import DashboardPageModel, DashboardSection
+    from api.services.ui_model import DashboardPageModel, DashboardSection
 
     page = DashboardPageModel(
         title="Shopping Analyzer Dashboard",
@@ -78,7 +78,7 @@ def test_dashboard_page_model_roundtrip_serializer():
 
 
 def test_dashboard_page_model_json_roundtrip_serializer():
-    from frontend.ui_model import DashboardPageModel, DashboardSection
+    from api.services.ui_model import DashboardPageModel, DashboardSection
 
     page = DashboardPageModel(
         title="Shopping Analyzer Dashboard",

@@ -6,7 +6,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from frontend.dashboard_errors import DashboardError, missing_database_error, no_receipts_error
+from api.services.dashboard_errors import DashboardError, missing_database_error, no_receipts_error
 from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
 

@@ -1,5 +1,5 @@
 def test_vue_dashboard_schema_roundtrip():
-    from frontend.schema import VueDashboardPayload
+    from api.services.schema import VueDashboardPayload
 
     payload = VueDashboardPayload(
         title="Shopping Analyzer Dashboard",
@@ -29,7 +29,7 @@ def test_vue_dashboard_schema_roundtrip():
 
 
 def test_vue_dashboard_schema_json_roundtrip():
-    from frontend.schema import VueDashboardPayload
+    from api.services.schema import VueDashboardPayload
 
     payload = VueDashboardPayload(title="Shopping Analyzer Dashboard", sections=[])
 

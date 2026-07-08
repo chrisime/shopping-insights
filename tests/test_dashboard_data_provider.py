@@ -2,7 +2,7 @@ from shared.kpi_dtos import BasicKPIs
 
 
 def test_api_dashboard_provider_basic_kpis_parses_json():
-    from frontend.data_provider import ApiDashboardDataProvider
+    from api.services.data_provider import ApiDashboardDataProvider
 
     class FakeResponse:
         def __init__(self, payload):
@@ -48,7 +48,7 @@ def test_api_dashboard_provider_basic_kpis_parses_json():
 
 
 def test_api_dashboard_provider_bonus_and_trend_paths():
-    from frontend.data_provider import ApiDashboardDataProvider
+    from api.services.data_provider import ApiDashboardDataProvider
 
     calls = []
 
@@ -96,7 +96,7 @@ def test_api_dashboard_provider_bonus_and_trend_paths():
 
 
 def test_api_dashboard_provider_top_items_and_weekday_paths():
-    from frontend.data_provider import ApiDashboardDataProvider
+    from api.services.data_provider import ApiDashboardDataProvider
 
     calls = []
 
@@ -135,7 +135,7 @@ def test_api_dashboard_provider_top_items_and_weekday_paths():
 
 
 def test_get_dashboard_data_provider_uses_api_base_url(monkeypatch):
-    from frontend.data_provider import ApiDashboardDataProvider, get_dashboard_data_provider
+    from api.services.data_provider import ApiDashboardDataProvider, get_dashboard_data_provider
 
     monkeypatch.setenv("API_BASE_URL", "https://example.test")
 

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from storage.kpi_store import MetricsStore
 
-from frontend.dashboard_state import build_dashboard_state
-from frontend.schema import VueDashboardPayload
-from frontend.ui_model import build_dashboard_page_model
+from api.services.dashboard_state import build_dashboard_state
+from api.services.schema import VueDashboardPayload
+from api.services.ui_model import build_dashboard_page_model
 
 
 class DashboardService:
