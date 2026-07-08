@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from contextlib import closing
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 from config import storage_config
 from result_types import PersistResult
@@ -202,6 +202,61 @@ class SqliteReceiptStore(ReceiptStore):
                 for purchase in purchases
             ]
 
+
+    @staticmethod
+    def list_receipts_by_item(
+        name: str,
+        retailer: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        with closing(_connect_sqlite()) as connection:
+            purchase_item_domain = PurchaseItemDomain(connection)
+            purchase_ids = purchase_item_domain.find_purchase_ids_by_item_name(name)
+
+            if not purchase_ids:
+                return []
+
+            placeholders = ",".join("?" for _ in purchase_ids)
+            params: list[Any] = purchase_ids[:]
+            where_clauses = [f"purchase.id IN ({placeholders})"]
+
+            if retailer:
+                where_clauses.append("store.retailer_code = ?")
+                params.append(retailer.lower())
+
+            if start_date:
+                where_clauses.append("purchase.purchase_date >= ?")
+                params.append(start_date)
+
+            if end_date:
+                where_clauses.append("purchase.purchase_date <= ?")
+                params.append(end_date)
+
+            rows = connection.execute(
+                f"""
+                SELECT purchase.id FROM purchase
+                JOIN store ON store.id = purchase.store_id
+                WHERE {' AND '.join(where_clauses)}
+                ORDER BY purchase.purchase_date DESC, purchase.id
+                """,
+                params,
+            ).fetchall()
+
+            purchase_domain = PurchaseDomain(connection)
+            matched_name_upper = name.upper()
+            receipts: list[dict[str, Any]] = []
+            for row in rows:
+                purchase = purchase_domain.find_by_id(str(row["id"]))
+                if purchase is None:
+                    continue
+                receipt = _map_purchase_to_receipt_dict(purchase, retailer or "", connection)
+                for item in receipt["items"]:
+                    if str(item.get("name", "")).upper() == matched_name_upper:
+                        item["matched"] = True
+                receipts.append(receipt)
+
+            return receipts
 
     def persist_receipts(self, receipts: Sequence[ReceiptDTO], retailer: str) -> PersistResult:
         created_count = 0
