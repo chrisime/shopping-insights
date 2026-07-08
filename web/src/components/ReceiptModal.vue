@@ -15,6 +15,7 @@ const emit = defineEmits<{
 const loading = ref(false);
 const receipts = ref<Array<Record<string, unknown>>>([]);
 const currentIndex = ref(0);
+const requestTicket = ref(0);
 
 watch(
   () => props.visible,
@@ -23,10 +24,12 @@ watch(
     loading.value = true;
     receipts.value = [];
     currentIndex.value = 0;
+    const ticket = ++requestTicket.value;
     try {
-      receipts.value = await fetchReceiptsByItem(props.articleName, props.retailer);
+      const result = await fetchReceiptsByItem(props.articleName, props.retailer);
+      if (ticket === requestTicket.value) receipts.value = result;
     } finally {
-      loading.value = false;
+      if (ticket === requestTicket.value) loading.value = false;
     }
   },
 );

@@ -244,13 +244,20 @@ class SqliteReceiptStore(ReceiptStore):
             ).fetchall()
 
             purchase_domain = PurchaseDomain(connection)
+            store_domain = StoreDomain(connection)
             matched_name_upper = name.upper()
             receipts: list[dict[str, Any]] = []
             for row in rows:
                 purchase = purchase_domain.find_by_id(str(row["id"]))
                 if purchase is None:
                     continue
-                receipt = _map_purchase_to_receipt_dict(purchase, retailer or "", connection)
+                store_id = purchase.store_id
+                actual_retailer = retailer or ""
+                if store_id is not None:
+                    store = store_domain.find_by_id(store_id)
+                    if store is not None:
+                        actual_retailer = store.retailer_code
+                receipt = _map_purchase_to_receipt_dict(purchase, actual_retailer, connection)
                 for item in receipt["items"]:
                     if str(item.get("name", "")).upper() == matched_name_upper:
                         item["matched"] = True

@@ -128,7 +128,7 @@ def test_receipts_by_item_returns_matching_receipts(monkeypatch):
                     "store": "Lidl München",
                     "items": [
                         {"name": "Apfel", "quantity": 1, "unit": "kg", "price": 2.99, "matched": True},
-                        {"name": "Brot", "quantity": 1, "unit": "pc", "price": 1.49, "matched": False},
+                        {"name": "Brot", "quantity": 1, "unit": "pc", "price": 1.49},
                     ],
                     "payment_methods": [],
                 }
