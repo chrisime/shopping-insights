@@ -45,3 +45,17 @@ def get_receipt_items(receipt_id: str, retailer: Optional[str] = None) -> dict[s
 def get_receipt_payments(receipt_id: str, retailer: Optional[str] = None) -> dict[str, Any]:
     receipt = get_receipt(receipt_id, retailer=retailer)["data"]
     return {"data": receipt.get("payment_methods", [])}
+
+
+def list_receipts_by_item(
+    name: str,
+    retailer: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    return SqliteReceiptStore.list_receipts_by_item(
+        name=name,
+        retailer=retailer,
+        start_date=start_date,
+        end_date=end_date,
+    )
