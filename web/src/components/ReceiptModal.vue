@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { fetchReceiptsByItem } from "../api/dashboard";
 
 const props = defineProps<{
@@ -34,14 +34,7 @@ watch(
   },
 );
 
-const current = ref<Record<string, unknown>>({});
-watch(
-  [receipts, currentIndex],
-  () => {
-    current.value = receipts.value[currentIndex.value] ?? {};
-  },
-  { immediate: true },
-);
+const current = computed(() => receipts.value[currentIndex.value] ?? {});
 
 function prev() {
   if (currentIndex.value > 0) currentIndex.value--;
