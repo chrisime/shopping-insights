@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { OField, OInput, OSelect } from "@oruga-ui/oruga-next";
+import { OField, OInput, ORadio, OSelect } from "@oruga-ui/oruga-next";
 
 import DashboardSidebar from "./DashboardSidebar.vue";
 import type { SidebarTab } from "./DashboardSidebar.vue";
@@ -152,18 +152,9 @@ async function handleExport() {
             <template v-else-if="section.kind === 'time_series'">
               <OField label="Granularität">
                 <div class="flex gap-4">
-                  <label class="inline-flex items-center gap-1.5 text-sm text-slate-700">
-                    <input type="radio" v-model="timeGranularity" value="Täglich" class="text-indigo-600" />
-                    Täglich
-                  </label>
-                  <label class="inline-flex items-center gap-1.5 text-sm text-slate-700">
-                    <input type="radio" v-model="timeGranularity" value="Monatlich" class="text-indigo-600" />
-                    Monatlich
-                  </label>
-                  <label class="inline-flex items-center gap-1.5 text-sm text-slate-700">
-                    <input type="radio" v-model="timeGranularity" value="Jährlich" class="text-indigo-600" />
-                    Jährlich
-                  </label>
+                  <ORadio v-model="timeGranularity" native-value="Täglich">Täglich</ORadio>
+                  <ORadio v-model="timeGranularity" native-value="Monatlich">Monatlich</ORadio>
+                  <ORadio v-model="timeGranularity" native-value="Jährlich">Jährlich</ORadio>
                 </div>
               </OField>
               <TrendChartPanel
