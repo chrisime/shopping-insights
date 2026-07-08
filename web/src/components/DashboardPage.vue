@@ -150,7 +150,7 @@ async function handleExport() {
           >
             <DashboardKpiGrid v-if="section.kind === 'metrics'" :data="metricData(section.items)" />
             <template v-else-if="section.kind === 'time_series'">
-              <OField label="Granularität">
+              <OField label="Granularität" class="mb-6">
                 <div class="flex gap-4">
                   <ORadio v-model="timeGranularity" native-value="Täglich">Täglich</ORadio>
                   <ORadio v-model="timeGranularity" native-value="Monatlich">Monatlich</ORadio>
