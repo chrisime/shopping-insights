@@ -43,8 +43,6 @@ const lidlGroup: KpiCardGroup = {
   ],
 };
 
-const rightAlignFields = new Set(["rewe_discount_pct", "lidlplus_discount_pct", "sticker_discount_pct", "lidl_discount_pct", "rewe_bonus_balance", "rewe_bonus_open", "total_savings_pct"]);
-
 function hasAllFields(group: KpiCardGroup): boolean {
   return group.cards.every((card) => card.fields.every((f) => props.data[f] !== undefined));
 }
@@ -111,10 +109,10 @@ function visibleGroups(): KpiCardGroup[] {
 
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div
-            v-for="field in card.fields"
+            v-for="(field, fi) in card.fields"
             :key="field"
             class="grid gap-1"
-            :class="rightAlignFields.has(field) ? 'justify-items-end text-right' : ''"
+            :class="fi === 1 ? 'justify-items-end text-right' : ''"
           >
             <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">{{ fieldLabel(field) }}</span>
             <strong class="text-2xl font-semibold tracking-tight text-slate-900">{{ formatValue(field, data[field]) }}</strong>
