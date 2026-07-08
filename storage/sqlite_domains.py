@@ -506,8 +506,8 @@ class PurchaseItemDomain:
 
     def find_purchase_ids_by_item_name(self, name: str) -> list[str]:
         rows = self.connection.execute(
-            "SELECT DISTINCT purchase_id FROM purchase_item WHERE UPPER(name) LIKE UPPER(?)",
-            (f"%{name}%",),
+            "SELECT DISTINCT purchase_id FROM purchase_item WHERE UPPER(name) = UPPER(?)",
+            (name,),
         ).fetchall()
 
         return [str(row["purchase_id"]) for row in rows]
