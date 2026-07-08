@@ -504,6 +504,14 @@ class PurchaseItemDomain:
             for row in rows
         ]
 
+    def find_purchase_ids_by_item_name(self, name: str) -> list[str]:
+        rows = self.connection.execute(
+            "SELECT DISTINCT purchase_id FROM purchase_item WHERE UPPER(name) LIKE UPPER(?)",
+            (f"%{name}%",),
+        ).fetchall()
+
+        return [str(row["purchase_id"]) for row in rows]
+
 
 class PaymentMethodDomain:
     def __init__(self, connection: sqlite3.Connection) -> None:
