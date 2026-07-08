@@ -142,22 +142,23 @@ function addressText(addr: unknown): string {
 
           <!-- Receipt detail -->
           <div class="overflow-y-auto px-5 py-4">
-            <div class="mb-4 text-sm">
-              <div class="grid grid-cols-3 gap-3">
-                <div>
-                  <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Händler</p>
-                  <p class="mt-0.5 font-bold uppercase text-slate-900">{{ retailerLabel(current.retailer) }}</p>
-                </div>
-                <div>
-                  <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Markt</p>
-                  <p class="mt-0.5 font-medium text-slate-900">{{ text(current.store) }}</p>
-                </div>
-                <div class="text-right">
-                  <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Datum</p>
-                  <p class="mt-0.5 font-medium text-slate-900">{{ text(current.purchase_date) }}</p>
-                </div>
+            <div class="mb-4 grid grid-cols-4 gap-3 text-sm">
+              <div>
+                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Händler</p>
+                <p class="mt-0.5 font-bold uppercase text-slate-900">{{ retailerLabel(current.retailer) }}</p>
               </div>
-              <p class="mt-1 text-xs text-slate-500">{{ addressText(current.address) }}</p>
+              <div>
+                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Markt</p>
+                <p class="mt-0.5 font-medium text-slate-900">{{ text(current.store) }}</p>
+              </div>
+              <div>
+                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Adresse</p>
+                <p class="mt-0.5 text-xs text-slate-500">{{ addressText(current.address) }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Datum</p>
+                <p class="mt-0.5 font-medium text-slate-900">{{ text(current.purchase_date) }}</p>
+              </div>
             </div>
 
             <div class="border-t border-slate-200 pt-3">
