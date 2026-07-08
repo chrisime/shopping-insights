@@ -120,21 +120,6 @@ async function handleExport() {
         <OField label="Enddatum">
           <OInput v-model="endDate" :min="(payload?.min_date ?? undefined) as any" :max="(payload?.max_date ?? undefined) as any" type="date" expanded />
         </OField>
-
-
-        <OField label="Ansicht">
-          <OSelect v-model="spendingView" expanded>
-            <option>Absolut</option>
-            <option>Kumulativ</option>
-          </OSelect>
-        </OField>
-
-        <OField label="Sortieren nach">
-          <OSelect v-model="topView" expanded>
-            <option>Menge</option>
-            <option>Ausgaben</option>
-          </OSelect>
-        </OField>
       </form>
 
       <p v-if="bannerMessage" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
