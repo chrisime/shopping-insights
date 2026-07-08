@@ -3,8 +3,8 @@ import sqlite3
 
 
 def test_build_dashboard_state_turns_kumulativ_time_series_cumulative():
-    from api.services.dashboard_state import DashboardDerivedMetrics, build_dashboard_state
-    from api.services.ui_model import build_dashboard_page_model
+    from api.services.dashboard_service import DashboardDerivedMetrics, build_dashboard_state
+    from api.services.dashboard_service import build_dashboard_page_model
     from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
     class DummyProvider:
@@ -53,8 +53,8 @@ def test_build_dashboard_state_turns_kumulativ_time_series_cumulative():
 
 
 def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
-    from api.services.dashboard_state import DashboardDerivedMetrics, DashboardState
-    from api.services.ui_model import build_dashboard_page_model
+    from api.services.dashboard_service import DashboardDerivedMetrics, DashboardState
+    from api.services.dashboard_service import build_dashboard_page_model
     from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
     state = DashboardState(
@@ -104,8 +104,8 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
 
     from api.main import app
     from api.routes import dashboard as dashboard_route
-    from api.services.dashboard_state import DashboardDerivedMetrics, DashboardState
-    from api.services.ui_model import DashboardPageModel, DashboardSection
+    from api.services.dashboard_service import DashboardDerivedMetrics, DashboardState
+    from api.services.dashboard_service import DashboardPageModel, DashboardSection
     from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
     state = DashboardState(
@@ -210,8 +210,8 @@ def test_ui_dashboard_allows_vite_dev_origin(monkeypatch):
 
 
 def test_build_dashboard_state_returns_empty_payload_when_database_tables_are_missing():
-    from api.services.dashboard_state import build_dashboard_state
-    from api.services.ui_model import build_dashboard_page_model
+    from api.services.dashboard_service import build_dashboard_state
+    from api.services.dashboard_service import build_dashboard_page_model
 
     class MissingTableProvider:
         def basic_kpis(self, *args, **kwargs):
@@ -260,8 +260,8 @@ def test_build_dashboard_state_returns_empty_payload_when_database_tables_are_mi
 
 
 def test_build_dashboard_state_returns_no_receipts_error_for_empty_database():
-    from api.services.dashboard_state import build_dashboard_state
-    from api.services.ui_model import build_dashboard_page_model
+    from api.services.dashboard_service import build_dashboard_state
+    from api.services.dashboard_service import build_dashboard_page_model
     from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs
 
     class EmptyProvider:

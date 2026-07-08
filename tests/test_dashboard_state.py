@@ -2,7 +2,7 @@ from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItem
 
 
 def test_build_dashboard_state_computes_derived_metrics():
-    from api.services.dashboard_state import build_dashboard_state
+    from api.services.dashboard_service import build_dashboard_state
 
     calls = []
 
