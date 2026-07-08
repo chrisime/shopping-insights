@@ -158,11 +158,13 @@ async function handleExport() {
                   <ORadio v-model="timeGranularity" native-value="Jährlich">Jährlich</ORadio>
                 </div>
               </div>
-              <TrendChartPanel
-                :items="section.items"
-                :spending-view="spendingView"
-                :time-granularity="timeGranularity"
-              />
+              <div class="mb-8">
+                <TrendChartPanel
+                  :items="section.items"
+                  :spending-view="spendingView"
+                  :time-granularity="timeGranularity"
+                />
+              </div>
             </template>
           </DashboardSection>
         </template>
