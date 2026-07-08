@@ -150,12 +150,21 @@ async function handleExport() {
           >
             <DashboardKpiGrid v-if="section.kind === 'metrics'" :data="metricData(section.items)" />
             <template v-else-if="section.kind === 'time_series'">
-              <OField label="Zeitgranularität">
-                <OSelect v-model="timeGranularity" expanded>
-                  <option>Täglich</option>
-                  <option>Monatlich</option>
-                  <option>Jährlich</option>
-                </OSelect>
+              <OField label="Granularität">
+                <div class="flex gap-4">
+                  <label class="inline-flex items-center gap-1.5 text-sm text-slate-700">
+                    <input type="radio" v-model="timeGranularity" value="Täglich" class="text-indigo-600" />
+                    Täglich
+                  </label>
+                  <label class="inline-flex items-center gap-1.5 text-sm text-slate-700">
+                    <input type="radio" v-model="timeGranularity" value="Monatlich" class="text-indigo-600" />
+                    Monatlich
+                  </label>
+                  <label class="inline-flex items-center gap-1.5 text-sm text-slate-700">
+                    <input type="radio" v-model="timeGranularity" value="Jährlich" class="text-indigo-600" />
+                    Jährlich
+                  </label>
+                </div>
               </OField>
               <TrendChartPanel
                 :items="section.items"
