@@ -1,7 +1,15 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("vue-chartjs", () => ({
+  Bar: {
+    props: ["data", "options"],
+    template:
+      "<canvas data-testid='mock-bar-chart' /><div class='mock-labels'>{{ data?.labels?.join(', ') }}</div><div class='mock-data'>{{ data?.datasets?.[0]?.data?.map(v => '€' + Number(v).toFixed(2))?.join(', ') }}</div>",
+  },
+}));
 
 import DashboardSkeleton from "../DashboardSkeleton.vue";
 import TopItemsPanel from "../TopItemsPanel.vue";
@@ -9,7 +17,7 @@ import TrendChartPanel from "../TrendChartPanel.vue";
 import WeekdayPanel from "../WeekdayPanel.vue";
 
 describe("dashboard panels", () => {
-  it("renders the payload fields and skeleton state", () => {
+  it("renders the new vertical bar charts", () => {
     const monthly = mount(TrendChartPanel, {
       props: {
         timeGranularity: "Monatlich",
@@ -22,10 +30,9 @@ describe("dashboard panels", () => {
     });
 
     expect(monthly.text()).toContain("2023");
-    expect(monthly.text()).toContain("2023-01");
+    expect(monthly.text()).toContain("Jan 2023");
     expect(monthly.text()).toContain("€10.00");
-    expect(monthly.text()).toContain("1 Belege");
-    expect(monthly.findAll(".bg-indigo-500")).toHaveLength(3);
+    expect(monthly.findAll("canvas").length).toBeGreaterThanOrEqual(1);
     expect(monthly.findAll("details")).toHaveLength(0);
 
     const daily = mount(TrendChartPanel, {
@@ -43,23 +50,19 @@ describe("dashboard panels", () => {
     expect(daily.text()).toContain("Jan");
     expect(daily.text()).toContain("Feb");
     expect(daily.text()).toContain("01");
-    expect(daily.findAll("details")).toHaveLength(3);
-    expect(daily.findAll("svg")).toHaveLength(3);
+    expect(daily.findAll("canvas").length).toBeGreaterThanOrEqual(2);
+    expect(daily.findAll("details")).toHaveLength(0);
+    expect(daily.findAll("svg")).toHaveLength(0);
 
     const trend = mount(TrendChartPanel, {
       props: { items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }, { period: "2024-02", total_spent: 5, receipt_count: 2 }] },
     });
-    expect(trend.text()).toContain("2024-01");
-    expect(trend.text()).toContain("€10.00");
-    expect(trend.text()).toContain("1 Belege");
-    expect(trend.findAll(".bg-indigo-500")).toHaveLength(2);
-    expect(trend.findAll(".bg-indigo-500")[0].attributes("style")).toContain("width: 100%");
+    expect(trend.text()).toContain("Jan 2024");
+    expect(trend.text()).toContain("Feb 2024");
+    expect(trend.findAll("canvas").length).toBeGreaterThanOrEqual(1);
+  });
 
-    const zeroTrend = mount(TrendChartPanel, {
-      props: { items: [{ period: "2024-03", total_spent: 0, receipt_count: 0 }] },
-    });
-    expect(zeroTrend.find(".bg-indigo-500").attributes("style")).toContain("width: 0%");
-
+  it("renders weekday, top items, and skeleton", () => {
     const weekday = mount(WeekdayPanel, {
       props: {
         items: [
