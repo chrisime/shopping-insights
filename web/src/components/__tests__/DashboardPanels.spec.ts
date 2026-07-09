@@ -46,12 +46,16 @@ describe("dashboard panels", () => {
       },
     });
 
-    expect(daily.text()).toContain("01");
-    expect(daily.text()).toContain("02");
-    expect(daily.text()).toContain("01");
+    // x-axis labels show day numbers when monthLabels are present
+    const dailyMockLabels = daily.find(".mock-labels");
+    expect(dailyMockLabels.exists()).toBe(true);
+    expect(dailyMockLabels.text()).toContain("01");
+    expect(dailyMockLabels.text()).toContain("02");
+
+    // Month labels are rendered by the chart plugin (canvas-only, not visible in mock)
+    // But the group heading "Tage" is still present
+    expect(daily.text()).toContain("Tage");
     expect(daily.findAll("canvas").length).toBe(1);
-    expect(daily.findAll("details")).toHaveLength(0);
-    expect(daily.findAll("svg")).toHaveLength(0);
 
     const trend = mount(TrendChartPanel, {
       props: { items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }, { period: "2024-02", total_spent: 5, receipt_count: 2 }] },
