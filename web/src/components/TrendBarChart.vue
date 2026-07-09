@@ -48,10 +48,23 @@ const chartData = computed(() => ({
   ],
 }));
 
+const yAxisTicks = computed(() => {
+  const maxValue = Math.max(...props.items.map((item) => amount(item.total_spent)), 0);
+  const roundedMax = Math.ceil(maxValue / 5) * 5;
+  const ticks: number[] = [];
+  for (let i = 0; i <= roundedMax; i += 5) {
+    ticks.push(i);
+  }
+  return ticks;
+});
+
 const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   monthLabels: props.monthLabels,
+  layout: {
+    padding: { top: 30 },
+  },
   plugins: {
     legend: { display: false },
     datalabels: {
@@ -82,7 +95,8 @@ const chartOptions = computed(() => ({
       beginAtZero: true,
       grid: { color: "#e2e8f0" },
       ticks: {
-        callback: (value: number) => `€${value.toFixed(0)}`,
+        display: false,
+        stepSize: 5,
       },
     },
   },
@@ -93,11 +107,29 @@ const isScrollable = computed(() => props.granularity !== "Jährlich");
 
 <template>
   <div v-if="isScrollable" class="overflow-x-auto">
-    <div class="h-64" :style="{ minWidth: `${items.length * 48}px` }">
-      <Bar :data="chartData" :options="chartOptions" />
+    <div class="flex">
+      <div class="sticky left-0 z-10 flex-shrink-0 h-80 flex flex-col justify-between bg-white" style="width: 44px;">
+        <span
+          v-for="tick in yAxisTicks"
+          :key="tick"
+          class="text-xs leading-none text-slate-500 text-right pr-2"
+        >€{{ tick }}</span>
+      </div>
+      <div class="h-80" :style="{ minWidth: `${items.length * 48}px` }">
+        <Bar :data="chartData" :options="chartOptions" />
+      </div>
     </div>
   </div>
-  <div v-else class="h-64">
-    <Bar :data="chartData" :options="chartOptions" />
+  <div v-else class="h-80 flex">
+    <div class="flex flex-col justify-between flex-shrink-0" style="width: 44px;">
+      <span
+        v-for="tick in yAxisTicks"
+        :key="tick"
+        class="text-xs leading-none text-slate-500 text-right pr-2"
+      >€{{ tick }}</span>
+    </div>
+    <div class="flex-1">
+      <Bar :data="chartData" :options="chartOptions" />
+    </div>
   </div>
 </template>
