@@ -15,18 +15,9 @@ from workflows.workflow_constants import REASON_KIND_LIDL_FETCH
 
 
 def _fetch_lidl_receipt_parse_result(session, receipt_id: str) -> ReceiptParseResult:
-    try:
-        ticket_data = get_lidl_ticket(session, receipt_id)
-    except requests.exceptions.HTTPError as exc:
-        return ReceiptParseResult(receipt_data=None, skip_reason=render_exception_reason(exc, REASON_KIND_LIDL_FETCH))
-    except requests.exceptions.RequestException as exc:
-        return ReceiptParseResult(receipt_data=None, skip_reason=render_exception_reason(exc, REASON_KIND_LIDL_FETCH))
-    except simplejson.JSONDecodeError as exc:
-        return ReceiptParseResult(receipt_data=None, skip_reason=render_exception_reason(exc, REASON_KIND_LIDL_FETCH))
-    except (KeyError, TypeError, ValueError) as exc:
-        return ReceiptParseResult(receipt_data=None, skip_reason=render_exception_reason(exc))
-    except Exception as exc:  # pragma: no cover - defensive fallback
-        return ReceiptParseResult(receipt_data=None, skip_reason=render_exception_reason(exc, REASON_KIND_LIDL_FETCH))
+    ticket_data = get_lidl_ticket(session, receipt_id)
+    if ticket_data is None:
+        return ReceiptParseResult(receipt_data=None, skip_reason=render_exception_reason(Exception("Fetch-Fehler"), REASON_KIND_LIDL_FETCH))
 
     try:
         receipt_data = parse_lidl_ticket(ticket_data)
@@ -99,11 +90,11 @@ class LidlDiagnosticsTests(unittest.TestCase):
 
     def test_fetch_lidl_receipt_parse_result_converts_fetch_errors_to_skip_reason(self):
         session = Mock()
-        with patch.object(sys.modules[__name__], "get_lidl_ticket", side_effect=ValueError("kaputt")):
+        with patch.object(sys.modules[__name__], "get_lidl_ticket", return_value=None):
             result = _fetch_lidl_receipt_parse_result(session, "abc")
 
         self.assertIsNone(result.receipt_data)
-        self.assertEqual(result.skip_reason, "kaputt")
+        self.assertIsNotNone(result.skip_reason)
 
 
 if __name__ == "__main__":

@@ -80,7 +80,9 @@ def get_tickets_page(
     return None
 
 
-def get_lidl_ticket(session: requests.Session, receipt_id: str) -> LidlTicketDTO:
+def get_lidl_ticket(
+    session: requests.Session, receipt_id: str
+) -> Optional[LidlTicketDTO]:
     """
     Fetch the Lidl ticket for a specific receipt and return it as a structured DTO.
 
@@ -89,7 +91,7 @@ def get_lidl_ticket(session: requests.Session, receipt_id: str) -> LidlTicketDTO
         receipt_id: Receipt ID to fetch
 
     Returns:
-        LidlTicketDTO: Structured ticket data
+        LidlTicketDTO: Structured ticket data, or None on error
     """
     url = LidlConfig.get_receipt_url(receipt_id)
     full_url = f"{url}?country={LidlConfig.get_country_code()}&languageCode={LidlConfig.get_language_code()}"
@@ -97,12 +99,8 @@ def get_lidl_ticket(session: requests.Session, receipt_id: str) -> LidlTicketDTO
     response = _request_with_retry(
         session, full_url, timeout=LidlConfig.DEFAULT_TIMEOUT
     )
-    if response is None:
-        raise requests.exceptions.ConnectionError(
-            f"Lidl-Ticket {receipt_id} konnte nach {LidlConfig.MAX_RETRIES} Versuchen nicht abgerufen werden"
-        )
-
-    response.raise_for_status()
+    if response is None or not response.ok:
+        return None
 
     data = response.json()
     ticket_data = data["ticket"] if "ticket" in data else data

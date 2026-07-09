@@ -93,12 +93,6 @@ class _ReweImportWorkflow(ImportWorkflow):
             cache_customer_id(self._resolved_customer_id, output_dir)
 
 
-class ReweInitialSessionError(RuntimeError):
-    def __init__(self, message: str, error_code: int) -> None:
-        super().__init__(message)
-        self.error_code = error_code
-
-
 def run_rewe_initial(
         customer_id: Optional[str] = None,
         browser: Optional[str] = None,

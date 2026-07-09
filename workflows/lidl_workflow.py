@@ -212,15 +212,15 @@ def _download_lidl_tickets(
             index - 1, total_receipts,
             saved_count, error_count, total_items, receipt_id,
         )
-        try:
-            ticket_dto = get_lidl_ticket(session, receipt_id)
+        ticket_dto = get_lidl_ticket(session, receipt_id)
+        if ticket_dto is not None:
             ticket_path = tickets_dir / f"{receipt_id}.json"
             ticket_path.write_text(
                 simplejson.dumps(ticket_dto.to_api_dict(), ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
             saved_count += 1
-        except Exception:
+        else:
             error_count += 1
 
         progress.render_step(

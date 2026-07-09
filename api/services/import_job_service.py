@@ -7,7 +7,6 @@ from threading import Condition, Lock, Thread
 from typing import Callable, Literal, cast
 from uuid import uuid4
 
-from workflows.rewe_workflow import ReweInitialSessionError
 from workflows.workflow_errors import get_last_workflow_error, clear_last_workflow_error
 from workflows.progress_display import ProgressState
 
@@ -234,8 +233,6 @@ def _update_job(
 
 
 def _import_error_code_for_exception(exc: Exception) -> int:
-    if isinstance(exc, ReweInitialSessionError):
-        return exc.error_code
     if isinstance(exc, RuntimeError) and str(exc).startswith("Import workflow returned False"):
         return 2102
     return 2103
