@@ -11,6 +11,7 @@ from result_types import PersistResult, WorkflowSummary
 from workflows.pipeline_types import ReceiptIssue, StageResult, WorkflowResult
 from workflows.rewe_workflow import run_rewe_initial, run_rewe_update
 from workflows.workflow_constants import RETAILER_REWE
+from workflows.workflow_errors import clear_last_workflow_error, get_last_workflow_error
 
 import workflows.rewe_workflow as rewe_workflow
 
@@ -84,6 +85,7 @@ class ReweWorkflowTests(unittest.TestCase):
         )
 
     def test_run_rewe_initial_stops_when_api_test_fails(self):
+        clear_last_workflow_error()
         with patch("workflows.rewe_workflow.setup_session", return_value=object()), patch(
             "workflows.rewe_workflow.resolve_rewe_customer_id",
             return_value="customer-1",
@@ -91,43 +93,55 @@ class ReweWorkflowTests(unittest.TestCase):
             "workflows.rewe_workflow.test_rewe_session",
             return_value=False,
         ), patch("workflows.rewe_workflow.download_receipts_zip") as download_zip:
-            with self.assertRaises(rewe_workflow.ReweInitialSessionError) as ctx:
-                run_rewe_initial(cookies_file="rewe_cookies.json")
+            result = run_rewe_initial(cookies_file="rewe_cookies.json")
 
-        self.assertEqual(ctx.exception.error_code, 2207)
-        self.assertIn("ungültig oder abgelaufen", str(ctx.exception))
+        self.assertFalse(result)
+        err = get_last_workflow_error()
+        self.assertIsNotNone(err)
+        self.assertEqual(err.error_code, 2207)
+        self.assertIn("ungültig oder abgelaufen", err.detail)
         download_zip.assert_not_called()
 
-    def test_run_rewe_initial_raises_specific_error_when_browser_session_missing(self):
+    def test_run_rewe_initial_returns_false_when_browser_session_missing(self):
+        clear_last_workflow_error()
         with patch("workflows.rewe_workflow.setup_session", return_value=None):
-            with self.assertRaises(rewe_workflow.ReweInitialSessionError) as ctx:
-                run_rewe_initial(browser="firefox")
+            result = run_rewe_initial(browser="firefox")
 
-        self.assertEqual(ctx.exception.error_code, 2203)
-        self.assertIn("Browserprofil", str(ctx.exception))
+        self.assertFalse(result)
+        err = get_last_workflow_error()
+        self.assertIsNotNone(err)
+        self.assertEqual(err.error_code, 2203)
+        self.assertIn("Browserprofil", err.detail)
 
     def test_run_rewe_initial_maps_browser_auth_errors_to_specific_code(self):
+        clear_last_workflow_error()
         with patch(
             "workflows.rewe_workflow.setup_session",
             side_effect=rewe_workflow.ReweBrowserAuthError(
                 "REWE-Browserprofil ist vermutlich gesperrt, weil Firefox noch laeuft. Bitte den Browser vollstaendig schliessen und den Import erneut starten."
             ),
         ):
-            with self.assertRaises(rewe_workflow.ReweInitialSessionError) as ctx:
-                run_rewe_initial(browser="firefox")
+            result = run_rewe_initial(browser="firefox")
 
-        self.assertEqual(ctx.exception.error_code, 2205)
-        self.assertEqual(str(ctx.exception), "Browserprofil gesperrt")
+        self.assertFalse(result)
+        err = get_last_workflow_error()
+        self.assertIsNotNone(err)
+        self.assertEqual(err.error_code, 2205)
+        self.assertEqual(err.detail, "Browserprofil gesperrt")
 
     def test_run_rewe_initial_uses_centralized_detail_mapping_for_missing_browser_auth(self):
+        clear_last_workflow_error()
         with patch("workflows.rewe_workflow.setup_session", return_value=None):
-            with self.assertRaises(rewe_workflow.ReweInitialSessionError) as ctx:
-                run_rewe_initial(browser="firefox")
+            result = run_rewe_initial(browser="firefox")
 
-        self.assertEqual(ctx.exception.error_code, 2203)
-        self.assertEqual(str(ctx.exception), "REWE-Browserprofil konnte keine Cookies liefern.")
+        self.assertFalse(result)
+        err = get_last_workflow_error()
+        self.assertIsNotNone(err)
+        self.assertEqual(err.error_code, 2203)
+        self.assertEqual(err.detail, "REWE-Browserprofil konnte keine Cookies liefern.")
 
-    def test_run_rewe_initial_raises_specific_error_when_browser_zip_download_fails(self):
+    def test_run_rewe_initial_returns_false_when_browser_zip_download_fails(self):
+        clear_last_workflow_error()
         with patch("workflows.rewe_workflow.setup_session", return_value=object()), patch(
             "workflows.rewe_workflow.resolve_rewe_customer_id",
             return_value=None,
@@ -138,11 +152,13 @@ class ReweWorkflowTests(unittest.TestCase):
             "workflows.rewe_workflow.download_receipts_zip",
             return_value=None,
         ):
-            with self.assertRaises(rewe_workflow.ReweInitialSessionError) as ctx:
-                run_rewe_initial(browser="firefox")
+            result = run_rewe_initial(browser="firefox")
 
-        self.assertEqual(ctx.exception.error_code, 2209)
-        self.assertIn("ohne customerId fehlgeschlagen", str(ctx.exception))
+        self.assertFalse(result)
+        err = get_last_workflow_error()
+        self.assertIsNotNone(err)
+        self.assertEqual(err.error_code, 2209)
+        self.assertIn("ohne customerId fehlgeschlagen", err.detail)
 
     def test_run_rewe_update_imports_all_local_receipts_from_downloaded_pdfs(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

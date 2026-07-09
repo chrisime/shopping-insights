@@ -19,7 +19,7 @@ from .import_workflow import ImportWorkflow, resolve_auth_method
 from .import_pipeline import ImportPipeline
 from .pipeline_types import WorkflowResult
 from .workflow_constants import RETAILER_REWE, REASON_KIND_REWE_PDF_PARSE
-from .workflow_errors import rewe_initial_error
+from .workflow_errors import rewe_initial_error, set_last_workflow_error, clear_last_workflow_error, WorkflowErrorInfo
 
 
 logger = logging.getLogger(__name__)
@@ -155,45 +155,58 @@ def _prepare_rewe_session(
     """Load the REWE session and resolve the customer id for the initial import."""
     auth_method = resolve_auth_method(browser, cookies_file, "REWE")
     if not auth_method:
-        raise _rewe_initial_error(2201)
+        info = _rewe_initial_error(2201)
+        set_last_workflow_error(info)
+        print(f"\u2717 {info.detail}")
+        return None
 
     try:
         session = setup_session(RETAILER_REWE, auth_method, cookies_file)
     except ReweBrowserAuthError as exc:
-        raise _rewe_initial_error(2205, str(exc)) from exc
+        info = _rewe_initial_error(2205, str(exc))
+        set_last_workflow_error(info)
+        print(f"\u2717 {info.detail}")
+        return None
 
     if not session:
-        if auth_method == "file":
-            raise _rewe_initial_error(2202)
-        raise _rewe_initial_error(2203)
+        error_code = 2202 if auth_method == "file" else 2203
+        info = _rewe_initial_error(error_code)
+        set_last_workflow_error(info)
+        print(f"\u2717 {info.detail}")
+        return None
 
     resolved_customer_id = resolve_rewe_customer_id(customer_id, session, cookies_file, output_dir)
 
     print("Teste REWE-Session...")
     if not test_rewe_session(session, resolved_customer_id):
-        raise _rewe_initial_error(2207)
-    print("✓ REWE-Session erfolgreich getestet")
+        info = _rewe_initial_error(2207)
+        set_last_workflow_error(info)
+        print(f"\u2717 {info.detail}")
+        return None
+    print("\u2713 REWE-Session erfolgreich getestet")
+    clear_last_workflow_error()
     return session, resolved_customer_id
 
 
-def _rewe_initial_error(error_code: int, detail: str | None = None) -> ReweInitialSessionError:
+def _rewe_initial_error(error_code: int, detail: str | None = None) -> WorkflowErrorInfo:
+    """Look up the error info for the given code, with optional detail override."""
     info = rewe_initial_error(error_code)
     if error_code == 2205 and detail is not None:
         normalized = detail.lower()
         if "gesperrt" in normalized or "locked" in normalized:
-            detail = "Browserprofil gesperrt"
+            detail_text = "Browserprofil gesperrt"
         elif "rstp nicht aus browser-session lesbar" in normalized:
-            detail = "rstp nicht aus Browser-Session lesbar"
+            detail_text = "rstp nicht aus Browser-Session lesbar"
         elif "rstp fehlt im browserprofil" in normalized:
-            detail = "rstp fehlt im Browserprofil"
+            detail_text = "rstp fehlt im Browserprofil"
         elif "cookies liefern" in normalized:
-            detail = "Browserprofil konnte keine Cookies liefern"
+            detail_text = "Browserprofil konnte keine Cookies liefern"
         else:
-            detail = info.detail
+            detail_text = detail
     else:
-        detail = detail or info.detail
+        detail_text = detail or info.detail
 
-    return ReweInitialSessionError(detail, error_code)
+    return WorkflowErrorInfo(info.retailer, info.error_code, detail_text)
 
 
 def _download_and_extract_rewe_zip(
@@ -206,13 +219,15 @@ def _download_and_extract_rewe_zip(
     downloaded_zip = download_receipts_zip(session, customer_id, zip_path)
 
     if not downloaded_zip:
-        if customer_id:
-            raise ReweInitialSessionError("REWE ZIP-Abruf mit customerId fehlgeschlagen.", 2208)
-        raise ReweInitialSessionError("REWE ZIP-Abruf ohne customerId fehlgeschlagen.", 2209)
-    print(f"✓ REWE-eBons ZIP gespeichert: {downloaded_zip}")
+        error_code = 2208 if customer_id else 2209
+        info = _rewe_initial_error(error_code)
+        set_last_workflow_error(info)
+        print(f"\u2717 {info.detail}")
+        return False
+    print(f"\u2713 REWE-eBons ZIP gespeichert: {downloaded_zip}")
 
     with zipfile.ZipFile(downloaded_zip, "r") as archive:
         archive.extractall(pdf_output_dir)
-        print(f"✓ REWE-eBons entpackt nach: {pdf_output_dir}")
+        print(f"\u2713 REWE-eBons entpackt nach: {pdf_output_dir}")
 
     return True
