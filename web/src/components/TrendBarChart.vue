@@ -126,7 +126,7 @@ watch(barRef, (instance) => {
 <template>
   <div v-if="isScrollable" class="overflow-x-auto">
     <div class="flex">
-      <div class="sticky left-0 z-10 flex-shrink-0 bg-white relative" style="width: 44px; height: 320px;">
+      <div class="sticky left-0 z-10 flex-shrink-0 bg-white relative" style="width: 64px; height: 500px;">
         <span
           v-for="pos in tickPositions"
           :key="pos.value"
@@ -135,14 +135,14 @@ watch(barRef, (instance) => {
         >€{{ pos.value }}</span>
       </div>
       <div class="flex-shrink-0" :style="{ minWidth: `${items.length * 48}px` }">
-        <div class="h-80">
+        <div style="height: 500px;">
           <Bar ref="barRef" :data="chartData" :options="chartOptions" />
         </div>
       </div>
     </div>
   </div>
   <div v-else class="flex">
-    <div class="flex-shrink-0 bg-white relative" style="width: 44px; height: 320px;">
+    <div class="flex-shrink-0 bg-white relative" style="width: 64px; height: 500px;">
       <span
         v-for="pos in tickPositions"
         :key="pos.value"
@@ -151,7 +151,7 @@ watch(barRef, (instance) => {
       >€{{ pos.value }}</span>
     </div>
     <div class="flex-1">
-      <div class="h-80">
+      <div style="height: 500px;">
         <Bar ref="barRef" :data="chartData" :options="chartOptions" />
       </div>
     </div>
