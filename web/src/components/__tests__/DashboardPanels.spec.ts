@@ -60,6 +60,22 @@ describe("dashboard panels", () => {
     expect(trend.text()).toContain("Jan 2024");
     expect(trend.text()).toContain("Feb 2024");
     expect(trend.findAll("canvas").length).toBeGreaterThanOrEqual(1);
+
+    const yearly = mount(TrendChartPanel, {
+      props: {
+        timeGranularity: "Jährlich",
+        items: [
+          { period: "2023", total_spent: 100, receipt_count: 12 },
+          { period: "2024", total_spent: 200, receipt_count: 24 },
+          { period: "2025", total_spent: 150, receipt_count: 18 },
+        ],
+      },
+    });
+
+    expect(yearly.text()).toContain("2023");
+    expect(yearly.text()).toContain("2024");
+    expect(yearly.text()).toContain("2025");
+    expect(yearly.findAll("canvas").length).toBe(1);
   });
 
   it("renders weekday, top items, and skeleton", () => {

@@ -47,16 +47,8 @@ type GroupNode = {
 };
 
 function buildYearGroups(): GroupNode[] {
-  const map = new Map<string, GroupNode>();
-  for (const item of props.items) {
-    const period = text(item.period);
-    const year = period.slice(0, 4);
-    if (!map.has(year)) {
-      map.set(year, { label: year, key: year, items: [] });
-    }
-    map.get(year)!.items.push(item);
-  }
-  return [...map.values()];
+  if (props.items.length === 0) return [];
+  return [{ label: "Jahre", key: "years", items: [...props.items] }];
 }
 
 function buildMonthGroups(): GroupNode[] {
