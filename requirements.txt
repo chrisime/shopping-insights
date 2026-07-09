@@ -5,6 +5,7 @@ browser_cookie3>=0.20.1
 lz4>=4.0.0
 beautifulsoup4>=4.14.2
 requests>=2.31.0
+cloudscraper>=1.2.71
 pdfplumber>=0.11.0
 pypika>=0.51.1
 simplejson>=3.19.3

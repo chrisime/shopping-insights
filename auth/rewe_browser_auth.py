@@ -3,6 +3,8 @@
 import logging
 from typing import Set
 
+import requests
+
 logger = logging.getLogger(__name__)
 
 from config import ReweConfig
@@ -118,6 +120,17 @@ class ReweBrowserCookieExtractor(BrowserCookieExtractor):
     recommended_cookies = RECOMMENDED_REWE_WAF_COOKIE_NAMES
     include_expires = True
     filter_by_domain_suffix = True
+
+    @property  # type: ignore[override]
+    def cookie_domain(self) -> str:
+        return ReweConfig.get_cookie_domain()
+
+    def _build_session(self) -> requests.Session:
+        import cloudscraper
+        session = cloudscraper.create_scraper()
+        if self.default_user_agent:
+            session.headers.update({"User-Agent": self.default_user_agent})
+        return session
 
     @property  # type: ignore[override]
     def cookie_domain(self) -> str:

@@ -194,9 +194,18 @@ def build_cookie_session(
     user_agent: Optional[str] = None,
     default_domain: str = "",
     domain_suffix: Optional[str] = None,
+    use_cloudscraper: bool = False,
 ) -> tuple[Session, int]:
-    """Create and populate a cookie-backed requests session."""
-    session = Session()
+    """Create and populate a cookie-backed requests session.
+
+    When *use_cloudscraper* is True the session is created via
+    ``cloudscraper.create_scraper()`` to bypass Cloudflare challenges.
+    """
+    if use_cloudscraper:
+        import cloudscraper
+        session = cloudscraper.create_scraper()
+    else:
+        session = Session()
 
     if user_agent:
         session.headers.update({"User-Agent": user_agent})

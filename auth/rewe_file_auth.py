@@ -302,4 +302,5 @@ def _build_rewe_cookie_session_from_text(
         cookies_list,
         user_agent=ReweConfig.DEFAULT_USER_AGENT,
         domain_suffix="rewe.de",
+        use_cloudscraper=True,
     )
