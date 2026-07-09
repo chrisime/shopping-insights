@@ -104,25 +104,23 @@ const chartOptions = computed(() => ({
 
 const isScrollable = computed(() => props.granularity !== "Jährlich");
 
-const barRef = ref();
 const tickPositions = ref<Array<{ value: number; y: number }>>([]);
+const barRef = ref();
 
-watch(
-  () => props.items,
-  () => {
-    nextTick(() => {
-      const chart = barRef.value?.chart;
-      if (!chart) return;
-      const yScale = chart.scales.y;
-      if (!yScale) return;
-      tickPositions.value = [...yAxisTicks.value].map((value) => ({
-        value,
-        y: yScale.getPixelForValue(value),
-      }));
-    });
-  },
-  { immediate: true, deep: true },
-);
+function syncTickPositions() {
+  const chart = barRef.value?.chart as { scales?: { y?: { getPixelForValue: (v: number) => number } } } | undefined;
+  if (!chart?.scales?.y) return;
+  tickPositions.value = [...yAxisTicks.value].map((value) => ({
+    value,
+    y: chart.scales.y!.getPixelForValue(value),
+  }));
+}
+
+watch(barRef, (instance) => {
+  if (instance?.chart) {
+    nextTick(syncTickPositions);
+  }
+});
 </script>
 
 <template>
