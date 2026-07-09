@@ -94,7 +94,7 @@ class ReweWorkflowTests(unittest.TestCase):
             with self.assertRaises(rewe_workflow.ReweInitialSessionError) as ctx:
                 run_rewe_initial(cookies_file="rewe_cookies.json")
 
-        self.assertEqual(ctx.exception.error_code, 2206)
+        self.assertEqual(ctx.exception.error_code, 2207)
         self.assertIn("ungültig oder abgelaufen", str(ctx.exception))
         download_zip.assert_not_called()
 
@@ -131,6 +131,9 @@ class ReweWorkflowTests(unittest.TestCase):
         with patch("workflows.rewe_workflow.setup_session", return_value=object()), patch(
             "workflows.rewe_workflow.resolve_rewe_customer_id",
             return_value=None,
+        ), patch(
+            "workflows.rewe_workflow.test_rewe_session",
+            return_value=True,
         ), patch(
             "workflows.rewe_workflow.download_receipts_zip",
             return_value=None,

@@ -92,7 +92,7 @@ const startPayload = computed(() =>
         </OField>
       </div>
 
-      <OField v-else label="Cookie-Datei">
+      <OField v-if="authMode === 'cookies-file'" label="Cookie-Datei">
         <input v-model="cookiesFile" class="rounded-xl border border-slate-300 px-3 py-2 text-sm" type="text" />
       </OField>
 

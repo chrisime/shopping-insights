@@ -168,20 +168,11 @@ def _prepare_rewe_session(
         raise _rewe_initial_error(2203)
 
     resolved_customer_id = resolve_rewe_customer_id(customer_id, session, cookies_file, output_dir)
-    if not resolved_customer_id:
-        if auth_method == "file":
-            raise _rewe_initial_error(2204)
-        logger.info("REWE customerId konnte aus dem Browserprofil nicht ermittelt werden; versuche ZIP-Abruf ohne customerId.")
 
-    if auth_method == "file" or resolved_customer_id is not None:
-        print("Teste REWE-Session...")
-        if not test_rewe_session(session, resolved_customer_id):
-            if auth_method == "file":
-                raise _rewe_initial_error(2206)
-            raise _rewe_initial_error(2207)
-        print("✓ REWE-Session erfolgreich getestet")
-    else:
-        logger.info("REWE-Browser-Session wird ohne ZIP-Healthcheck verwendet, weil keine customerId verfügbar ist.")
+    print("Teste REWE-Session...")
+    if not test_rewe_session(session, resolved_customer_id):
+        raise _rewe_initial_error(2207)
+    print("✓ REWE-Session erfolgreich getestet")
     return session, resolved_customer_id
 
 
