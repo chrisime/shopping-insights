@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch, nextTick } from "vue";
 import { Bar } from "vue-chartjs";
 import {
   Chart as ChartJS,
@@ -103,40 +103,58 @@ const chartOptions = computed(() => ({
 }));
 
 const isScrollable = computed(() => props.granularity !== "Jährlich");
+
+const barRef = ref();
+const tickPositions = ref<Array<{ value: number; y: number }>>([]);
+
+watch(
+  () => props.items,
+  () => {
+    nextTick(() => {
+      const chart = barRef.value?.chart;
+      if (!chart) return;
+      const yScale = chart.scales.y;
+      if (!yScale) return;
+      tickPositions.value = [...yAxisTicks.value].map((value) => ({
+        value,
+        y: yScale.getPixelForValue(value),
+      }));
+    });
+  },
+  { immediate: true, deep: true },
+);
 </script>
 
 <template>
   <div v-if="isScrollable" class="overflow-x-auto">
     <div class="flex">
-      <div class="sticky left-0 z-10 flex-shrink-0 bg-white" style="width: 44px;">
-        <div class="flex flex-col justify-between pt-7 pb-14" style="height: 320px;">
-          <span
-            v-for="tick in [...yAxisTicks].reverse()"
-            :key="tick"
-            class="text-xs leading-none text-slate-500 text-right pr-2"
-          >€{{ tick }}</span>
-        </div>
+      <div class="sticky left-0 z-10 flex-shrink-0 bg-white relative" style="width: 44px; height: 320px;">
+        <span
+          v-for="pos in tickPositions"
+          :key="pos.value"
+          class="absolute text-xs leading-none text-slate-500 text-right pr-2"
+          :style="{ top: `${pos.y - 7}px`, right: '4px' }"
+        >€{{ pos.value }}</span>
       </div>
       <div class="flex-shrink-0" :style="{ minWidth: `${items.length * 48}px` }">
         <div class="h-80">
-          <Bar :data="chartData" :options="chartOptions" />
+          <Bar ref="barRef" :data="chartData" :options="chartOptions" />
         </div>
       </div>
     </div>
   </div>
   <div v-else class="flex">
-    <div class="flex-shrink-0" style="width: 44px;">
-      <div class="flex flex-col justify-between pt-7 pb-14" style="height: 320px;">
-        <span
-          v-for="tick in [...yAxisTicks].reverse()"
-          :key="tick"
-          class="text-xs leading-none text-slate-500 text-right pr-2"
-        >€{{ tick }}</span>
-      </div>
+    <div class="flex-shrink-0 bg-white relative" style="width: 44px; height: 320px;">
+      <span
+        v-for="pos in tickPositions"
+        :key="pos.value"
+        class="absolute text-xs leading-none text-slate-500 text-right pr-2"
+        :style="{ top: `${pos.y - 7}px`, right: '4px' }"
+      >€{{ pos.value }}</span>
     </div>
     <div class="flex-1">
       <div class="h-80">
-        <Bar :data="chartData" :options="chartOptions" />
+        <Bar ref="barRef" :data="chartData" :options="chartOptions" />
       </div>
     </div>
   </div>
