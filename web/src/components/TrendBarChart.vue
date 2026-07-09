@@ -12,6 +12,8 @@ import {
 } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 
+import { amount, text } from "../utils/format";
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -26,14 +28,6 @@ const props = defineProps<{
   items: Array<Record<string, unknown>>;
   granularity: string;
 }>();
-
-function amount(value: unknown): number {
-  return typeof value === "number" ? value : Number(value ?? 0);
-}
-
-function text(value: unknown): string {
-  return value == null ? "-" : String(value);
-}
 
 const chartData = computed(() => ({
   labels: props.items.map((item) => text(item.period)),

@@ -1,25 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import TrendBarChart from "./TrendBarChart.vue";
+import { amount, text, euro } from "../utils/format";
 
 const props = defineProps<{
   items: Array<Record<string, unknown>>;
   spendingView?: string;
   timeGranularity?: string;
 }>();
-
-function amount(value: unknown): number {
-  return typeof value === "number" ? value : Number(value ?? 0);
-}
-
-function text(value: unknown): string {
-  return value == null ? "-" : String(value);
-}
-
-function euro(value: unknown): string {
-  const numeric = amount(value);
-  return Number.isFinite(numeric) ? `€${numeric.toFixed(2)}` : "-";
-}
 
 function monthName(value: string): string {
   const names = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
@@ -52,43 +40,18 @@ function buildYearGroups(): GroupNode[] {
 }
 
 function buildMonthGroups(): GroupNode[] {
-  const map = new Map<string, GroupNode>();
-  for (const item of props.items) {
-    const period = text(item.period);
-    const year = period.slice(0, 4);
-    const month = period.slice(5, 7);
-    if (!map.has(year)) {
-      map.set(year, { label: year, key: year, items: [] });
-    }
-    map.get(year)!.items.push({ ...item, period: `${monthName(month)} ${year}` });
-  }
-  return [...map.values()];
+  return props.items.length > 0
+    ? [{ label: "Monate", key: "months", items: props.items.map((item) => {
+        const period = text(item.period);
+        return { ...item, period: `${monthName(period.slice(5, 7))} ${period.slice(0, 4)}` };
+      })}]
+    : [];
 }
 
 function buildDayGroups(): GroupNode[] {
-  const yearMap = new Map<string, { key: string; monthNodes: Map<string, GroupNode> }>();
-  for (const item of props.items) {
-    const period = text(item.period);
-    const year = period.slice(0, 4);
-    const month = period.slice(5, 7);
-    const day = period.slice(8, 10);
-    if (!yearMap.has(year)) {
-      yearMap.set(year, { key: year, monthNodes: new Map() });
-    }
-    const monthKey = `${year}-${month}`;
-    if (!yearMap.get(year)!.monthNodes.has(monthKey)) {
-      yearMap.get(year)!.monthNodes.set(monthKey, { label: `${monthName(month)} ${year}`, key: monthKey, items: [] });
-    }
-    yearMap.get(year)!.monthNodes.get(monthKey)!.items.push({ ...item, period: day });
-  }
-  const result: GroupNode[] = [];
-  for (const [yearKey, yearEntry] of yearMap) {
-    result.push({ label: yearKey, key: yearKey, items: [] });
-    for (const monthNode of yearEntry.monthNodes.values()) {
-      result.push(monthNode);
-    }
-  }
-  return result;
+  return props.items.length > 0
+    ? [{ label: "Tage", key: "days", items: [...props.items] }]
+    : [];
 }
 
 const groups = computed(() => {
