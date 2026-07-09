@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from "vue";
+import { computed, ref } from "vue";
 import { Bar } from "vue-chartjs";
 import {
   Chart as ChartJS,
@@ -62,6 +62,7 @@ const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   monthLabels: props.monthLabels,
+  afterLayout: onAfterLayout,
   layout: {
     padding: { top: 30 },
   },
@@ -105,22 +106,14 @@ const chartOptions = computed(() => ({
 const isScrollable = computed(() => props.granularity !== "Jährlich");
 
 const tickPositions = ref<Array<{ value: number; y: number }>>([]);
-const barRef = ref();
 
-function syncTickPositions() {
-  const chart = barRef.value?.chart as { scales?: { y?: { getPixelForValue: (v: number) => number } } } | undefined;
+function onAfterLayout(chart: { scales?: { y?: { getPixelForValue: (v: number) => number } } }) {
   if (!chart?.scales?.y) return;
   tickPositions.value = [...yAxisTicks.value].map((value) => ({
     value,
     y: chart.scales.y!.getPixelForValue(value),
   }));
 }
-
-watch(barRef, (instance) => {
-  if (instance?.chart) {
-    nextTick(syncTickPositions);
-  }
-});
 </script>
 
 <template>
@@ -136,7 +129,7 @@ watch(barRef, (instance) => {
       </div>
       <div class="flex-shrink-0" :style="{ minWidth: `${items.length * 48}px` }">
         <div style="height: 500px;">
-          <Bar ref="barRef" :data="chartData" :options="chartOptions" />
+          <Bar :data="chartData" :options="chartOptions" />
         </div>
       </div>
     </div>
@@ -152,7 +145,7 @@ watch(barRef, (instance) => {
     </div>
     <div class="flex-1">
       <div style="height: 500px;">
-        <Bar ref="barRef" :data="chartData" :options="chartOptions" />
+        <Bar :data="chartData" :options="chartOptions" />
       </div>
     </div>
   </div>
