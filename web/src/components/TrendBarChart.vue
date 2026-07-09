@@ -13,6 +13,8 @@ import {
 import ChartDataLabels from "chartjs-plugin-datalabels";
 
 import { amount, text } from "../utils/format";
+import { monthHeaderPlugin } from "../chart-plugins/monthHeaderPlugin";
+import type { MonthLabel } from "../chart-plugins/monthHeaderPlugin";
 
 ChartJS.register(
   CategoryScale,
@@ -22,15 +24,20 @@ ChartJS.register(
   Tooltip,
   Legend,
   ChartDataLabels,
+  monthHeaderPlugin,
 );
 
 const props = defineProps<{
   items: Array<Record<string, unknown>>;
   granularity: string;
+  monthLabels?: MonthLabel[];
 }>();
 
 const chartData = computed(() => ({
-  labels: props.items.map((item) => text(item.period)),
+  labels: props.items.map((item) => {
+    const raw = text(item.period);
+    return props.monthLabels && props.monthLabels.length > 0 ? raw.slice(8, 10) : raw;
+  }),
   datasets: [
     {
       label: "Ausgaben",
@@ -44,6 +51,7 @@ const chartData = computed(() => ({
 const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  monthLabels: props.monthLabels,
   plugins: {
     legend: { display: false },
     datalabels: {

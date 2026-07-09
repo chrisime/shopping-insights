@@ -62,4 +62,36 @@ describe("TrendBarChart", () => {
     expect(wrapper.text()).toContain("2024");
     expect(wrapper.text()).toContain("2025");
   });
+
+  it("shows day-only labels when monthLabels is provided", () => {
+    const wrapper = mount(TrendBarChart, {
+      props: {
+        items: [
+          { period: "2024-01-15", total_spent: 10, receipt_count: 1 },
+          { period: "2024-02-20", total_spent: 20, receipt_count: 2 },
+        ],
+        granularity: "Täglich",
+        monthLabels: [
+          { label: "Januar 2024", start: 0, end: 0 },
+          { label: "Februar 2024", start: 1, end: 1 },
+        ],
+      },
+    });
+    expect(wrapper.text()).toContain("15");
+    expect(wrapper.text()).toContain("20");
+    expect(wrapper.text()).not.toContain("2024-01-15");
+    expect(wrapper.text()).not.toContain("2024-02-20");
+  });
+
+  it("shows full labels when monthLabels is not provided", () => {
+    const wrapper = mount(TrendBarChart, {
+      props: {
+        items: [
+          { period: "2024-01-15", total_spent: 10, receipt_count: 1 },
+        ],
+        granularity: "Täglich",
+      },
+    });
+    expect(wrapper.text()).toContain("2024-01-15");
+  });
 });

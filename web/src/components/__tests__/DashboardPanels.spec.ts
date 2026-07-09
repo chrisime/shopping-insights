@@ -46,9 +46,9 @@ describe("dashboard panels", () => {
       },
     });
 
-    expect(daily.text()).toContain("2024-01-01");
-    expect(daily.text()).toContain("2024-01-02");
-    expect(daily.text()).toContain("2024-02-01");
+    expect(daily.text()).toContain("01");
+    expect(daily.text()).toContain("02");
+    expect(daily.text()).toContain("01");
     expect(daily.findAll("canvas").length).toBe(1);
     expect(daily.findAll("details")).toHaveLength(0);
     expect(daily.findAll("svg")).toHaveLength(0);
