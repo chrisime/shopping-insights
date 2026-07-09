@@ -117,6 +117,29 @@ describe("dashboard panels", () => {
     );
   });
 
+  it("handles year boundary for daily granularity (Dec 2024 → Jan 2025)", () => {
+    const daily = mount(TrendChartPanel, {
+      props: {
+        timeGranularity: "Täglich",
+        items: [
+          { period: "2024-12-30", total_spent: 10, receipt_count: 1 },
+          { period: "2024-12-31", total_spent: 15, receipt_count: 2 },
+          { period: "2025-01-01", total_spent: 20, receipt_count: 1 },
+          { period: "2025-01-02", total_spent: 25, receipt_count: 3 },
+        ],
+      },
+    });
+
+    const mockLabels = daily.find(".mock-labels");
+    expect(mockLabels.exists()).toBe(true);
+    expect(mockLabels.text()).toContain("30");
+    expect(mockLabels.text()).toContain("31");
+    expect(mockLabels.text()).toContain("01");
+    expect(mockLabels.text()).toContain("02");
+    expect(daily.findAll("canvas").length).toBe(1);
+    expect(daily.text()).toContain("Tage");
+  });
+
   it("renders absolute time-series summary stats and top-item quantities", () => {
     const trend = mount(TrendChartPanel, {
       props: {

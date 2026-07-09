@@ -25,7 +25,8 @@ interface MonthLabel {
      - `chart.scales.x.getPixelForValue(ml.start)` → `leftPx`
      - `chart.scales.x.getPixelForValue(ml.end)` → `rightPx`
      - Draw `ctx.fillText(ml.label, (leftPx + rightPx) / 2, yPos)` centered, bold, slate-600 color.
-     - Draw thin vertical line at `leftPx` from `yPos - 4` to `yPos + 4` (stroke, 1px, slate-300).
+     - Draw thin vertical line at the midpoint between the previous month's last day pixel position and the current month's first day pixel position (stroke, 1px, slate-300).
+      - Separator runs from `yPos - 4` to `chart.chartArea.bottom` (full chart height below the label).
 
 ### TrendChartPanel.vue — changes
 `buildDayGroups()` stays unchanged (single flat group).  
