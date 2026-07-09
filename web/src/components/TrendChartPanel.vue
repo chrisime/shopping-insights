@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import TrendBarChart from "./TrendBarChart.vue";
 import { amount, text, euro } from "../utils/format";
+import type { MonthLabel } from "../chart-plugins/monthHeaderPlugin";
 
 const props = defineProps<{
   items: Array<Record<string, unknown>>;
@@ -62,6 +63,38 @@ const groups = computed(() => {
 });
 
 const chartGranularity = computed(() => props.timeGranularity || "Monatlich");
+
+const fullMonthNames = [
+  "Januar", "Februar", "März", "April", "Mai", "Juni",
+  "Juli", "August", "September", "Oktober", "November", "Dezember",
+];
+
+const monthLabels = computed<MonthLabel[]>(() => {
+  const granularity = props.timeGranularity;
+  if (granularity !== "Täglich") return [];
+  const items = props.items;
+  if (items.length === 0) return [];
+  const result: MonthLabel[] = [];
+  let start = 0;
+  let currentMonth = String(text(items[0].period)).slice(5, 7);
+  for (let i = 1; i <= items.length; i++) {
+    const month = i < items.length ? String(text(items[i].period)).slice(5, 7) : null;
+    if (month !== currentMonth) {
+      const year = String(text(items[i - 1].period)).slice(0, 4);
+      const monthIndex = Number(currentMonth) - 1;
+      result.push({
+        label: `${fullMonthNames[monthIndex]} ${year}`,
+        start,
+        end: i - 1,
+      });
+      if (month !== null) {
+        start = i;
+        currentMonth = month;
+      }
+    }
+  }
+  return result;
+});
 </script>
 
 <template>
@@ -88,6 +121,7 @@ const chartGranularity = computed(() => props.timeGranularity || "Monatlich");
           v-if="group.items.length > 0"
           :items="group.items"
           :granularity="chartGranularity"
+          :monthLabels="monthLabels"
         />
       </div>
     </div>
