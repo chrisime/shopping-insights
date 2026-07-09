@@ -108,28 +108,36 @@ const isScrollable = computed(() => props.granularity !== "Jährlich");
 <template>
   <div v-if="isScrollable" class="overflow-x-auto">
     <div class="flex">
-      <div class="sticky left-0 z-10 flex-shrink-0 h-80 flex flex-col justify-between bg-white" style="width: 44px;">
+      <div class="sticky left-0 z-10 flex-shrink-0 bg-white" style="width: 44px;">
+        <div class="flex flex-col justify-between pt-7 pb-14" style="height: 320px;">
+          <span
+            v-for="tick in [...yAxisTicks].reverse()"
+            :key="tick"
+            class="text-xs leading-none text-slate-500 text-right pr-2"
+          >€{{ tick }}</span>
+        </div>
+      </div>
+      <div class="flex-shrink-0" :style="{ minWidth: `${items.length * 48}px` }">
+        <div class="h-80">
+          <Bar :data="chartData" :options="chartOptions" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <div v-else class="flex">
+    <div class="flex-shrink-0" style="width: 44px;">
+      <div class="flex flex-col justify-between pt-7 pb-14" style="height: 320px;">
         <span
-          v-for="tick in yAxisTicks"
+          v-for="tick in [...yAxisTicks].reverse()"
           :key="tick"
           class="text-xs leading-none text-slate-500 text-right pr-2"
         >€{{ tick }}</span>
       </div>
-      <div class="h-80" :style="{ minWidth: `${items.length * 48}px` }">
-        <Bar :data="chartData" :options="chartOptions" />
-      </div>
-    </div>
-  </div>
-  <div v-else class="h-80 flex">
-    <div class="flex flex-col justify-between flex-shrink-0" style="width: 44px;">
-      <span
-        v-for="tick in yAxisTicks"
-        :key="tick"
-        class="text-xs leading-none text-slate-500 text-right pr-2"
-      >€{{ tick }}</span>
     </div>
     <div class="flex-1">
-      <Bar :data="chartData" :options="chartOptions" />
+      <div class="h-80">
+        <Bar :data="chartData" :options="chartOptions" />
+      </div>
     </div>
   </div>
 </template>
