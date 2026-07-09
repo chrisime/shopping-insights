@@ -25,6 +25,13 @@ ChartJS.register(
   Legend,
   ChartDataLabels,
   monthHeaderPlugin,
+  {
+    id: "yAxisSync",
+    afterLayout(chart: ChartJS) {
+      const syncFn = (chart.options as Record<string, unknown>).__syncYAxis as ((chart: ChartJS) => void) | undefined;
+      syncFn?.(chart);
+    },
+  },
 );
 
 const props = defineProps<{
@@ -32,6 +39,12 @@ const props = defineProps<{
   granularity: string;
   monthLabels?: MonthLabel[];
 }>();
+
+function stepSizeForGranularity(granularity: string): number {
+  if (granularity === "Täglich") return 10;
+  if (granularity === "Monatlich") return 50;
+  return 500;
+}
 
 const chartData = computed(() => ({
   labels: props.items.map((item) => {
@@ -49,20 +62,30 @@ const chartData = computed(() => ({
 }));
 
 const yAxisTicks = computed(() => {
+  const stepSize = stepSizeForGranularity(props.granularity);
   const maxValue = Math.max(...props.items.map((item) => amount(item.total_spent)), 0);
-  const roundedMax = Math.ceil(maxValue / 5) * 5;
+  const roundedMax = Math.ceil(maxValue / stepSize) * stepSize;
   const ticks: number[] = [];
-  for (let i = 0; i <= roundedMax; i += 5) {
+  for (let i = 0; i <= roundedMax; i += stepSize) {
     ticks.push(i);
   }
   return ticks;
 });
 
+const tickPositions = ref<Array<{ value: number; y: number }>>([]);
+
 const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   monthLabels: props.monthLabels,
-  afterLayout: onAfterLayout,
+  __syncYAxis: (chart: ChartJS) => {
+    const yScale = chart.scales.y;
+    if (!yScale) return;
+    tickPositions.value = [...yAxisTicks.value].map((value) => ({
+      value,
+      y: yScale.getPixelForValue(value),
+    }));
+  },
   layout: {
     padding: { top: 30 },
   },
@@ -97,23 +120,13 @@ const chartOptions = computed(() => ({
       grid: { color: "#e2e8f0" },
       ticks: {
         display: false,
-        stepSize: 5,
+        stepSize: yAxisTicks.value.length > 1 ? yAxisTicks.value[1] - yAxisTicks.value[0] : 10,
       },
     },
   },
 }));
 
 const isScrollable = computed(() => props.granularity !== "Jährlich");
-
-const tickPositions = ref<Array<{ value: number; y: number }>>([]);
-
-function onAfterLayout(chart: { scales?: { y?: { getPixelForValue: (v: number) => number } } }) {
-  if (!chart?.scales?.y) return;
-  tickPositions.value = [...yAxisTicks.value].map((value) => ({
-    value,
-    y: chart.scales.y!.getPixelForValue(value),
-  }));
-}
 </script>
 
 <template>
