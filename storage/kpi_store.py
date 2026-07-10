@@ -175,7 +175,8 @@ class MetricsStore:
             SELECT
                 DATE(p.purchase_date) AS period,
                 SUM(p.total_price) AS total_spent,
-                COUNT(p.id) AS receipt_count
+                COUNT(p.id) AS receipt_count,
+                GROUP_CONCAT(DISTINCT s.retailer_code) AS retailers
             FROM purchase p
             JOIN store s ON s.id = p.store_id
             {where}
@@ -191,6 +192,7 @@ class MetricsStore:
                 period=str(row["period"]),
                 total_spent=float(row["total_spent"]),
                 receipt_count=int(row["receipt_count"]),
+                retailers=row["retailers"].split(",") if row["retailers"] else [],
             )
             for row in rows
         ]
@@ -222,7 +224,8 @@ class MetricsStore:
             SELECT
                 STRFTIME('%Y-%m', p.purchase_date) AS period,
                 SUM(p.total_price) AS total_spent,
-                COUNT(p.id) AS receipt_count
+                COUNT(p.id) AS receipt_count,
+                GROUP_CONCAT(DISTINCT s.retailer_code) AS retailers
             FROM purchase p
             JOIN store s ON s.id = p.store_id
             {where}
@@ -238,6 +241,7 @@ class MetricsStore:
                 period=str(row["period"]),
                 total_spent=float(row["total_spent"]),
                 receipt_count=int(row["receipt_count"]),
+                retailers=row["retailers"].split(",") if row["retailers"] else [],
             )
             for row in rows
         ]
@@ -269,7 +273,8 @@ class MetricsStore:
             SELECT
                 STRFTIME('%Y', p.purchase_date) AS period,
                 SUM(p.total_price) AS total_spent,
-                COUNT(p.id) AS receipt_count
+                COUNT(p.id) AS receipt_count,
+                GROUP_CONCAT(DISTINCT s.retailer_code) AS retailers
             FROM purchase p
             JOIN store s ON s.id = p.store_id
             {where}
@@ -285,6 +290,7 @@ class MetricsStore:
                 period=str(row["period"]),
                 total_spent=float(row["total_spent"]),
                 receipt_count=int(row["receipt_count"]),
+                retailers=row["retailers"].split(",") if row["retailers"] else [],
             )
             for row in rows
         ]
