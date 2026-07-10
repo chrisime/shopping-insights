@@ -134,57 +134,6 @@ function drawChart() {
       g.select(".domain").remove();
     });
 
-  const tooltipW = 180;
-  const tooltipLineH = 20;
-  const tooltipPad = 12;
-
-  const tooltipG = mainSvg.append("g")
-    .attr("class", "tooltip-group")
-    .style("display", "none")
-    .style("pointer-events", "none");
-
-  tooltipG.append("rect")
-    .attr("class", "tooltip-bg")
-    .attr("x", -tooltipW / 2)
-    .attr("y", 0)
-    .attr("width", tooltipW)
-    .attr("height", 0)
-    .attr("rx", 8)
-    .attr("ry", 8)
-    .attr("fill", "white")
-    .attr("stroke", "#e2e8f0")
-    .attr("stroke-width", 1)
-    .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.12))");
-
-  tooltipG.append("line")
-    .attr("class", "tooltip-sep")
-    .attr("x1", -tooltipW / 2 + 8)
-    .attr("x2", tooltipW / 2 - 8)
-    .attr("y1", 0)
-    .attr("y2", 0)
-    .attr("stroke", "#e2e8f0")
-    .attr("stroke-width", 1);
-
-  const textStyle = {
-    period: { yOffset: 18, fontSize: "14px", fontWeight: "bold", fill: "#1e293b" },
-    total: { yOffset: 44, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
-    count: { yOffset: 62, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
-    avg: { yOffset: 80, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
-    retailers: { yOffset: 100, fontSize: "12px", fontWeight: "normal", fill: "#64748b" },
-  };
-
-  Object.entries(textStyle).forEach(([cls, s]) => {
-    tooltipG.append("text")
-      .attr("class", `tooltip-${cls}`)
-      .attr("text-anchor", "middle")
-      .attr("x", 0)
-      .attr("y", s.yOffset)
-      .attr("font-family", "sans-serif")
-      .attr("font-size", s.fontSize)
-      .attr("font-weight", s.fontWeight)
-      .attr("fill", s.fill);
-  });
-
   if (monthLabels && monthLabels.length > 1) {
     for (let i = 1; i < monthLabels.length; i++) {
       const prevEnd = monthLabels[i - 1].end;
@@ -308,6 +257,55 @@ function drawChart() {
     .attr("fill", "#475569")
     .attr("pointer-events", "none")
     .text((d: Record<string, unknown>) => `€${amount(d.total_spent).toFixed(2)}`);
+
+  const tooltipW = 180;
+
+  const tooltipG = mainSvg.append("g")
+    .attr("class", "tooltip-group")
+    .style("display", "none")
+    .style("pointer-events", "none");
+
+  tooltipG.append("rect")
+    .attr("class", "tooltip-bg")
+    .attr("x", -tooltipW / 2)
+    .attr("y", 0)
+    .attr("width", tooltipW)
+    .attr("height", 0)
+    .attr("rx", 8)
+    .attr("ry", 8)
+    .attr("fill", "white")
+    .attr("stroke", "#e2e8f0")
+    .attr("stroke-width", 1)
+    .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.12))");
+
+  tooltipG.append("line")
+    .attr("class", "tooltip-sep")
+    .attr("x1", -tooltipW / 2 + 8)
+    .attr("x2", tooltipW / 2 - 8)
+    .attr("y1", 0)
+    .attr("y2", 0)
+    .attr("stroke", "#e2e8f0")
+    .attr("stroke-width", 1);
+
+  const textStyle = {
+    period: { yOffset: 18, fontSize: "14px", fontWeight: "bold", fill: "#1e293b" },
+    total: { yOffset: 44, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
+    count: { yOffset: 62, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
+    avg: { yOffset: 80, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
+    retailers: { yOffset: 100, fontSize: "12px", fontWeight: "normal", fill: "#64748b" },
+  };
+
+  Object.entries(textStyle).forEach(([cls, s]) => {
+    tooltipG.append("text")
+      .attr("class", `tooltip-${cls}`)
+      .attr("text-anchor", "middle")
+      .attr("x", 0)
+      .attr("y", s.yOffset)
+      .attr("font-family", "sans-serif")
+      .attr("font-size", s.fontSize)
+      .attr("font-weight", s.fontWeight)
+      .attr("fill", s.fill);
+  });
 
   mainSvg.append("g")
     .attr("transform", `translate(0, ${CHART_HEIGHT - MARGIN.bottom})`)
