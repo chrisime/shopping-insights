@@ -489,7 +489,7 @@ def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
                 kind="time_series",
                 title="Ausgaben über Zeit",
                 items=[
-                    {"period": row.period, "total_spent": row.total_spent, "receipt_count": row.receipt_count}
+                    {"period": row.period, "total_spent": row.total_spent, "receipt_count": row.receipt_count, "retailers": row.retailers}
                     for row in state.time_series
                 ],
             ),
