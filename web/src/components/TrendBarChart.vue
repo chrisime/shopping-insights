@@ -272,8 +272,6 @@ function drawChart() {
         tooltipG.style("display", "none");
       }, 200);
     })
-    .append("title")
-    .text((d: Record<string, unknown>) => `€${amount(d.total_spent).toFixed(2)}\n${amount(d.receipt_count)} Belege`);
 
   mainSvg.selectAll("text.datalabel")
     .data(items)
