@@ -143,3 +143,69 @@ def test_receipts_by_item_returns_matching_receipts(monkeypatch):
     assert len(data) == 1
     assert data[0]["id"] == "r1"
     assert data[0]["items"][0]["matched"] is True
+
+
+def test_receipts_by_date_returns_receipts_in_range(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from api.main import app
+    from api.services import receipt_service
+
+    class FakeStore:
+        @staticmethod
+        def list_receipts_by_date_range(start_date, end_date, retailer=None):
+            return [
+                {"id": "r1", "purchase_date": "2024-01-15", "total_price": 10.0, "items": [], "payment_methods": []},
+                {"id": "r2", "purchase_date": "2024-01-20", "total_price": 20.0, "items": [], "payment_methods": []},
+            ]
+
+    monkeypatch.setattr(receipt_service, "SqliteReceiptStore", FakeStore)
+
+    response = TestClient(app).get("/receipts/by-date", params={"start_date": "2024-01-01", "end_date": "2024-01-31"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["id"] == "r1"
+    assert data[1]["id"] == "r2"
+
+
+def test_receipts_by_date_empty_range(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from api.main import app
+    from api.services import receipt_service
+
+    class FakeStore:
+        @staticmethod
+        def list_receipts_by_date_range(start_date, end_date, retailer=None):
+            return []
+
+    monkeypatch.setattr(receipt_service, "SqliteReceiptStore", FakeStore)
+
+    response = TestClient(app).get("/receipts/by-date", params={"start_date": "2023-01-01", "end_date": "2023-01-31"})
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_receipts_by_date_filters_by_retailer(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from api.main import app
+    from api.services import receipt_service
+
+    class FakeStore:
+        @staticmethod
+        def list_receipts_by_date_range(start_date, end_date, retailer=None):
+            assert retailer == "lidl"
+            return [{"id": "r1", "retailer": "lidl", "purchase_date": "2024-01-15", "total_price": 10.0, "items": [], "payment_methods": []}]
+
+    monkeypatch.setattr(receipt_service, "SqliteReceiptStore", FakeStore)
+
+    response = TestClient(app).get("/receipts/by-date", params={"start_date": "2024-01-01", "end_date": "2024-01-31", "retailer": "lidl"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == "r1"

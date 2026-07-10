@@ -4,14 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import TrendChartPanel from "../TrendChartPanel.vue";
 
-vi.mock("vue-chartjs", () => ({
-  Bar: {
-    props: ["data", "options"],
-    template:
-      "<canvas data-testid='mock-bar-chart' /><div class='mock-labels'>{{ data?.labels?.join(', ') }}</div>",
-  },
-}));
-
 vi.mock("../TrendBarChart.vue", () => ({
   default: {
     props: ["items", "granularity", "monthLabels"],

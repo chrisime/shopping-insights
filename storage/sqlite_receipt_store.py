@@ -265,6 +265,53 @@ class SqliteReceiptStore(ReceiptStore):
 
             return receipts
 
+    @staticmethod
+    def list_receipts_by_date_range(
+        start_date: str,
+        end_date: str,
+        retailer: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        with closing(_connect_sqlite()) as connection:
+            params: list[Any] = []
+            where_clauses: list[str] = []
+
+            if retailer:
+                where_clauses.append("store.retailer_code = ?")
+                params.append(retailer.lower())
+
+            where_clauses.append("purchase.purchase_date >= ?")
+            params.append(start_date)
+
+            where_clauses.append("purchase.purchase_date <= ?")
+            params.append(end_date)
+
+            rows = connection.execute(
+                f"""
+                SELECT purchase.id FROM purchase
+                JOIN store ON store.id = purchase.store_id
+                WHERE {' AND '.join(where_clauses)}
+                ORDER BY purchase.purchase_date DESC, purchase.id
+                """,
+                params,
+            ).fetchall()
+
+            purchase_domain = PurchaseDomain(connection)
+            store_domain = StoreDomain(connection)
+            receipts: list[dict[str, Any]] = []
+            for row in rows:
+                purchase = purchase_domain.find_by_id(str(row["id"]))
+                if purchase is None:
+                    continue
+                actual_retailer = retailer or ""
+                if purchase.store_id is not None:
+                    store = store_domain.find_by_id(purchase.store_id)
+                    if store is not None:
+                        actual_retailer = store.retailer_code
+                receipt = _map_purchase_to_receipt_dict(purchase, actual_retailer, connection)
+                receipts.append(receipt)
+
+            return receipts
+
     def persist_receipts(self, receipts: Sequence[ReceiptDTO], retailer: str) -> PersistResult:
         created_count = 0
         updated_count = 0

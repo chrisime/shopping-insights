@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 
 from api.schemas.common import ItemResponse, ListResponse
-from api.services.receipt_service import get_receipt, get_receipt_items, get_receipt_payments, list_receipts, list_receipts_by_item
+from api.services.receipt_service import get_receipt, get_receipt_items, get_receipt_payments, list_receipts, list_receipts_by_date_range, list_receipts_by_item
 
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
@@ -32,6 +32,19 @@ def read_receipts_by_item(
         retailer=retailer,
         start_date=start_date,
         end_date=end_date,
+    )
+
+
+@router.get("/by-date")
+def read_receipts_by_date(
+    start_date: str,
+    end_date: str,
+    retailer: Optional[str] = None,
+) -> list[dict]:
+    return list_receipts_by_date_range(
+        start_date=start_date,
+        end_date=end_date,
+        retailer=retailer,
     )
 
 

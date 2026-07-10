@@ -13,11 +13,13 @@
     "@oruga-ui/theme-oruga": "^0.9.1",
     "chart.js": "^4.4.8",
     "chartjs-plugin-datalabels": "^2.2.0",
+    "d3": "^7.9.0",
     "vue": "^3.5.13",
     "vue-chartjs": "^5.3.2"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
+    "@types/d3": "^7.4.3",
     "@types/node": "^22.13.4",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/server-renderer": "^3.5.39",

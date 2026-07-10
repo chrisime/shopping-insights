@@ -59,3 +59,15 @@ def list_receipts_by_item(
         start_date=start_date,
         end_date=end_date,
     )
+
+
+def list_receipts_by_date_range(
+    start_date: str,
+    end_date: str,
+    retailer: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    return SqliteReceiptStore.list_receipts_by_date_range(
+        start_date=start_date,
+        end_date=end_date,
+        retailer=retailer,
+    )

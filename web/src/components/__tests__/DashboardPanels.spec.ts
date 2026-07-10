@@ -1,15 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("vue-chartjs", () => ({
-  Bar: {
-    props: ["data", "options"],
-    template:
-      "<canvas data-testid='mock-bar-chart' /><div class='mock-labels'>{{ data?.labels?.join(', ') }}</div><div class='mock-data'>{{ data?.datasets?.[0]?.data?.map(v => '€' + Number(v).toFixed(2))?.join(', ') }}</div>",
-  },
-}));
+import { describe, expect, it } from "vitest";
 
 import DashboardSkeleton from "../DashboardSkeleton.vue";
 import TopItemsPanel from "../TopItemsPanel.vue";
@@ -32,7 +24,7 @@ describe("dashboard panels", () => {
     expect(monthly.text()).toContain("2023");
     expect(monthly.text()).toContain("Jan 2023");
     expect(monthly.text()).toContain("€10.00");
-    expect(monthly.findAll("canvas").length).toBeGreaterThanOrEqual(1);
+    expect(monthly.findAll("svg").length).toBeGreaterThanOrEqual(2);
     expect(monthly.findAll("details")).toHaveLength(0);
 
     const daily = mount(TrendChartPanel, {
@@ -46,23 +38,17 @@ describe("dashboard panels", () => {
       },
     });
 
-    // x-axis labels show day numbers when monthLabels are present
-    const dailyMockLabels = daily.find(".mock-labels");
-    expect(dailyMockLabels.exists()).toBe(true);
-    expect(dailyMockLabels.text()).toContain("01");
-    expect(dailyMockLabels.text()).toContain("02");
-
-    // Month labels are rendered by the chart plugin (canvas-only, not visible in mock)
-    // But the group heading "Tage" is still present
+    expect(daily.text()).toContain("01");
+    expect(daily.text()).toContain("02");
     expect(daily.text()).toContain("Tage");
-    expect(daily.findAll("canvas").length).toBe(1);
+    expect(daily.findAll("svg").length).toBeGreaterThanOrEqual(2);
 
     const trend = mount(TrendChartPanel, {
       props: { items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }, { period: "2024-02", total_spent: 5, receipt_count: 2 }] },
     });
     expect(trend.text()).toContain("Jan 2024");
     expect(trend.text()).toContain("Feb 2024");
-    expect(trend.findAll("canvas").length).toBeGreaterThanOrEqual(1);
+    expect(trend.findAll("svg").length).toBeGreaterThanOrEqual(2);
 
     const yearly = mount(TrendChartPanel, {
       props: {
@@ -78,7 +64,7 @@ describe("dashboard panels", () => {
     expect(yearly.text()).toContain("2023");
     expect(yearly.text()).toContain("2024");
     expect(yearly.text()).toContain("2025");
-    expect(yearly.findAll("canvas").length).toBe(1);
+    expect(yearly.findAll("svg").length).toBeGreaterThanOrEqual(2);
   });
 
   it("renders weekday, top items, and skeleton", () => {
@@ -130,13 +116,11 @@ describe("dashboard panels", () => {
       },
     });
 
-    const mockLabels = daily.find(".mock-labels");
-    expect(mockLabels.exists()).toBe(true);
-    expect(mockLabels.text()).toContain("30");
-    expect(mockLabels.text()).toContain("31");
-    expect(mockLabels.text()).toContain("01");
-    expect(mockLabels.text()).toContain("02");
-    expect(daily.findAll("canvas").length).toBe(1);
+    expect(daily.text()).toContain("30");
+    expect(daily.text()).toContain("31");
+    expect(daily.text()).toContain("01");
+    expect(daily.text()).toContain("02");
+    expect(daily.findAll("svg").length).toBeGreaterThanOrEqual(2);
     expect(daily.text()).toContain("Tage");
   });
 

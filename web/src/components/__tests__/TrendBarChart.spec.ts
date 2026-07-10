@@ -26,8 +26,8 @@ describe("TrendBarChart", () => {
         granularity: "Monatlich",
       },
     });
-    expect(wrapper.text()).toContain("2024-01");
-    expect(wrapper.text()).toContain("2024-02");
+    expect(wrapper.text()).toContain("Jan 2024");
+    expect(wrapper.text()).toContain("Feb 2024");
   });
 
   it("wraps chart in scrollable container for monthly granularity", () => {

@@ -4,17 +4,15 @@ import TrendBarChart from "./TrendBarChart.vue";
 import { amount, text, euro } from "../utils/format";
 import type { MonthLabel } from "../chart-plugins/monthHeaderPlugin";
 
+const emit = defineEmits<{
+  (e: "select-period", payload: { startDate: string; endDate: string; label: string }): void;
+}>();
+
 const props = defineProps<{
   items: Array<Record<string, unknown>>;
   spendingView?: string;
   timeGranularity?: string;
 }>();
-
-function monthName(value: string): string {
-  const names = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
-  const index = Number(value) - 1;
-  return names[index] ?? value;
-}
 
 const summary = computed(() => {
   if (props.spendingView !== "Absolut" || props.items.length === 0) {
@@ -42,10 +40,7 @@ function buildYearGroups(): GroupNode[] {
 
 function buildMonthGroups(): GroupNode[] {
   return props.items.length > 0
-    ? [{ label: "Monate", key: "months", items: props.items.map((item) => {
-        const period = text(item.period);
-        return { ...item, period: `${monthName(period.slice(5, 7))} ${period.slice(0, 4)}` };
-      })}]
+    ? [{ label: "Monate", key: "months", items: [...props.items] }]
     : [];
 }
 
@@ -122,6 +117,7 @@ const monthLabels = computed<MonthLabel[]>(() => {
           :items="group.items"
           :granularity="chartGranularity"
           :monthLabels="monthLabels"
+          @select-period="emit('select-period', $event)"
         />
       </div>
     </div>

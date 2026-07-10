@@ -20,6 +20,21 @@ export async function fetchDashboard(filters: DashboardFilters = {}): Promise<Da
   return (await response.json()) as DashboardPayload;
 }
 
+export async function fetchReceiptsByDateRange(
+  startDate: string,
+  endDate: string,
+  retailer?: string,
+): Promise<Array<Record<string, unknown>>> {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+  const url = new URL("/receipts/by-date", baseUrl);
+  url.searchParams.set("start_date", startDate);
+  url.searchParams.set("end_date", endDate);
+  if (retailer) url.searchParams.set("retailer", retailer);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch receipts: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchReceiptsByItem(
   name: string,
   retailer?: string,

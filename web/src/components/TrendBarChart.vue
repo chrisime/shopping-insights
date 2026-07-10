@@ -312,7 +312,12 @@ function drawChart() {
     .call(d3.axisBottom(xScale)
       .tickFormat((_d: unknown, i: number) => {
         const raw = text(items[i].period);
-        return monthLabels && monthLabels.length > 0 ? raw.slice(8, 10) : raw;
+        if (monthLabels && monthLabels.length > 0) return raw.slice(8, 10);
+        if (props.granularity === "Monatlich") {
+          const [y, m] = raw.split("-").map(Number);
+          return `${monthNames[m - 1].slice(0, 3)} ${y}`;
+        }
+        return raw;
       }),
     )
     .call((g) => {

@@ -14,6 +14,7 @@ import TopItemsPanel from "./TopItemsPanel.vue";
 import TrendChartPanel from "./TrendChartPanel.vue";
 import WeekdayPanel from "./WeekdayPanel.vue";
 import ReceiptModal from "./ReceiptModal.vue";
+import ReceiptListModal from "./ReceiptListModal.vue";
 import { useDashboard } from "../composables/useDashboard";
 import { exportReceiptsJson } from "../api/exports";
 import { useImportJob } from "../composables/useImportJob";
@@ -42,6 +43,7 @@ const exporting = ref(false);
 const sidebarCollapsed = ref(false);
 const activeTab = ref<SidebarTab>("ausgaben");
 const selectedArticle = ref<string | null>(null);
+const selectedPeriod = ref<{ startDate: string; endDate: string; label: string } | null>(null);
 
 const bannerMessage = computed(() => {
   if (payload.value?.error) {
@@ -69,6 +71,14 @@ function onSelectArticle(name: string) {
 
 function onCloseReceiptModal() {
   selectedArticle.value = null;
+}
+
+function onSelectPeriod(payload: { startDate: string; endDate: string; label: string }) {
+  selectedPeriod.value = payload;
+}
+
+function onClosePeriodModal() {
+  selectedPeriod.value = null;
 }
 
 async function handleExport() {
@@ -173,6 +183,7 @@ async function handleExport() {
                   :items="section.items"
                   :spending-view="spendingView"
                   :time-granularity="timeGranularity"
+                  @select-period="onSelectPeriod"
                 />
               </div>
             </template>
@@ -223,5 +234,13 @@ async function handleExport() {
     :retailer="retailer"
     :visible="!!selectedArticle"
     @close="onCloseReceiptModal"
+  />
+
+  <ReceiptListModal
+    :start-date="selectedPeriod?.startDate ?? ''"
+    :end-date="selectedPeriod?.endDate ?? ''"
+    :retailer="retailer"
+    :visible="!!selectedPeriod"
+    @close="onClosePeriodModal"
   />
 </template>
