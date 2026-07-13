@@ -14,21 +14,29 @@ let tooltipHideTimer: ReturnType<typeof setTimeout> | null = null;
 
 function computePeriod(period: string, granularity: string): { startDate: string; endDate: string; label: string } {
   if (granularity === "Täglich") {
-    const [y, m, d] = period.split("-").map(Number);
-    return {
-      startDate: period,
-      endDate: period,
-      label: `${d}. ${monthNames[m - 1]} ${y}`,
-    };
+    const parts = period.split("-");
+    if (parts.length >= 3) {
+      const [y, m, d] = parts.map(Number);
+      return {
+        startDate: period,
+        endDate: period,
+        label: `${d}. ${monthNames[m - 1]} ${y}`,
+      };
+    }
+    return { startDate: period, endDate: period, label: period };
   }
   if (granularity === "Monatlich") {
-    const [y, m] = period.split("-").map(Number);
-    const lastDay = new Date(y, m, 0).getDate();
-    return {
-      startDate: `${period}-01`,
-      endDate: `${period}-${String(lastDay).padStart(2, "0")}`,
-      label: `${monthNames[m - 1]} ${y}`,
-    };
+    const parts = period.split("-");
+    if (parts.length >= 2) {
+      const [y, m] = parts.map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+      return {
+        startDate: `${period}-01`,
+        endDate: `${period}-${String(lastDay).padStart(2, "0")}`,
+        label: `${monthNames[m - 1]} ${y}`,
+      };
+    }
+    return { startDate: `${period}-01-01`, endDate: `${period}-12-31`, label: period };
   }
   return {
     startDate: `${period}-01-01`,
@@ -77,13 +85,14 @@ const totalWidth = computed(() => props.items.length * 56 + MARGIN.right);
 
 function drawChart() {
   if (!yAxisRef.value || !chartRef.value) return;
+
+  d3.select(yAxisRef.value).selectAll("svg").remove();
+  d3.select(chartRef.value).selectAll("svg").remove();
+
   const items = props.items;
   if (items.length === 0) return;
   const monthLabels = props.monthLabels;
   const ticks = yAxisTicks.value;
-
-  d3.select(yAxisRef.value).selectAll("svg").remove();
-  d3.select(chartRef.value).selectAll("svg").remove();
 
   const yScale = d3.scaleLinear()
     .domain([0, ticks.length > 1 ? ticks[ticks.length - 1] : ticks[0] || 10])
@@ -314,8 +323,12 @@ function drawChart() {
         const raw = text(items[i].period);
         if (monthLabels && monthLabels.length > 0) return raw.slice(8, 10);
         if (props.granularity === "Monatlich") {
-          const [y, m] = raw.split("-").map(Number);
-          return `${monthNames[m - 1].slice(0, 3)} ${y}`;
+          const parts = raw.split("-");
+          if (parts.length >= 2) {
+            const [y, m] = parts.map(Number);
+            return `${monthNames[m - 1].slice(0, 3)} ${y}`;
+          }
+          return raw;
         }
         return raw;
       }),
