@@ -1,10 +1,10 @@
 """Shared helpers for parsing German-format decimal numbers."""
 
-from typing import Any, Optional
+from typing import Any
 import re
 
 
-def parse_german_float(value: Any) -> Optional[float]:
+def parse_german_float(value: Any) -> float | None:
     """Parse a German-format decimal string to float.
 
     Handles ``3,99``, ``1.234,56``, and already-numeric values.
@@ -43,7 +43,7 @@ def parse_german_float(value: Any) -> Optional[float]:
         return None
 
 
-def parse_amount_to_cents(value: Any) -> Optional[int]:
+def parse_amount_to_cents(value: Any) -> int | None:
     """Parse a monetary value to cents for validation purposes.
 
     Handles ``3.99``, ``3,99``, ``1.234,56`` etc.

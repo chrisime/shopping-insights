@@ -6,7 +6,7 @@ Bonus amounts and payment methods have been moved to dedicated modules.
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from shared.addresses import empty_address
 from shared.metadata_markers import METADATA_MARKERS as _SHARED_METADATA_MARKERS
@@ -36,7 +36,7 @@ REWE_COMPANY_RE = re.compile(
 )
 FOOTER_START_RE = re.compile(r"^(?:UID\s*Nr\.?|UID-Nr\.?|USt-IdNr\.?|USt\.?-IdNr\.?)", re.IGNORECASE)
 
-def extract_rewe_receipt_info(text: str, lines: List[str]) -> Dict[str, Optional[Any]]:
+def extract_rewe_receipt_info(text: str, lines: list[str]) -> dict[str, Any | None]:
     """Extract REWE metadata such as receipt id, purchase date and POS identifiers."""
     datetime_match = DATETIME_AND_BON_RE.search(text)
     date_value = datetime_match.group("date") if datetime_match else None
@@ -91,7 +91,7 @@ def extract_rewe_receipt_info(text: str, lines: List[str]) -> Dict[str, Optional
 
 
 
-def _extract_store(lines: List[str]) -> str:
+def _extract_store(lines: list[str]) -> str:
     footer_lines = _extract_footer_lines(lines)
     footer_store = _extract_footer_store(footer_lines)
     if footer_store:
@@ -115,7 +115,7 @@ def _extract_store(lines: List[str]) -> str:
     return "REWE"
 
 
-def _extract_store_address(lines: List[str], store: Optional[str]) -> dict:
+def _extract_store_address(lines: list[str], store: str | None) -> dict:
     """Extract the first valid structured store address from header, footer or fallback lines."""
     header_lines = _extract_header_lines(lines)
     footer_lines = _extract_footer_lines(lines)
@@ -136,8 +136,8 @@ def _extract_store_address(lines: List[str], store: Optional[str]) -> dict:
     return empty_address()
 
 
-def _extract_header_lines(lines: List[str]) -> List[str]:
-    header_lines: List[str] = []
+def _extract_header_lines(lines: list[str]) -> list[str]:
+    header_lines: list[str] = []
     for line in lines:
         if line == REWE_BODY_MARKER or _is_footer_start_line(line):
             break
@@ -145,14 +145,14 @@ def _extract_header_lines(lines: List[str]) -> List[str]:
     return header_lines
 
 
-def _extract_footer_lines(lines: List[str]) -> List[str]:
+def _extract_footer_lines(lines: list[str]) -> list[str]:
     for index, line in enumerate(lines):
         if _is_footer_start_line(line):
             return lines[index + 1 :]
     return []
 
 
-def _extract_footer_store(lines: List[str]) -> Optional[str]:
+def _extract_footer_store(lines: list[str]) -> str | None:
     """Prefer the company/legal-entity line from the footer section of the eBon."""
     for line in reversed(lines):
         company = _extract_company_from_line(line)
@@ -161,7 +161,7 @@ def _extract_footer_store(lines: List[str]) -> Optional[str]:
     return None
 
 
-def _extract_company_from_line(line: str) -> Optional[str]:
+def _extract_company_from_line(line: str) -> str | None:
     """Extract a REWE legal-entity/company name from a single receipt line."""
     normalized = re.sub(r"\s+", " ", line).strip()
     if not normalized:
@@ -174,7 +174,7 @@ def _extract_company_from_line(line: str) -> Optional[str]:
     return match.group("company").strip()
 
 
-def _find_first_valid_address(lines: List[str]) -> Optional[dict]:
+def _find_first_valid_address(lines: list[str]) -> dict | None:
     """Return the first address-like block that parses cleanly and is not metadata."""
     for start_index in range(len(lines)):
         for window_size in (1, 2, 3):

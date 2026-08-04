@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -20,7 +20,7 @@ class LidlTicketsPageDTO:
     total_count: int
 
     @staticmethod
-    def from_api_response(data: Dict[str, Any], page: int = 1) -> Optional[LidlTicketsPageDTO]:
+    def from_api_response(data: dict[str, Any], page: int = 1) -> LidlTicketsPageDTO | None:
         """Build a DTO from the raw API response."""
         if not isinstance(data, dict):
             return None
@@ -103,7 +103,7 @@ class LidlTicketDTO:
     store: LidlStoreDTO
 
     @staticmethod
-    def from_api_response(ticket_data: Dict[str, Any], receipt_id: str = "") -> LidlTicketDTO:
+    def from_api_response(ticket_data: dict[str, Any], receipt_id: str = "") -> LidlTicketDTO:
         """Build a DTO from the raw ticket dict returned by ``get_lidl_ticket``.
 
         ``ticket_data`` is the ``data["ticket"]`` portion of the API response,
@@ -121,7 +121,7 @@ class LidlTicketDTO:
             store=store,
         )
 
-    def to_api_dict(self) -> Dict[str, Any]:
+    def to_api_dict(self) -> dict[str, Any]:
         """Serialize the DTO back to the raw API dict format for storage."""
         return {
             "id": self.id,
@@ -131,7 +131,7 @@ class LidlTicketDTO:
         }
 
 
-def _extract_store(ticket_data: Dict[str, Any]) -> LidlStoreDTO:
+def _extract_store(ticket_data: dict[str, Any]) -> LidlStoreDTO:
     """Extract store info from the ticket payload, handling multiple formats."""
     raw_store = ticket_data.get("store")
 
@@ -144,7 +144,7 @@ def _extract_store(ticket_data: Dict[str, Any]) -> LidlStoreDTO:
     return LidlStoreDTO(name="Lidl", street=None, street_no=None, zip=None, city=None)
 
 
-def _parse_store_dict(store_payload: Dict[str, Any]) -> LidlStoreDTO:
+def _parse_store_dict(store_payload: dict[str, Any]) -> LidlStoreDTO:
     """Parse the nested store dict into a typed DTO.
 
     The API provides address as a single combined string (e.g. ``"Fronmüllerstr. 12"``),
@@ -190,7 +190,7 @@ def _parse_store_dict(store_payload: Dict[str, Any]) -> LidlStoreDTO:
     )
 
 
-def _split_address_line(address_line: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+def _split_address_line(address_line: str | None) -> tuple[str | None, str | None]:
     """Split ``'Fronmüllerstr. 12'`` into ``('Fronmüllerstr.', '12')``."""
     if not address_line or not isinstance(address_line, str):
         return None, None

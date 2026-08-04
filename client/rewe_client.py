@@ -2,7 +2,7 @@
 
 import time
 from pathlib import Path
-from typing import Optional
+
 from urllib.parse import urlencode
 
 import requests
@@ -13,7 +13,7 @@ from config import ReweConfig
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
-def _build_receipts_zip_url(customer_id: Optional[str] = None) -> str:
+def _build_receipts_zip_url(customer_id: str | None = None) -> str:
     """Build the absolute ZIP download URL for a REWE customer."""
     if not customer_id:
         return ReweConfig.get_receipts_zip_url()
@@ -22,7 +22,7 @@ def _build_receipts_zip_url(customer_id: Optional[str] = None) -> str:
     return f"{ReweConfig.get_receipts_zip_url()}?{query}"
 
 
-def test_rewe_session(session: requests.Session, customer_id: Optional[str]) -> bool:
+def test_rewe_session(session: requests.Session, customer_id: str | None) -> bool:
     """Perform a lightweight session test against the ZIP endpoint.
 
     The request is streamed and immediately closed to avoid downloading the full body.
@@ -46,9 +46,9 @@ def test_rewe_session(session: requests.Session, customer_id: Optional[str]) -> 
 
 def download_receipts_zip(
     session: requests.Session,
-    customer_id: Optional[str],
+    customer_id: str | None,
     output_path: Path,
-) -> Optional[Path]:
+) -> Path | None:
     """Download the REWE receipts ZIP archive to disk."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     url = _build_receipts_zip_url(customer_id)

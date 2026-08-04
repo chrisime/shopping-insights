@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable, Optional
+from typing import Iterable
 
 from shared.addresses import normalize_address
 from shared.metadata_markers import COMPANY_SUFFIXES, METADATA_MARKERS, STREET_SUFFIXES
@@ -34,7 +34,7 @@ STREET_SUFFIX_RE = re.compile(
 )
 URL_OR_EMAIL_RE = re.compile(r"www\.|http|@")
 
-def extract_address_from_lines(lines: Iterable[str]) -> Optional[dict]:
+def extract_address_from_lines(lines: Iterable[str]) -> dict | None:
     """Extract a normalized address from single-line or two-line header patterns."""
     normalized_lines = [_normalize_line(line) for line in lines]
     normalized_lines = [line for line in normalized_lines if line]
@@ -61,7 +61,7 @@ def extract_address_from_lines(lines: Iterable[str]) -> Optional[dict]:
     return None
 
 
-def _parse_one_line_address(line: str) -> Optional[dict]:
+def _parse_one_line_address(line: str) -> dict | None:
     match = ADDRESS_ONE_LINE_RE.fullmatch(line)
     if not match:
         return None
@@ -70,7 +70,7 @@ def _parse_one_line_address(line: str) -> Optional[dict]:
     return normalize_address(payload)
 
 
-def _parse_two_line_address(street_line: str, zip_city_line: str) -> Optional[dict]:
+def _parse_two_line_address(street_line: str, zip_city_line: str) -> dict | None:
     street_match = STREET_LINE_RE.fullmatch(street_line)
     zip_city_match = ZIP_CITY_RE.fullmatch(zip_city_line)
     if not street_match or not zip_city_match:
@@ -89,7 +89,7 @@ def _parse_two_line_address(street_line: str, zip_city_line: str) -> Optional[di
     return normalize_address(payload)
 
 
-def _parse_three_line_address(street_line: str, house_number_line: str, zip_city_line: str) -> Optional[dict]:
+def _parse_three_line_address(street_line: str, house_number_line: str, zip_city_line: str) -> dict | None:
     house_number_match = HOUSE_NUMBER_ONLY_RE.fullmatch(house_number_line)
     zip_city_match = ZIP_CITY_RE.fullmatch(zip_city_line)
     if not house_number_match or not zip_city_match:

@@ -54,13 +54,13 @@ class ReweWorkflowTests(unittest.TestCase):
                 "workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
             ), patch(
-                "workflows.import_pipeline.parse_receipts",
+                "workflows.local_import.parse_receipts",
                 return_value=StageResult(
                     records=[],
                     issues=[ReceiptIssue("skip-me.pdf", "Validatorfehler: payment_methods fehlen", detail_key="file")],
                 ),
             ), patch(
-                "workflows.import_pipeline.validate_receipts",
+                "workflows.local_import.validate_receipts",
                 return_value=StageResult(records=[], issues=[]),
             ), patch("sys.stdout", new=stdout):
                 fake_store.persist_receipts.return_value = PersistResult(created_count=0, updated_count=0, total_receipts=203)
@@ -173,7 +173,7 @@ class ReweWorkflowTests(unittest.TestCase):
             with patch("workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
             ), patch(
-                "workflows.rewe_workflow._ReweImportPipeline.run",
+                "workflows.rewe_workflow.import_local_sources",
                 return_value=WorkflowResult(
                     success=True,
                     summary=WorkflowSummary(
@@ -208,7 +208,7 @@ class ReweWorkflowTests(unittest.TestCase):
                 "workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
             ), patch(
-                "workflows.rewe_workflow._ReweImportPipeline.run",
+                "workflows.rewe_workflow.import_local_sources",
                 return_value=WorkflowResult(
                     success=True,
                     summary=WorkflowSummary(
@@ -240,7 +240,7 @@ class ReweWorkflowTests(unittest.TestCase):
             with patch("workflows.rewe_workflow.create_receipt_store",
                 return_value=fake_store,
             ), patch(
-                "workflows.rewe_workflow._ReweImportPipeline.run",
+                "workflows.rewe_workflow.import_local_sources",
                 return_value=WorkflowResult(
                     success=True,
                     summary=WorkflowSummary(

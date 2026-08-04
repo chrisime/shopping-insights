@@ -6,9 +6,10 @@ from typing import cast
 
 import requests
 
+from auth.cookie_diagnostics import analyze_cookie_names
 from auth.lidl_browser_auth import LidlBrowserCookieExtractor
 from auth.rewe_browser_auth import ReweBrowserCookieExtractor
-from auth.shared_file_auth import analyze_cookie_names, build_cookie_session
+from auth.shared_file_auth import build_cookie_session
 
 
 class AuthCookieValidationTests(unittest.TestCase):

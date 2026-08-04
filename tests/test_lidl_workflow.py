@@ -12,6 +12,7 @@ import workflows.lidl_workflow as lidl_workflow
 from result_types import PersistResult, WorkflowSummary
 from shared.lidl_ticket_dto import LidlTicketDTO
 from workflows.lidl_workflow import run_lidl_initial
+from workflows.local_import import _print_skipped_receipts
 from workflows.pipeline_types import ReceiptIssue, WorkflowResult
 
 
@@ -96,7 +97,7 @@ class LidlWorkflowTests(unittest.TestCase):
         ), patch(
             "workflows.lidl_workflow._download_lidl_tickets",
         ) as download_tickets, patch(
-            "workflows.lidl_workflow._LidlImportPipeline.run",
+            "workflows.lidl_workflow.import_local_sources",
             return_value=result,
         ) as import_pipeline, patch("sys.stdout", new=stdout):
             success = run_lidl_initial(cookies_file="dummy.json", output_dir=tmp_dir)
@@ -136,7 +137,7 @@ class LidlWorkflowTests(unittest.TestCase):
             "workflows.lidl_workflow.create_receipt_store",
             return_value=store,
         ) as create_store, patch(
-            "workflows.lidl_workflow._LidlImportPipeline.run",
+            "workflows.lidl_workflow.import_local_sources",
             return_value=WorkflowResult(
                 success=True,
                 summary=WorkflowSummary(
@@ -183,7 +184,7 @@ class LidlWorkflowTests(unittest.TestCase):
         ), patch(
             "workflows.lidl_workflow._download_lidl_tickets",
         ) as download_tickets, patch(
-            "workflows.lidl_workflow._LidlImportPipeline.run",
+            "workflows.lidl_workflow.import_local_sources",
             return_value=WorkflowResult(
                 success=True,
                 summary=WorkflowSummary(
@@ -216,9 +217,11 @@ class LidlWorkflowTests(unittest.TestCase):
         stdout = io.StringIO()
 
         with patch("sys.stdout", new=stdout):
-            lidl_workflow._LidlImportPipeline().print_skipped_receipts(
+            _print_skipped_receipts(
                 [{"file": "receipt-1.json", "reason": "Validatorfehler: items fehlen"}],
                 report_path=None,
+                retailer_display_name="LIDL",
+                detail_key="receipt_id",
             )
 
         output = stdout.getvalue()
@@ -234,7 +237,7 @@ class LidlWorkflowTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            payload = lidl_workflow._LidlImportPipeline().load_payload(source_path)
+            payload = lidl_workflow._load_lidl_ticket_payload(source_path)
 
         self.assertIsInstance(payload, LidlTicketDTO)
         self.assertEqual(payload.id, "receipt-1")

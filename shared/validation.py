@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+
 
 from shared.float_parser import parse_amount_to_cents
 from shared.receipt_dates import is_normalized_purchase_date
@@ -21,8 +21,8 @@ class ValidationIssue:
 
     field: str
     reason: str
-    expected: Optional[str] = None
-    actual: Optional[str] = None
+    expected: str | None = None
+    actual: str | None = None
 
     def render(self) -> str:
         """Render the issue as a compact, user-facing bullet line."""
@@ -42,7 +42,7 @@ class ReceiptValidationError(ValueError):
 
     retailer_label: str = "Bon"
 
-    def __init__(self, issues: List[ValidationIssue]):
+    def __init__(self, issues: list[ValidationIssue]):
         self.issues = issues
         super().__init__(self.format_issues())
 
@@ -57,7 +57,7 @@ def validate_field_pattern(
     receipt_data: ReceiptData,
     field_name: str,
     pattern: str,
-    issues: List[ValidationIssue],
+    issues: list[ValidationIssue],
     reason: str,
     expected: str,
 ) -> None:
@@ -80,7 +80,7 @@ def validate_field_pattern(
 
 def validate_payment_methods(
     receipt_data: ReceiptData,
-    issues: List[ValidationIssue],
+    issues: list[ValidationIssue],
 ) -> None:
     """Validate ``payment_methods`` presence, structure, and amounts.
 
@@ -135,8 +135,8 @@ def validate_payment_methods(
 
 def validate_common_receipt_fields(
     receipt_data: ReceiptData,
-    issues: List[ValidationIssue],
-    pos_field_patterns: Optional[Dict[str, tuple[str, str, str]]] = None,
+    issues: list[ValidationIssue],
+    pos_field_patterns: dict[str, tuple[str, str, str]] | None = None,
 ) -> None:
     """Validate fields common to all retailer receipts.
 

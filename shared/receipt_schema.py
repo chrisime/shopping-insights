@@ -1,7 +1,7 @@
 """Neutrale Schema-Helfer für normalisierte Receipt-Dictionaries."""
 
 import re
-from typing import Any, Dict, List, Optional, TypedDict, cast
+from typing import Any, TypedDict
 
 from shared.addresses import empty_address, normalize_address
 from shared.payment_methods import normalize_payment_method_entry
@@ -12,27 +12,27 @@ class ReceiptData(TypedDict, total=False):
     """Typed schema for a normalized receipt dictionary."""
 
     id: str
-    url: Optional[str]
+    url: str | None
     retailer: str
-    purchase_date: Optional[str]
-    store: Optional[str]
-    total_price: Optional[float]
-    discount: Optional[float]
-    saved_deposit: Optional[float]
+    purchase_date: str | None
+    store: str | None
+    total_price: float | None
+    discount: float | None
+    saved_deposit: float | None
     address: dict
-    market: Optional[str]
-    register: Optional[str]
-    cashier: Optional[str]
-    bon_number: Optional[str]
-    source_file: Optional[str]
-    payment_methods: List[Dict[str, Any]]
-    items: List[Dict[str, Any]]
-    sticker_discount: Optional[float]
+    market: str | None
+    register: str | None
+    cashier: str | None
+    bon_number: str | None
+    source_file: str | None
+    payment_methods: list[dict[str, Any]]
+    items: list[dict[str, Any]]
+    sticker_discount: float | None
     sticker_discount_pct: list
-    lidlplus_discount: Optional[float]
-    rewe_bonus_amount: Optional[float]
-    rewe_bonus_discount: Optional[float]
-    rewe_bonus_total_amount: Optional[float]
+    lidlplus_discount: float | None
+    rewe_bonus_amount: float | None
+    rewe_bonus_discount: float | None
+    rewe_bonus_total_amount: float | None
 
 
 SHARED_MONEY_FIELDS = {
@@ -41,7 +41,7 @@ SHARED_MONEY_FIELDS = {
     "saved_deposit",
 }
 
-_RETAILER_EXTRA_DEFAULTS: Dict[str, Dict[str, Any]] = {
+_RETAILER_EXTRA_DEFAULTS: dict[str, dict[str, Any]] = {
     "lidl": {
         "sticker_discount": None,
         "sticker_discount_pct": [],
@@ -55,7 +55,7 @@ _RETAILER_EXTRA_DEFAULTS: Dict[str, Dict[str, Any]] = {
     },
 }
 
-_RETAILER_EXTRA_MONEY_FIELDS: Dict[str, set[str]] = {
+_RETAILER_EXTRA_MONEY_FIELDS: dict[str, set[str]] = {
     "lidl": {"sticker_discount", "lidlplus_amount_saved", "lidlplus_discount"},
     "rewe": {"rewe_bonus_amount", "rewe_bonus_discount", "rewe_bonus_total_amount"},
 }
@@ -79,8 +79,8 @@ SHARED_RECEIPT_FIELDS = {
 def build_receipt_schema(
     receipt_id: str,
     retailer: str,
-    purchase_date: Optional[str],
-    store: Optional[str],
+    purchase_date: str | None,
+    store: str | None,
     **overrides: Any,
 ) -> ReceiptData:
     """Create a normalized receipt dict with shared core and optional fields."""
@@ -116,7 +116,7 @@ def build_receipt_item(
     price: Any,
     quantity: Any = "1",
     unit: str = "stk",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create a normalized receipt item dict."""
     normalized_unit = str(unit or "stk").strip().lower() or "stk"
     return {
@@ -128,7 +128,7 @@ def build_receipt_item(
 
 
 def normalize_receipt_schema(
-    receipt_data: ReceiptData, retailer: Optional[str] = None
+    receipt_data: ReceiptData, retailer: str | None = None
 ) -> ReceiptData:
     """Merge an existing receipt dict into the shared schema defaults."""
     resolved_retailer = _resolve_receipt_retailer(receipt_data, retailer)
@@ -142,12 +142,12 @@ def normalize_receipt_schema(
     return normalized
 
 
-def _normalize_optional_text(value: str | None) -> Optional[str]:
+def _normalize_optional_text(value: str | None) -> str | None:
     return None if value is None else value.strip()
 
 
 def _resolve_receipt_retailer(
-    receipt_data: ReceiptData, retailer: Optional[str] = None
+    receipt_data: ReceiptData, retailer: str | None = None
 ) -> str:
     resolved_retailer = _normalize_optional_text(
         retailer or receipt_data.get("retailer")
@@ -179,7 +179,7 @@ def _normalize_receipt_metadata_fields(
 
 
 def _restore_mutable_defaults(
-    normalized: ReceiptData, retailer: Optional[str] = None
+    normalized: ReceiptData, retailer: str | None = None
 ) -> None:
     for field_name, default_value in SHARED_RECEIPT_FIELDS.items():
         if normalized.get(field_name) is None:
@@ -200,7 +200,7 @@ def _copy_default_value(value: Any) -> Any:
     return value
 
 
-def _normalize_receipt_purchase_date(value: Any) -> Optional[str]:
+def _normalize_receipt_purchase_date(value: Any) -> str | None:
     if value is None:
         return None
 
@@ -223,7 +223,7 @@ def _normalize_receipt_address(normalized: ReceiptData) -> None:
 
 
 def _normalize_receipt_money_fields(
-    normalized: ReceiptData, retailer: Optional[str] = None
+    normalized: ReceiptData, retailer: str | None = None
 ) -> None:
     for field_name in SHARED_MONEY_FIELDS:
         if field_name in normalized:
@@ -250,8 +250,8 @@ def _normalize_receipt_collection_fields(
 
 def _normalize_payment_methods(
     payment_methods: Any, *, retailer: Any = None
-) -> List[Dict[str, Any]]:
-    normalized_methods: List[Dict[str, Any]] = []
+) -> list[dict[str, Any]]:
+    normalized_methods: list[dict[str, Any]] = []
     for payment_method in payment_methods or []:
         if not isinstance(payment_method, dict):
             continue
@@ -266,8 +266,8 @@ def _normalize_payment_methods(
     return normalized_methods
 
 
-def _normalize_items(items: Any) -> List[Dict[str, Any]]:
-    normalized_items: List[Dict[str, Any]] = []
+def _normalize_items(items: Any) -> list[dict[str, Any]]:
+    normalized_items: list[dict[str, Any]] = []
     for item in items or []:
         if not isinstance(item, dict):
             continue
@@ -283,7 +283,7 @@ def _normalize_items(items: Any) -> List[Dict[str, Any]]:
     return normalized_items
 
 
-def _normalize_money_value(value: Any) -> Optional[float]:
+def _normalize_money_value(value: Any) -> float | None:
     if value is None or value == "":
         return None
     if isinstance(value, (int, float)):
@@ -321,7 +321,7 @@ def _normalize_quantity_value(value: Any, unit: str) -> Any:
     return int(round(numeric_value))
 
 
-def _parse_numeric_value(value: Any) -> Optional[float]:
+def _parse_numeric_value(value: Any) -> float | None:
     if value is None or value == "":
         return None
     if isinstance(value, (int, float)):

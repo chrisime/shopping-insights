@@ -1,6 +1,6 @@
 """Receipt API routes."""
 
-from typing import Optional
+
 
 from fastapi import APIRouter, HTTPException
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/receipts", tags=["receipts"])
 
 @router.get("", response_model=ListResponse)
 def read_receipts(
-    retailer: Optional[str] = None,
+    retailer: str | None = None,
     page: int = 1,
     page_size: int = 50,
 ) -> dict:
@@ -23,9 +23,9 @@ def read_receipts(
 @router.get("/by-item")
 def read_receipts_by_item(
     name: str,
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> list[dict]:
     return list_receipts_by_item(
         name=name,
@@ -39,7 +39,7 @@ def read_receipts_by_item(
 def read_receipts_by_date(
     start_date: str,
     end_date: str,
-    retailer: Optional[str] = None,
+    retailer: str | None = None,
 ) -> list[dict]:
     return list_receipts_by_date_range(
         start_date=start_date,
@@ -49,7 +49,7 @@ def read_receipts_by_date(
 
 
 @router.get("/{receipt_id}", response_model=ItemResponse)
-def read_receipt(receipt_id: str, retailer: Optional[str] = None) -> dict:
+def read_receipt(receipt_id: str, retailer: str | None = None) -> dict:
     try:
         return get_receipt(receipt_id, retailer=retailer)
     except KeyError as exc:
@@ -57,7 +57,7 @@ def read_receipt(receipt_id: str, retailer: Optional[str] = None) -> dict:
 
 
 @router.get("/{receipt_id}/items", response_model=ItemResponse)
-def read_receipt_items(receipt_id: str, retailer: Optional[str] = None) -> dict:
+def read_receipt_items(receipt_id: str, retailer: str | None = None) -> dict:
     try:
         return get_receipt_items(receipt_id, retailer=retailer)
     except KeyError as exc:
@@ -65,7 +65,7 @@ def read_receipt_items(receipt_id: str, retailer: Optional[str] = None) -> dict:
 
 
 @router.get("/{receipt_id}/payments", response_model=ItemResponse)
-def read_receipt_payments(receipt_id: str, retailer: Optional[str] = None) -> dict:
+def read_receipt_payments(receipt_id: str, retailer: str | None = None) -> dict:
     try:
         return get_receipt_payments(receipt_id, retailer=retailer)
     except KeyError as exc:

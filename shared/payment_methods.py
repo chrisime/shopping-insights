@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping
 
 
 METHOD_CARD = "Karte"
@@ -51,7 +51,7 @@ RETAILER_NETWORK_ALIASES = {
 }
 
 
-def normalize_payment_method_entry(payment_method: Mapping[str, Any]) -> Optional[dict]:
+def normalize_payment_method_entry(payment_method: Mapping[str, Any]) -> dict | None:
     """Normalize a payment method entry to the canonical stored schema."""
     method = _normalize_text(payment_method.get("method"))
     network = _normalize_text(payment_method.get("network"))
@@ -87,14 +87,14 @@ def normalize_payment_method_entry(payment_method: Mapping[str, Any]) -> Optiona
     return normalized
 
 
-def _lookup_card_network(value: Optional[str]) -> Optional[str]:
+def _lookup_card_network(value: str | None) -> str | None:
     normalized = _normalize_text(value)
     if not normalized:
         return None
     return CARD_NETWORK_ALIASES.get(normalized.lower())
 
 
-def _lookup_method_alias(value: str) -> Optional[str]:
+def _lookup_method_alias(value: str) -> str | None:
     normalized = _normalize_text(value)
     if not normalized:
         return None
@@ -106,7 +106,7 @@ def _lookup_method_alias(value: str) -> Optional[str]:
     return None
 
 
-def _detect_retailer_network(retailer: Optional[str], method: Optional[str], network: Optional[str]) -> Optional[str]:
+def _detect_retailer_network(retailer: str | None, method: str | None, network: str | None) -> str | None:
     normalized = _normalize_text(retailer)
     if normalized:
         explicit_retailer = RETAILER_NETWORK_ALIASES.get(normalized.lower())
@@ -125,7 +125,7 @@ def _detect_retailer_network(retailer: Optional[str], method: Optional[str], net
     return None
 
 
-def _normalize_text(value: Optional[str]) -> Optional[str]:
+def _normalize_text(value: str | None) -> str | None:
     if value is None:
         return None
     normalized = re.sub(r"\s+", " ", str(value)).strip()
@@ -134,7 +134,7 @@ def _normalize_text(value: Optional[str]) -> Optional[str]:
     return normalized
 
 
-def _normalize_money_value(value: Any) -> Optional[float]:
+def _normalize_money_value(value: Any) -> float | None:
     if value is None or value == "":
         return None
     if isinstance(value, (int, float)):

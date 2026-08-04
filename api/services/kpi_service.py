@@ -1,6 +1,6 @@
 """Service functions for KPI endpoints."""
 
-from typing import Any, Optional
+from typing import Any
 
 from storage.kpi_store import MetricsStore
 
@@ -8,9 +8,9 @@ from api.schemas.kpis import KpiBonus, KpiSummary, TimeSeriesRow, TopItemRow, We
 
 
 def get_summary(
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> KpiSummary:
     kpis = MetricsStore().basic_kpis(
         retailer=retailer,
@@ -29,9 +29,9 @@ def get_summary(
 
 
 def get_bonus(
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> KpiBonus:
     bonus = MetricsStore().retailer_bonus_kpis(
         retailer=retailer,
@@ -48,9 +48,9 @@ def get_bonus(
 
 
 def get_trend(
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     granularity: str = "day",
 ) -> list[dict[str, Any]]:
     store = MetricsStore()
@@ -64,9 +64,9 @@ def get_trend(
 
 
 def get_top_items(
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     sort: str = "quantity",
     limit: int = 20,
 ) -> list[dict[str, Any]]:
@@ -89,9 +89,9 @@ def get_top_items(
 
 
 def get_weekday(
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> list[dict[str, Any]]:
     rows = MetricsStore().weekday_analysis(retailer=retailer, start_date=start_date, end_date=end_date)
     return [row.__dict__ for row in rows]

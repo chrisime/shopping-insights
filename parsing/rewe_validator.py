@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, List
+
 
 from shared.receipt_dates import normalize_purchase_date_from_receipt_id_token
 from shared.receipt_schema import ReceiptData
@@ -37,7 +37,7 @@ _REWE_POS_FIELD_PATTERNS = {
 
 def validate_rewe_receipt_data(receipt_data: ReceiptData) -> None:
     """Validate a parsed REWE receipt and raise when the format looks broken."""
-    issues: List[ValidationIssue] = []
+    issues: list[ValidationIssue] = []
 
     retailer = str(receipt_data.get("retailer") or "").strip().lower()
     if retailer and retailer != "rewe":
@@ -72,9 +72,9 @@ def validate_rewe_receipt_data(receipt_data: ReceiptData) -> None:
 
 
 def _validate_id_consistency(
-    receipt_data: Dict[str, str | None],
+    receipt_data: dict[str, str | None],
     id_match: re.Match[str],
-    issues: List[ValidationIssue],
+    issues: list[ValidationIssue],
 ) -> None:
     expected_market = id_match.group("market")
     expected_register = id_match.group("register")

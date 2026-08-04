@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -38,7 +38,7 @@ class WorkflowSummary:
 class ReceiptParseResult:
     """Structured parser result with optional receipt data and skip reason."""
 
-    receipt_data: Optional[Dict[str, Any]]
-    skip_reason: Optional[str] = None
+    receipt_data: dict[str, Any] | None
+    skip_reason: str | None = None
 
 

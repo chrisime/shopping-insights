@@ -1,7 +1,7 @@
 """Extract receipt items from HTML content."""
 
 import logging
-from typing import List, Dict, Any
+from typing import Any
 from bs4 import BeautifulSoup
 
 from shared.float_parser import parse_german_float
@@ -11,7 +11,7 @@ from shared.receipt_schema import build_receipt_item
 logger = logging.getLogger(__name__)
 
 
-def extract_lidl_receipt_items(soup: BeautifulSoup) -> List[Dict[str, Any]]:
+def extract_lidl_receipt_items(soup: BeautifulSoup) -> list[dict[str, Any]]:
     """Extract items from a Lidl HTML receipt."""
     items = []
     try:

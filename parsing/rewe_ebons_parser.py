@@ -8,7 +8,7 @@ information into a dict compatible with the existing JSON storage.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
+
 
 import pdfplumber
 
@@ -35,7 +35,7 @@ def parse_rewe_ticket(pdf_path: str | Path) -> ReceiptData:
     return _build_receipt_data(path, text, lines)
 
 
-def _build_receipt_data(path: Path, text: str, lines: List[str]) -> ReceiptData:
+def _build_receipt_data(path: Path, text: str, lines: list[str]) -> ReceiptData:
     metadata = extract_rewe_receipt_info(text, lines)
     receipt_id = metadata.get("id")
     purchase_date = metadata.get("purchase_date")

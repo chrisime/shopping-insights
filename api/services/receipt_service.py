@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from math import ceil
-from typing import Any, Optional
+from typing import Any
 
 from storage.sqlite_receipt_store import SqliteReceiptStore
 
 
 def list_receipts(
-    retailer: Optional[str] = None,
+    retailer: str | None = None,
     page: int = 1,
     page_size: int = 50,
 ) -> dict[str, Any]:
@@ -29,7 +29,7 @@ def list_receipts(
     }
 
 
-def get_receipt(receipt_id: str, retailer: Optional[str] = None) -> dict[str, Any]:
+def get_receipt(receipt_id: str, retailer: str | None = None) -> dict[str, Any]:
     receipts = SqliteReceiptStore.list_receipts(retailer=retailer or "")
     for receipt in receipts:
         if str(receipt.get("id")) == receipt_id:
@@ -37,21 +37,21 @@ def get_receipt(receipt_id: str, retailer: Optional[str] = None) -> dict[str, An
     raise KeyError(receipt_id)
 
 
-def get_receipt_items(receipt_id: str, retailer: Optional[str] = None) -> dict[str, Any]:
+def get_receipt_items(receipt_id: str, retailer: str | None = None) -> dict[str, Any]:
     receipt = get_receipt(receipt_id, retailer=retailer)["data"]
     return {"data": receipt.get("items", [])}
 
 
-def get_receipt_payments(receipt_id: str, retailer: Optional[str] = None) -> dict[str, Any]:
+def get_receipt_payments(receipt_id: str, retailer: str | None = None) -> dict[str, Any]:
     receipt = get_receipt(receipt_id, retailer=retailer)["data"]
     return {"data": receipt.get("payment_methods", [])}
 
 
 def list_receipts_by_item(
     name: str,
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> list[dict[str, Any]]:
     return SqliteReceiptStore.list_receipts_by_item(
         name=name,
@@ -64,7 +64,7 @@ def list_receipts_by_item(
 def list_receipts_by_date_range(
     start_date: str,
     end_date: str,
-    retailer: Optional[str] = None,
+    retailer: str | None = None,
 ) -> list[dict[str, Any]]:
     return SqliteReceiptStore.list_receipts_by_date_range(
         start_date=start_date,

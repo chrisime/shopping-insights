@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from shared.float_parser import parse_german_float
 from bs4 import BeautifulSoup
 
 
-def apply_lidl_discount_fields(receipt_data: Dict[str, Any], soup: BeautifulSoup) -> Dict[str, Any]:
+def apply_lidl_discount_fields(receipt_data: dict[str, Any], soup: BeautifulSoup) -> dict[str, Any]:
     """Extract and classify regular and sticker-like discounts from the purchase list text."""
     try:
         purchase_list = soup.find("span", class_="purchase_list")
@@ -45,7 +45,7 @@ def apply_lidl_discount_fields(receipt_data: Dict[str, Any], soup: BeautifulSoup
     return receipt_data
 
 
-def _parse_lidl_discount_line(line: str) -> Optional[Dict[str, Any]]:
+def _parse_lidl_discount_line(line: str) -> dict[str, Any] | None:
     """Classify a Lidl discount line into a known discount kind with parsed values."""
     if not line:
         return None
@@ -73,7 +73,7 @@ def _parse_lidl_discount_line(line: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def apply_lidl_plus_discount(receipt_data: Dict[str, Any], soup: BeautifulSoup) -> Dict[str, Any]:
+def apply_lidl_plus_discount(receipt_data: dict[str, Any], soup: BeautifulSoup) -> dict[str, Any]:
     """Extract the Lidl Plus discount (EUR gespart) from the receipt HTML."""
     try:
         vat_info_elements = soup.find_all("span", class_="vat_info")

@@ -1,6 +1,6 @@
 """Pydantic schemas for KPI endpoints."""
 
-from typing import Optional
+
 
 from pydantic import BaseModel
 
@@ -11,8 +11,8 @@ class KpiSummary(BaseModel):
     avg_receipt: float
     total_discount: float
     total_saved_deposit: float
-    min_date: Optional[str]
-    max_date: Optional[str]
+    min_date: str | None
+    max_date: str | None
 
 
 class KpiSummaryResponse(BaseModel):

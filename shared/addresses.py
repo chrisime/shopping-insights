@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
+
 
 
 def empty_address() -> dict:
@@ -34,7 +34,7 @@ def normalize_address(address: object) -> dict:
     return normalized
 
 
-def _normalize_zip(value: object) -> Optional[int]:
+def _normalize_zip(value: object) -> int | None:
     if value is None:
         return None
     text = str(value).strip()

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from shared.float_parser import parse_german_float
 from bs4 import BeautifulSoup
@@ -14,17 +14,17 @@ from bs4 import BeautifulSoup
 class ReceiptTotalsDTO:
     """Common totals result used by Lidl and REWE extractors."""
 
-    discount: Optional[float]
-    saved_deposit: Optional[float]
-    total_price: Optional[float]
-    additional_savings: Dict[str, float] = field(default_factory=dict)
+    discount: float | None
+    saved_deposit: float | None
+    total_price: float | None
+    additional_savings: dict[str, float] = field(default_factory=dict)
 
 
 def extract_lidl_totals(
     soup: BeautifulSoup,
-    discount: Optional[Any] = None,
-    lidlplus_discount: Optional[Any] = None,
-    sticker_discount: Optional[Any] = None,
+    discount: Any | None = None,
+    lidlplus_discount: Any | None = None,
+    sticker_discount: Any | None = None,
 ) -> ReceiptTotalsDTO:
     """Extract and calculate Lidl totals in one step from HTML + parsed fields."""
     coerced_discount = _coerce_optional_float(discount)
@@ -33,7 +33,7 @@ def extract_lidl_totals(
     saved_deposit = _extract_pfand_savings_from_html(soup)
     rounded_deposit = round(saved_deposit, 2) if saved_deposit > 0 else None
 
-    additional_savings: Dict[str, float] = {}
+    additional_savings: dict[str, float] = {}
     if coerced_lidlplus:
         additional_savings["lidlplus_discount"] = coerced_lidlplus
     if coerced_sticker:
@@ -47,7 +47,7 @@ def extract_lidl_totals(
     )
 
 
-def _coerce_optional_float(value: Optional[Any]) -> Optional[float]:
+def _coerce_optional_float(value: Any | None) -> float | None:
     if value is None:
         return None
     try:

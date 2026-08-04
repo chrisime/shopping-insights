@@ -1,6 +1,6 @@
 """KPI API routes."""
 
-from typing import Optional
+
 
 from fastapi import APIRouter
 
@@ -19,9 +19,9 @@ router = APIRouter(prefix="/kpis", tags=["kpis"])
 
 @router.get("/summary", response_model=KpiSummaryResponse)
 def read_summary(
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> KpiSummaryResponse:
     return KpiSummaryResponse(
         data=get_summary(
@@ -34,18 +34,18 @@ def read_summary(
 
 @router.get("/bonus", response_model=KpiBonusResponse)
 def read_bonus(
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> KpiBonusResponse:
     return KpiBonusResponse(data=get_bonus(retailer=retailer, start_date=start_date, end_date=end_date))
 
 
 @router.get("/trend", response_model=KpiTrendResponse)
 def read_trend(
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     granularity: str = "day",
 ) -> KpiTrendResponse:
     return KpiTrendResponse(
@@ -60,9 +60,9 @@ def read_trend(
 
 @router.get("/top-items", response_model=KpiTopItemsResponse)
 def read_top_items(
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     sort: str = "quantity",
     limit: int = 20,
 ) -> KpiTopItemsResponse:
@@ -79,9 +79,9 @@ def read_top_items(
 
 @router.get("/weekday", response_model=KpiWeekdayResponse)
 def read_weekday(
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> KpiWeekdayResponse:
     return KpiWeekdayResponse(
         data=get_weekday(retailer=retailer, start_date=start_date, end_date=end_date)

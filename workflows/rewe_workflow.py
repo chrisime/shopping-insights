@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 import zipfile
 
 from requests import Session
@@ -16,7 +16,7 @@ from shared.receipt_store import ReceiptStore
 from storage import create_receipt_store
 
 from .import_workflow import ImportWorkflow, resolve_auth_method
-from .import_pipeline import ImportPipeline
+from .local_import import identity_loader, import_local_sources
 from .pipeline_types import WorkflowResult
 from .workflow_constants import RETAILER_REWE, REASON_KIND_REWE_PDF_PARSE
 from .workflow_errors import rewe_initial_error, set_last_workflow_error, clear_last_workflow_error, WorkflowErrorInfo
@@ -31,20 +31,14 @@ __all__ = [
 ]
 
 
-class _ReweImportPipeline(ImportPipeline):
-    load_error_reason_kind = REASON_KIND_REWE_PDF_PARSE
-    retailer_display_name = "REWE"
-    _skipped_report_filename = ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE
-
-
 class _ReweImportWorkflow(ImportWorkflow):
     """Concrete REWE workflow: ZIP download and PDF extraction followed by local import."""
 
-    def __init__(self, customer_id: Optional[str], browser: Optional[str], cookies_file: Optional[str]) -> None:
+    def __init__(self, customer_id: str | None, browser: str | None, cookies_file: str | None) -> None:
         self._customer_id = customer_id
         self._browser = browser
         self._cookies_file = cookies_file
-        self._resolved_customer_id: Optional[str] = None
+        self._resolved_customer_id: str | None = None
 
     def _source_subdir_name(self) -> str:
         return "pdfs"
@@ -94,9 +88,9 @@ class _ReweImportWorkflow(ImportWorkflow):
 
 
 def run_rewe_initial(
-        customer_id: Optional[str] = None,
-        browser: Optional[str] = None,
-        cookies_file: Optional[str] = None,
+        customer_id: str | None = None,
+        browser: str | None = None,
+        cookies_file: str | None = None,
         output_dir: str = ReweConfig.REWE_DEFAULT_OUTPUT_DIR,
         progress_listener: Callable[[object], None] | None = None,
 ) -> bool:
@@ -130,22 +124,27 @@ def _run_rewe_pdf_import_pipeline(
 ) -> WorkflowResult:
     """Parse, validate and persist extracted REWE PDFs and return a normalized workflow result."""
     active_pdf_paths = sorted(pdf_dir.glob("*.pdf"))
-    return _ReweImportPipeline().run(
+    return import_local_sources(
         source_paths=active_pdf_paths,
         source_dir=pdf_dir,
         retailer=RETAILER_REWE,
         receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
         store=store,
+        loader=identity_loader,
+        detail_key="receipt_id",
+        load_error_reason_kind=REASON_KIND_REWE_PDF_PARSE,
+        retailer_display_name="REWE",
+        skipped_report_filename=ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE,
         progress_listener=progress_listener,
     )
 
 
 def _prepare_rewe_session(
-        customer_id: Optional[str],
-        browser: Optional[str],
-        cookies_file: Optional[str],
+        customer_id: str | None,
+        browser: str | None,
+        cookies_file: str | None,
         output_dir: Path,
-) -> Optional[tuple[Session, Optional[str]]]:
+) -> tuple[Session, str | None] | None:
     """Load the REWE session and resolve the customer id for the initial import."""
     auth_method = resolve_auth_method(browser, cookies_file, "REWE")
     if not auth_method:
@@ -205,7 +204,7 @@ def _rewe_initial_error(error_code: int, detail: str | None = None) -> WorkflowE
 
 def _download_and_extract_rewe_zip(
         session: Session,
-        customer_id: Optional[str],
+        customer_id: str | None,
         zip_path: Path,
         pdf_output_dir: Path,
 ) -> bool:

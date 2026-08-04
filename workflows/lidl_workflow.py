@@ -2,7 +2,7 @@
 
 import time
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Sequence
+from typing import Any, Callable, Sequence
 
 import simplejson
 from client.lidl_client import collect_lidl_receipt_ids, get_lidl_ticket, test_lidl_session
@@ -15,7 +15,7 @@ from shared.receipt_store import ReceiptStore
 from shared.lidl_ticket_dto import LidlTicketDTO
 from storage import create_receipt_store
 from .import_workflow import ImportWorkflow, resolve_auth_method
-from .import_pipeline import ImportPipeline
+from .local_import import import_local_sources
 from .pipeline_types import WorkflowResult
 from .progress_display import ReceiptProgressDisplay
 from .workflow_constants import RETAILER_LIDL, REASON_KIND_LIDL_FETCH
@@ -27,28 +27,23 @@ __all__ = [
 ]
 
 
-class _LidlImportPipeline(ImportPipeline):
-    detail_key = "receipt_id"
-    load_error_reason_kind = REASON_KIND_LIDL_FETCH
-    retailer_display_name = "LIDL"
-    _skipped_report_filename = LidlConfig.SKIPPED_RECEIPTS_REPORT_FILE
-
-    def load_payload(self, source_path: Path) -> Any:
-        ticket_data = simplejson.loads(source_path.read_text(encoding="utf-8"))
-        receipt_id = source_path.stem
-        if isinstance(ticket_data, dict):
-            return LidlTicketDTO.from_api_response(ticket_data, receipt_id)
-        raise ValueError("Ungültiges LIDL-Ticketformat: erwartetes JSON-Objekt")
+def _load_lidl_ticket_payload(source_path: Path) -> Any:
+    """Load one local ticket JSON file into a LidlTicketDTO."""
+    ticket_data = simplejson.loads(source_path.read_text(encoding="utf-8"))
+    receipt_id = source_path.stem
+    if isinstance(ticket_data, dict):
+        return LidlTicketDTO.from_api_response(ticket_data, receipt_id)
+    raise ValueError("Ungültiges LIDL-Ticketformat: erwartetes JSON-Objekt")
 
 
 class _LidlImportWorkflow(ImportWorkflow):
     """Concrete LIDL workflow: API download of ticket JSONs followed by local import."""
 
-    def __init__(self, browser: Optional[str], cookies_file: Optional[str], country: Optional[str]) -> None:
+    def __init__(self, browser: str | None, cookies_file: str | None, country: str | None) -> None:
         self._browser = browser
         self._cookies_file = cookies_file
         self._country = country
-        self._checked_pages: Optional[int] = None
+        self._checked_pages: int | None = None
 
     def _source_subdir_name(self) -> str:
         return "tickets"
@@ -96,12 +91,17 @@ class _LidlImportWorkflow(ImportWorkflow):
         progress_listener: Callable[[object], None] | None = None,
     ) -> WorkflowResult:
         tickets_dir = self._source_dir(output_dir)
-        return _LidlImportPipeline().run(
+        return import_local_sources(
             source_paths=sorted(tickets_dir.glob("*.json")),
             source_dir=tickets_dir,
             retailer=RETAILER_LIDL,
             receipts_file=storage_config.SQLITE_RECEIPTS_DB_FILE,
             store=store,
+            loader=_load_lidl_ticket_payload,
+            detail_key="receipt_id",
+            load_error_reason_kind=REASON_KIND_LIDL_FETCH,
+            retailer_display_name="LIDL",
+            skipped_report_filename=LidlConfig.SKIPPED_RECEIPTS_REPORT_FILE,
             checked_pages=self._checked_pages,
             progress_listener=progress_listener,
         )
@@ -119,9 +119,9 @@ class _LidlImportWorkflow(ImportWorkflow):
 
 
 def run_lidl_initial(
-    browser: Optional[str] = None,
-    cookies_file: Optional[str] = None,
-    country: Optional[str] = None,
+    browser: str | None = None,
+    cookies_file: str | None = None,
+    country: str | None = None,
     output_dir: str = LidlConfig.DEFAULT_OUTPUT_DIR,
     progress_listener: Callable[[object], None] | None = None,
 ) -> bool:
@@ -149,7 +149,7 @@ def run_lidl_update(
     )
 
 
-def _prepare_lidl_session(browser: Optional[str], cookies_file: Optional[str], country: Optional[str]) -> Optional[Session]:
+def _prepare_lidl_session(browser: str | None, cookies_file: str | None, country: str | None) -> Session | None:
     """Configure, authenticate and verify the LIDL session."""
     if country:
         LidlConfig.set_country(country)
@@ -190,7 +190,7 @@ def _test_lidl_workflow_session(session: Session) -> bool:
 
 def _download_lidl_tickets(
     session: Session,
-    receipt_ids: List[str],
+    receipt_ids: list[str],
     tickets_dir: Path,
     progress_listener: Callable[[object], None] | None = None,
 ) -> None:
@@ -234,6 +234,6 @@ def _download_lidl_tickets(
     print(f"✓ {saved_count} Ticket-JSONs gespeichert nach: {tickets_dir}")
 
 
-def _filter_new_lidl_receipt_ids(discovered_receipt_ids: Sequence[str], existing_receipt_ids: set[str]) -> List[str]:
+def _filter_new_lidl_receipt_ids(discovered_receipt_ids: Sequence[str], existing_receipt_ids: set[str]) -> list[str]:
     """Return only new receipt ids and keep their original discovery order."""
     return [receipt_id for receipt_id in dict.fromkeys(discovered_receipt_ids) if receipt_id not in existing_receipt_ids]

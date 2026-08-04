@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Optional
+
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +15,15 @@ from .cookie_policies import (
     REQUIRED_LIDL_COOKIE_NAMES,
     RECOMMENDED_LIDL_COOKIE_NAMES,
 )
-from .shared_file_auth import (
+from .cookie_diagnostics import (
     CookieDiagnosticExtras,
     CookieDiagnosticProfile,
     assess_cookie_quality,
+    print_cookie_diagnostics,
+)
+from .shared_file_auth import (
     build_cookie_session,
     parse_json_cookie_export,
-    print_cookie_diagnostics,
     read_utf8_text_file,
 )
 from .jwt_expiry import extract_jwt_expiry_epoch, is_jwt_expired
@@ -58,8 +60,8 @@ def _build_lidl_diagnostic_extras(cookie_names: set[str]) -> CookieDiagnosticExt
 
 
 def load_lidl_cookies_from_file(
-    file_path: Optional[str] = None,
-) -> Optional[requests.Session]:
+    file_path: str | None = None,
+) -> requests.Session | None:
     """
     Load authentication cookies from a JSON file (e.g., exported from EditThisCookie).
 
@@ -133,7 +135,7 @@ def load_lidl_cookies_from_file(
         return None
 
 
-def diagnose_lidl_cookie_file(file_path: Optional[str] = None) -> bool:
+def diagnose_lidl_cookie_file(file_path: str | None = None) -> bool:
     """Analyze a LIDL cookie file and print actionable diagnostics."""
     if file_path is None:
         file_path = LidlConfig.COOKIES_JSON_FILE

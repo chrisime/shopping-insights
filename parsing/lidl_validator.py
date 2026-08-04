@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List
+
 
 from shared.receipt_schema import ReceiptData
 from shared.validation import (
@@ -40,7 +40,7 @@ _LIDL_POS_FIELD_PATTERNS = {
 
 def validate_lidl_receipt_data(receipt_data: ReceiptData) -> None:
     """Validate a parsed Lidl receipt and raise when the format looks broken."""
-    issues: List[ValidationIssue] = []
+    issues: list[ValidationIssue] = []
 
     validate_common_receipt_fields(
         receipt_data, issues, pos_field_patterns=_LIDL_POS_FIELD_PATTERNS

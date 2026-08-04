@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from typing import Callable, Dict, Iterable, Mapping, Optional, Set
+from typing import Callable, Iterable, Mapping
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +21,12 @@ import requests
 from requests.cookies import create_cookie
 
 from .session_cookie_recovery import read_session_cookies_for_domain
-from .shared_file_auth import analyze_cookie_names
+from .cookie_diagnostics import analyze_cookie_names
 
 
 # Single source of truth for the available browser_cookie3 loaders.
 # Subclasses pick a subset via ``supported_browsers``.
-ALL_BROWSER_LOADERS: Dict[str, Callable] = {
+ALL_BROWSER_LOADERS: dict[str, Callable] = {
     "firefox": browser_cookie3.firefox,
     "librewolf": browser_cookie3.librewolf,
     "chrome": browser_cookie3.chrome,
@@ -50,11 +50,11 @@ class BrowserCookieExtractor:
     supported_browsers: Mapping[str, str] = {}
 
     # --- Optional configuration -------------------------------------------
-    default_user_agent: Optional[str] = None
+    default_user_agent: str | None = None
     # Cookies that MUST be present after extraction; emptiness disables check.
-    required_cookies: Set[str] = set()
+    required_cookies: set[str] = set()
     # Cookies whose absence triggers a soft warning.
-    recommended_cookies: Set[str] = set()
+    recommended_cookies: set[str] = set()
     # Whether the cookie's ``expires`` value should be carried over.
     include_expires: bool = False
     # Whether to drop cookies whose domain does not end in ``cookie_domain``.
@@ -63,7 +63,7 @@ class BrowserCookieExtractor:
     # ----------------------------------------------------------------------
     # Public API
     # ----------------------------------------------------------------------
-    def extract(self, browser: str = "firefox") -> Optional[requests.Session]:
+    def extract(self, browser: str = "firefox") -> requests.Session | None:
         """Extract cookies from the given browser into a ``requests.Session``.
 
         Returns ``None`` on any error so callers can fall back gracefully.
@@ -202,7 +202,7 @@ class BrowserCookieExtractor:
         logger.error("✗ Keine %s-Cookies im lokalen %s-Profil gefunden.", self.retailer_name, browser_label)
 
     def _on_missing_required(
-        self, cookie_names: Set[str], browser_label: str
+        self, cookie_names: set[str], browser_label: str
     ) -> None:
         """Hook for retailer-specific extra hints when required cookies are missing."""
         return None

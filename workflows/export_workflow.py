@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Optional
+
 
 from config import storage_config
 from export.json_export import export_receipts_from_db
 from shared.retailer_runtime import get_retailer_runtime
 
 
-def run_export_json_from_db(retailer: str, output_file: Optional[str] = None) -> bool:
+def run_export_json_from_db(retailer: str, output_file: str | None = None) -> bool:
     """Export all receipts of one retailer from SQLite into a JSON file."""
     print(f"\n=== EXPORT: {retailer} nach JSON ===")
 

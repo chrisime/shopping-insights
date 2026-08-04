@@ -6,7 +6,7 @@ dedicated modules for single-responsibility separation.
 """
 
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 from bs4 import BeautifulSoup
 
 from shared.float_parser import parse_german_float
@@ -25,8 +25,8 @@ def extract_lidl_receipt_info(
     soup: BeautifulSoup,
     receipt_id: str,
     store: str,
-    address: Optional[dict] = None,
-) -> Dict[str, Any]:
+    address: dict | None = None,
+) -> dict[str, Any]:
     """Extract raw receipt metadata from Lidl HTML.
 
     Returns a dict with resolved store/address plus extracted fields:
@@ -53,7 +53,7 @@ def extract_lidl_receipt_info(
         )
     )
 
-    raw: Dict[str, Any] = {
+    raw: dict[str, Any] = {
         "store": resolved_store_name,
         "address": resolved_address,
         "payment_methods": [],
@@ -77,7 +77,7 @@ def extract_lidl_receipt_info(
     return raw
 
 
-def _extract_lidl_store_name_from_html(soup: BeautifulSoup) -> Optional[str]:
+def _extract_lidl_store_name_from_html(soup: BeautifulSoup) -> str | None:
     """Extract branch name from the first Lidl header line when available."""
     header_lines = _extract_lidl_header_lines(soup, include_fallback=False)
     if len(header_lines) < 3:
@@ -93,8 +93,8 @@ def _extract_lidl_store_name_from_html(soup: BeautifulSoup) -> Optional[str]:
 
 def _resolve_lidl_store_name(
     fallback_store_name: str,
-    api_address: Dict[str, Any],
-    html_address: Dict[str, Any],
+    api_address: dict[str, Any],
+    html_address: dict[str, Any],
 ) -> str:
 
     resolved_store_name = (fallback_store_name or _LIDL_STORE_NAME).strip() or _LIDL_STORE_NAME
@@ -110,7 +110,7 @@ def _resolve_lidl_store_name(
     return resolved_store_name
 
 
-def _has_address_content(address: Dict[str, Any]) -> bool:
+def _has_address_content(address: dict[str, Any]) -> bool:
     return any(address.get(key) not in (None, "") for key in ("street", "street_no", "zip", "city"))
 
 
@@ -137,7 +137,7 @@ def _extract_lidl_header_lines(soup: BeautifulSoup, *, include_fallback: bool = 
     return list(soup.stripped_strings)[:_LIDL_HEADER_LINES_LIMIT]
 
 
-def _apply_lidl_total_price(receipt_data: Dict[str, Any], soup: BeautifulSoup) -> Dict[str, Any]:
+def _apply_lidl_total_price(receipt_data: dict[str, Any], soup: BeautifulSoup) -> dict[str, Any]:
     """Apply the final amount to pay from Lidl summary or tender lines to the receipt data."""
     try:
         purchase_summary_elements = soup.find_all(id=re.compile(r"^purchase_summary_"))

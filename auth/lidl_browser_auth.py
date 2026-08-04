@@ -1,7 +1,7 @@
 """LIDL browser cookie extraction (subclass of BrowserCookieExtractor)."""
 
 import logging
-from typing import Set
+
 
 logger = logging.getLogger(__name__)
 import requests
@@ -36,7 +36,7 @@ class LidlBrowserCookieExtractor(BrowserCookieExtractor):
         logger.info("2. Die Lidl-Website (www.%s) in %s geöffnet ist", self.cookie_domain, browser_label)
 
     def _on_missing_required(
-        self, cookie_names: Set[str], _browser_label: str
+        self, cookie_names: set[str], _browser_label: str
     ) -> None:
         if LIDL_IDENTITY_COOKIE_NAMES & cookie_names:
             logger.info(

@@ -1,6 +1,6 @@
 """Linear shared workflow stages for parsing, validation and persistence."""
 
-from typing import Any, Callable, Optional, Sequence, TypeVar
+from typing import Any, Callable, Sequence, TypeVar
 
 from parsing.lidl_receipt_parser import parse_lidl_ticket
 from parsing.lidl_validator import (
@@ -70,7 +70,7 @@ def parse_receipts(
     raw_records: Sequence[RawReceiptRecord],
     retailer: str,
     detail_key: str = "receipt_id",
-    unexpected_error_kind: Optional[str] = None,
+    unexpected_error_kind: str | None = None,
     progress_listener: Callable[["ProgressState"], None] | None = None,
 ) -> StageResult[ParsedReceiptRecord]:
     """Parse raw retailer payloads into normalized receipt records."""

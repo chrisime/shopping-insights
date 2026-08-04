@@ -24,7 +24,7 @@
 - Bar click → ReceiptListModal via `GET /receipts/by-date` API.
 - Monthly x-axis shows "Jan 2024" format.
 - Time-series DTO includes `retailers` field (GROUP_CONCAT in SQL).
-- Backend: 424 tests passing. Frontend: 65 tests (17 files) passing, build succeeds.
+- Backend: 429 tests passing. Frontend: 65 tests (17 files) passing, build succeeds.
 
 ## Backend
 - Start the API with `./start_backend.sh`.
@@ -34,6 +34,7 @@
 - Time-series KPIs in `storage/kpi_store.py` use `GROUP_CONCAT(DISTINCT s.retailer_code)` for retailer aggregation.
 - `shared/kpi_dtos.py` defines `TimeSeriesRow` DTO with `retailers: list[str]`.
 - Receipt fetching and parsing are driven by the workflow layer under `workflows/`.
+- `workflows/local_import.py` provides the shared `import_local_sources()` import path (load → parse → validate → persist → skipped report) with an injectable `loader`; `workflows/import_workflow.py` holds the single thin `ImportWorkflow` base.
 - `client/lidl_client.py` handles Lidl ticket page collection with retry/backoff.
 - `workflows/lidl_workflow.py` uses `collect_lidl_receipt_ids()` and `get_lidl_ticket()`.
 - `workflows/rewe_workflow.py` drives REWE initial/update imports.
@@ -51,7 +52,7 @@
 - REWE export from SQLite: `python fetch_tickets.py export --retailer rewe --output-file rewe_receipts.json`
 
 ## Recent Verification
-- `python3 -m pytest -q` → 424 passed.
+- `python3 -m pytest -q` → 429 passed.
 - `corepack pnpm test -- --run` → 65 passed (17 files).
 - `corepack pnpm build` → builds cleanly.
 - `./start_backend.sh` then `curl http://localhost:8000/ui` confirms API responds.
@@ -68,12 +69,13 @@
 ## Relevant Files
 - `api/main.py`
 - `api/routes/`
-- `api/services/`
+- `api/services/` — split: `dashboard_models.py` (DTOs), `dashboard_builders.py` (pure builders), `dashboard_service.py` (thin service)
 - `shared/kpi_dtos.py` — TimeSeriesRow with `retailers` field
 - `storage/kpi_store.py` — GROUP_CONCAT in time-series SQL
 - `client/lidl_client.py`
 - `fetch_tickets.py`
-- `workflows/`
+- `workflows/` — de-abstraction: `local_import.py` (shared import path), `lidl_workflow.py`, `rewe_workflow.py`, `import_workflow.py` (thin base); `import_pipeline.py` removed
+- `auth/cookie_diagnostics.py` — split from `shared_file_auth.py` (session construction remains in `shared_file_auth.py`)
 - `frontend/dashboard_errors.py`
 - `frontend/dashboard_state.py`
 - `frontend/ui_model.py`

@@ -3,7 +3,7 @@
 import re
 import logging
 from pathlib import Path
-from typing import Optional
+
 
 from pyarrow.lib import UUID
 
@@ -25,11 +25,11 @@ CACHE_FILE_NAME = "customer_id.txt"
 
 
 def resolve_rewe_customer_id(
-    customer_id: Optional[str],
-    session: Optional[requests.Session],
-    cookies_file: Optional[str],
+    customer_id: str | None,
+    session: requests.Session | None,
+    cookies_file: str | None,
     output_dir: Path,
-) -> Optional[str]:
+) -> str | None:
     """Resolve a usable REWE customerId from explicit input, session, local files or cache."""
     if customer_id:
         return _normalize_customer_id(customer_id)
@@ -45,7 +45,7 @@ def resolve_rewe_customer_id(
     return _load_cached_customer_id(output_dir)
 
 
-def _read_customer_id_from_session(session: Optional[requests.Session]) -> Optional[str]:
+def _read_customer_id_from_session(session: requests.Session | None) -> str | None:
     """Read the current REWE customer UUID from the authenticated coupon wallet endpoint."""
     if session is None:
         return None
@@ -90,7 +90,7 @@ def cache_customer_id(customer_id: str, output_dir: Path) -> None:
     cache_path.write_text(normalized, encoding="utf-8")
 
 
-def _load_cached_customer_id(output_dir: Path) -> Optional[str]:
+def _load_cached_customer_id(output_dir: Path) -> str | None:
     """Load a previously cached REWE customerId if present."""
     cache_path = output_dir / CACHE_FILE_NAME
     if not cache_path.exists():
@@ -100,7 +100,7 @@ def _load_cached_customer_id(output_dir: Path) -> Optional[str]:
     return _normalize_customer_id(raw_text) or extract_rewe_customer_id_from_text(raw_text)
 
 
-def _read_customer_id_from_file(file_path: Optional[Path]) -> Optional[str]:
+def _read_customer_id_from_file(file_path: Path | None) -> str | None:
     """Search a file for a raw UUID or a customerId key/value occurrence."""
     if file_path is None or not file_path.exists():
         return None
@@ -109,7 +109,7 @@ def _read_customer_id_from_file(file_path: Optional[Path]) -> Optional[str]:
     return _normalize_customer_id(raw_text) or extract_rewe_customer_id_from_text(raw_text)
 
 
-def extract_rewe_customer_id_from_text(raw_text: str) -> Optional[str]:
+def extract_rewe_customer_id_from_text(raw_text: str) -> str | None:
     """Search raw text for a customer UUID in known REWE response formats."""
     match = CUSTOMER_ID_PATTERN.search(raw_text)
     if match:
@@ -117,7 +117,7 @@ def extract_rewe_customer_id_from_text(raw_text: str) -> Optional[str]:
     return None
 
 
-def _normalize_customer_id(value: str) -> Optional[str]:
+def _normalize_customer_id(value: str) -> str | None:
     """Validate and normalize a customerId UUID."""
     try:
         return str(UUID(value.strip()))

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Optional, Tuple
+
 
 from shared.float_parser import parse_german_float
 
@@ -19,7 +19,7 @@ REWE_TOTAL_BONUS_AMOUNT_RE = re.compile(
 )
 
 
-def extract_bonus_amounts_from_text(text: str) -> Tuple[float, Optional[float]]:
+def extract_bonus_amounts_from_text(text: str) -> tuple[float, float | None]:
     """Extract collected and total REWE bonus amounts from the raw PDF text."""
     bonus_match = REWE_BONUS_AMOUNT_RE.search(text)
     total_bonus_match = REWE_TOTAL_BONUS_AMOUNT_RE.search(text)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bs4 import BeautifulSoup
 
@@ -13,9 +13,9 @@ from shared.payment_methods import normalize_payment_method_entry
 from .lidl_html_utils import extract_money_from_repeated_id, extract_text_from_repeated_id
 
 
-def extract_lidl_payment_methods(soup: BeautifulSoup) -> List[Dict[str, Any]]:
+def extract_lidl_payment_methods(soup: BeautifulSoup) -> list[dict[str, Any]]:
     """Extract and normalize payment methods from a Lidl receipt."""
-    payment_methods: List[Dict[str, Any]] = []
+    payment_methods: list[dict[str, Any]] = []
 
     summary_method = _extract_lidl_summary_tender_description(soup)
     summary_amount = extract_money_from_repeated_id(soup, "purchase_summary_3")
@@ -67,7 +67,7 @@ def normalize_lidl_payment_methods(payment_methods: list[dict]) -> list[dict]:
     return normalized_methods
 
 
-def _extract_lidl_summary_tender_description(soup: BeautifulSoup) -> Optional[str]:
+def _extract_lidl_summary_tender_description(soup: BeautifulSoup) -> str | None:
     """Extract the tender description from the Lidl purchase summary line."""
     description_spans = soup.find_all(attrs={"data-tender-description": True})
     for span in description_spans:
@@ -80,7 +80,7 @@ def _extract_lidl_summary_tender_description(soup: BeautifulSoup) -> Optional[st
     return None
 
 
-def _normalize_payment_value(value: object) -> Optional[str]:
+def _normalize_payment_value(value: object) -> str | None:
     """Normalize free-text payment metadata and discard empty placeholders."""
     if value is None:
         return None
@@ -93,7 +93,7 @@ def _normalize_payment_value(value: object) -> Optional[str]:
     return normalized
 
 
-def _extract_numeric_payment_amount(value: object) -> Optional[float]:
+def _extract_numeric_payment_amount(value: object) -> float | None:
     """Normalize payment amounts to floats when a numeric amount is present."""
     normalized = _normalize_payment_value(value)
     if not normalized:

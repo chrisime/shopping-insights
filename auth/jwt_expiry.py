@@ -5,10 +5,10 @@ from __future__ import annotations
 import base64
 import simplejson
 import time
-from typing import Optional
 
 
-def extract_jwt_expiry_epoch(cookie_jar, cookie_name: str) -> Optional[int]:
+
+def extract_jwt_expiry_epoch(cookie_jar, cookie_name: str) -> int | None:
     """Return the exp claim (unix epoch) of a JWT cookie when available and parseable."""
     token = cookie_jar.get(cookie_name)
     if not token or "." not in token:

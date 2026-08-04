@@ -1,6 +1,6 @@
 """Session management and API connection testing."""
 
-from typing import Optional
+
 
 from requests import Session
 
@@ -20,7 +20,7 @@ RETAILER_FILE_LOADERS = {
 }
 
 
-def setup_session(retailer: str, auth_method: Optional[str] = None, cookies_file: Optional[str] = None) -> Optional[Session]:
+def setup_session(retailer: str, auth_method: str | None = None, cookies_file: str | None = None) -> Session | None:
     """Setup an authenticated retailer session without testing the API connection."""
     normalized_retailer = retailer.lower()
     if auth_method is None:

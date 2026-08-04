@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from math import ceil
-from typing import Any, Optional
+from typing import Any
 
 from storage.sqlite_receipt_store import SqliteReceiptStore
 
 
 def list_items(
-    retailer: Optional[str] = None,
-    search: Optional[str] = None,
+    retailer: str | None = None,
+    search: str | None = None,
     page: int = 1,
     page_size: int = 50,
 ) -> dict[str, Any]:

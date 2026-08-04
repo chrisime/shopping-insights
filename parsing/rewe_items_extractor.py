@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from shared.float_parser import parse_german_float
 from shared.receipt_schema import build_receipt_item
@@ -33,14 +33,14 @@ class _PendingItem:
     total_amount: float
     quantity: Any = 1
     unit: str = "stk"
-    unit_price: Optional[str] = None
+    unit_price: str | None = None
 
 
 @dataclass(frozen=True)
 class ReweItemsExtractionResult:
     """Structured result for parsed REWE items and savings aggregates."""
 
-    items: List[Dict[str, Any]]
+    items: list[dict[str, Any]]
     saved_amount: float
     saved_deposit: float
 
@@ -49,22 +49,22 @@ class ReweItemsExtractionResult:
 class _CommitResult:
     """Pure return value from committing a pending item – no side effects."""
 
-    item: Optional[Dict[str, Any]] = None
+    item: dict[str, Any] | None = None
     saved_amount: float = 0.0
     saved_deposit: float = 0.0
 
 
-def extract_rewe_receipt_items(lines: List[str]) -> ReweItemsExtractionResult:
+def extract_rewe_receipt_items(lines: list[str]) -> ReweItemsExtractionResult:
     """Extract normalized items and aggregate discount/deposit amounts.
 
     Uses the pending-item pattern: an article line opens a pending item,
     subsequent modifier lines (quantity, weight, Handeingabe) update it,
     and the next article line or end-of-block commits it.
     """
-    items: List[Dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
     saved_amount = 0.0
     saved_pfand = 0.0
-    pending: Optional[_PendingItem] = None
+    pending: _PendingItem | None = None
 
     body_lines = _extract_receipt_body_lines(lines)
 
@@ -136,7 +136,7 @@ def extract_rewe_receipt_items(lines: List[str]) -> ReweItemsExtractionResult:
     )
 
 
-def _commit_pending(pending: Optional[_PendingItem]) -> _CommitResult:
+def _commit_pending(pending: _PendingItem | None) -> _CommitResult:
     """Convert a pending item into a pure result without side effects."""
     if pending is None:
         return _CommitResult()
@@ -156,7 +156,7 @@ def _commit_pending(pending: Optional[_PendingItem]) -> _CommitResult:
     return _CommitResult(item=item)
 
 
-def _extract_receipt_body_lines(lines: List[str]) -> List[str]:
+def _extract_receipt_body_lines(lines: list[str]) -> list[str]:
     try:
         start_index = lines.index(REWE_BODY_MARKER) + 1
     except ValueError:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from bs4 import BeautifulSoup
 
@@ -24,7 +24,7 @@ _LIDL_RECEIPT_ID_RE = re.compile(
 )
 
 
-def infer_lidl_pos_metadata_from_receipt_id(receipt_id: str = "") -> Optional[dict]:
+def infer_lidl_pos_metadata_from_receipt_id(receipt_id: str = "") -> dict | None:
     """Infer market/register/cashier from the Lidl receipt id structure.
 
     The Lidl receipt id follows the pattern:
@@ -50,15 +50,15 @@ def infer_lidl_pos_metadata_from_receipt_id(receipt_id: str = "") -> Optional[di
 
 
 def apply_lidl_pos_metadata(
-    receipt_data: Dict[str, Any],
+    receipt_data: dict[str, Any],
     soup: BeautifulSoup,
-    receipt_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    receipt_id: str | None = None,
+) -> dict[str, Any]:
     """Apply market/register/cashier metadata from Lidl HTML with a receipt-id fallback."""
     pos_line = extract_text_from_repeated_id(soup, "return_code_line_13")
     serial_line = extract_text_from_repeated_id(soup, "return_code_line_3")
 
-    metadata: Dict[str, Optional[str]] = {
+    metadata: dict[str, str | None] = {
         "market": None,
         "register": None,
         "cashier": None,

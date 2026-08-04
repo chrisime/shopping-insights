@@ -1,7 +1,7 @@
 """Lidl API client for fetching receipt data."""
 
 import time
-from typing import List, Optional, Tuple
+
 
 import requests
 import simplejson
@@ -14,7 +14,7 @@ def _request_with_retry(
     session: requests.Session,
     url: str,
     **kwargs: object,
-) -> Optional[requests.Response]:
+) -> requests.Response | None:
     for attempt in range(1, LidlConfig.MAX_RETRIES + 1):
         try:
             response = session.get(url, **kwargs)
@@ -43,7 +43,7 @@ def _request_with_retry(
 
 def get_tickets_page(
     session: requests.Session, page: int = 1
-) -> Optional[LidlTicketsPageDTO]:
+) -> LidlTicketsPageDTO | None:
     """
     Fetch tickets for a specific page using the API.
 
@@ -82,7 +82,7 @@ def get_tickets_page(
 
 def get_lidl_ticket(
     session: requests.Session, receipt_id: str
-) -> Optional[LidlTicketDTO]:
+) -> LidlTicketDTO | None:
     """
     Fetch the Lidl ticket for a specific receipt and return it as a structured DTO.
 
@@ -108,10 +108,10 @@ def get_lidl_ticket(
 
 
 def collect_lidl_receipt_ids(
-    session: requests.Session, max_pages: Optional[int] = None
-) -> Tuple[List[str], int]:
+    session: requests.Session, max_pages: int | None = None
+) -> tuple[list[str], int]:
     """Collect LIDL receipt ids from all pages or only a limited number."""
-    all_receipt_ids: List[str] = []
+    all_receipt_ids: list[str] = []
     current_page = 1
     processed_pages = 0
 

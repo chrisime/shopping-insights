@@ -1,6 +1,6 @@
 """Item API routes."""
 
-from typing import Optional
+
 
 from fastapi import APIRouter
 
@@ -13,8 +13,8 @@ router = APIRouter(prefix="/items", tags=["items"])
 
 @router.get("", response_model=ListResponse)
 def read_items(
-    retailer: Optional[str] = None,
-    search: Optional[str] = None,
+    retailer: str | None = None,
+    search: str | None = None,
     page: int = 1,
     page_size: int = 50,
 ) -> dict:

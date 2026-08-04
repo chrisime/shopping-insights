@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
+
 
 from bs4 import BeautifulSoup
 
@@ -16,7 +16,7 @@ def extract_text_from_repeated_id(soup: BeautifulSoup, element_id: str) -> str:
     return re.sub(r"\s+", " ", " ".join(parts)).strip()
 
 
-def extract_money_from_repeated_id(soup: BeautifulSoup, element_id: str) -> Optional[float]:
+def extract_money_from_repeated_id(soup: BeautifulSoup, element_id: str) -> float | None:
     """Extract the first monetary value from a repeated receipt line id."""
     text = extract_text_from_repeated_id(soup, element_id)
     return parse_german_float(text)

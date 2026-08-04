@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import simplejson
-from typing import Optional
+
 
 import requests
 
@@ -21,7 +21,7 @@ def render_validation_reason(exc: Exception) -> str:
 
 
 
-def render_exception_reason(exc: Exception, reason_kind: Optional[str] = None) -> str:
+def render_exception_reason(exc: Exception, reason_kind: str | None = None) -> str:
     """Render stable workflow reasons for known exception contexts."""
     if reason_kind == REASON_KIND_LIDL_FETCH:
         return _format_lidl_fetch_error(exc)

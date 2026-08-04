@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from api.services.kpi_service import get_bonus, get_summary
 from storage.sqlite_receipt_store import SqliteReceiptStore
@@ -12,23 +12,23 @@ from shared.retailer_runtime import RETAILERS
 
 
 def export_receipts(
-    retailer: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    retailer: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> dict[str, Any]:
     receipts = _load_export_receipts(retailer)
     receipts = _filter_receipts_by_purchase_date(receipts, start_date=start_date, end_date=end_date)
     return {"data": receipts}
 
 
-def export_kpis(retailer: Optional[str] = None) -> dict[str, Any]:
+def export_kpis(retailer: str | None = None) -> dict[str, Any]:
     return {
         "summary": get_summary(retailer=retailer).model_dump(),
         "bonus": get_bonus(retailer=retailer).model_dump(),
     }
 
 
-def _load_export_receipts(retailer: Optional[str]) -> list[dict[str, Any]]:
+def _load_export_receipts(retailer: str | None) -> list[dict[str, Any]]:
     normalized_retailer = str(retailer or "").strip().lower()
     if normalized_retailer:
         return SqliteReceiptStore.list_receipts(retailer=normalized_retailer)
@@ -41,8 +41,8 @@ def _load_export_receipts(retailer: Optional[str]) -> list[dict[str, Any]]:
 
 def _filter_receipts_by_purchase_date(
     receipts: list[dict[str, Any]],
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> list[dict[str, Any]]:
     start = parse_purchase_date(start_date) if start_date else None
     end = parse_purchase_date(end_date) if end_date else None

@@ -20,7 +20,7 @@ import simplejson
 import platform
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict
 
 
 @dataclass(frozen=True)
@@ -28,9 +28,9 @@ class SessionCookieDiagnostics:
     browser: str
     domain_suffix: str
     reason: str
-    profiles_dir: Optional[Path]
-    profile: Optional[Path]
-    recovery_file: Optional[Path]
+    profiles_dir: Path | None
+    profile: Path | None
+    recovery_file: Path | None
     matched_cookie_count: int
 
 
@@ -51,7 +51,7 @@ def diagnose_session_cookies_for_domain(browser: str, domain_suffix: str) -> Ses
     if data is None:
         return SessionCookieDiagnostics(browser, domain_suffix, "recovery_unreadable", profiles_dir, profile, recovery, 0)
 
-    raw_cookies: List[dict] = list(data.get("cookies", []))
+    raw_cookies: list[dict] = list(data.get("cookies", []))
     for window in data.get("windows", []):
         raw_cookies.extend(window.get("cookies", []))
 
@@ -70,7 +70,7 @@ def diagnose_session_cookies_for_domain(browser: str, domain_suffix: str) -> Ses
     return SessionCookieDiagnostics(browser, domain_suffix, "ok", profiles_dir, profile, recovery, matched_count)
 
 
-def _find_firefox_profiles_dir(browser: str) -> Optional[Path]:
+def _find_firefox_profiles_dir(browser: str) -> Path | None:
     """Return the ``Profiles`` directory for *firefox* or *librewolf*."""
     system = platform.system()
     home = Path.home()
@@ -97,7 +97,7 @@ def _find_firefox_profiles_dir(browser: str) -> Optional[Path]:
     return roots.get(browser)
 
 
-def _find_default_profile(profiles_dir: Path) -> Optional[Path]:
+def _find_default_profile(profiles_dir: Path) -> Path | None:
     """Heuristic: pick the profile directory with persistent or session cookies."""
     if not profiles_dir.is_dir():
         return None
@@ -127,7 +127,7 @@ def _find_default_profile(profiles_dir: Path) -> Optional[Path]:
     return candidates[0] if candidates else None
 
 
-def _read_jsonlz4(path: Path) -> Optional[dict]:
+def _read_jsonlz4(path: Path) -> dict | None:
     """Read a mozLz4 compressed JSON file."""
     try:
         import lz4.block  # noqa: WPS433 – optional at import-time
@@ -153,7 +153,7 @@ def _read_jsonlz4(path: Path) -> Optional[dict]:
 def read_session_cookies_for_domain(
     browser: str,
     domain_suffix: str,
-) -> List[Dict]:
+) -> list[Dict]:
     """Return session cookies for *domain_suffix* from the session-restore file.
 
     Returns a list of dicts compatible with the ``cookie_data`` format used
@@ -173,7 +173,7 @@ def read_session_cookies_for_domain(
 
     # Session cookies live under data["cookies"] (top-level list) and
     # possibly under each window's "cookies" key.
-    raw_cookies: List[dict] = list(data.get("cookies", []))
+    raw_cookies: list[dict] = list(data.get("cookies", []))
     for window in data.get("windows", []):
         raw_cookies.extend(window.get("cookies", []))
 
@@ -181,7 +181,7 @@ def read_session_cookies_for_domain(
         return []
 
     domain_suffix_dot = f".{domain_suffix}"
-    result: List[Dict] = []
+    result: list[Dict] = []
     for c in raw_cookies:
         host = c.get("host", "")
         if not (host == domain_suffix or host.endswith(domain_suffix_dot)):
@@ -200,7 +200,7 @@ def read_session_cookies_for_domain(
 
 def _read_pref_value(
     prefs_js: Path, pref_name: str,
-) -> Optional[str]:
+) -> str | None:
     """Read a single pref value from a Firefox/LibreWolf ``prefs.js`` file.
 
     Returns the value as a string (e.g. ``"0"``, ``"2"``) or ``None`` if
@@ -222,7 +222,7 @@ def _read_pref_value(
     return None
 
 
-def check_sessionstore_privacy_level(browser: str) -> Optional[bool]:
+def check_sessionstore_privacy_level(browser: str) -> bool | None:
     """Check if the browser's ``browser.sessionstore.privacy_level`` is set
     to 2, which prevents session cookies from being saved to the session-
     restore file.

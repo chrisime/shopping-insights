@@ -1,7 +1,7 @@
 """REWE browser cookie extraction (subclass of BrowserCookieExtractor)."""
 
 import logging
-from typing import Set
+
 
 import requests
 
@@ -169,7 +169,7 @@ class ReweBrowserCookieExtractor(BrowserCookieExtractor):
             _session_cookie_hint(browser_label)
 
     def _on_missing_required(
-        self, cookie_names: Set[str], browser_label: str
+        self, cookie_names: set[str], browser_label: str
     ) -> None:
         if KEYCLOAK_SSO_COOKIE_NAMES & cookie_names:
             logger.info(

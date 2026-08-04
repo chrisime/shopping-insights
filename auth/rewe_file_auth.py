@@ -5,7 +5,7 @@ import os
 from http.cookies import SimpleCookie
 
 logger = logging.getLogger(__name__)
-from typing import List, Optional, Set
+
 
 import requests
 
@@ -18,13 +18,15 @@ from .cookie_policies import (
 )
 from .rewe_customer_id import extract_rewe_customer_id_from_text
 from .jwt_expiry import extract_jwt_expiry_epoch, is_jwt_expired
-from .shared_file_auth import (
+from .cookie_diagnostics import (
     CookieDiagnosticExtras,
     CookieDiagnosticProfile,
     assess_cookie_quality,
+    print_cookie_diagnostics,
+)
+from .shared_file_auth import (
     build_cookie_session,
     parse_json_cookie_export,
-    print_cookie_diagnostics,
     read_utf8_text_file,
 )
 
@@ -49,16 +51,16 @@ def _rewe_diagnostic_profile() -> CookieDiagnosticProfile:
     )
 def _build_rewe_diagnostic_extras_for_cookies(
     raw_cookie_text: str,
-    cookie_names: Set[str],
+    cookie_names: set[str],
     status: str,
 ) -> CookieDiagnosticExtras:
     """Build REWE-specific diagnostic lines and next steps for the current cookie set."""
     customer_id = extract_rewe_customer_id_from_text(raw_cookie_text)
-    missing_waf: List[str] = sorted(
+    missing_waf: list[str] = sorted(
         str(name) for name in (RECOMMENDED_REWE_WAF_COOKIE_NAMES - cookie_names)
     )
 
-    lines: List[str] = []
+    lines: list[str] = []
     if missing_waf:
         lines.append(f"ℹ Optionale WAF-/Cloudflare-Cookies fehlen: {', '.join(missing_waf)}")
         lines.append("  Das ist nach aktueller Praxiserfahrung nicht zwingend problematisch.")
@@ -70,7 +72,7 @@ def _build_rewe_diagnostic_extras_for_cookies(
             "ℹ Keine customerId direkt in der Datei erkannt. Das ist bei reinen Cookie-Dateien normal."
         )
 
-    steps: List[str] = []
+    steps: list[str] = []
     if status == "GELB" and missing_waf:
         steps.append(
             f"Optionale WAF-/Cloudflare-Cookies ({', '.join(missing_waf)}) fehlen zwar, sind aber nach aktueller Erfahrung nicht der Hauptfaktor."
@@ -102,7 +104,7 @@ def _print_rewe_cookie_diagnostics(cookies, raw_cookie_text: str) -> None:
 def _parse_rewe_cookie_session_payload(
     raw_cookie_text: str,
     invalid_format_message: str,
-) -> Optional[tuple[requests.Session, int]]:
+) -> tuple[requests.Session, int] | None:
     """Parse raw REWE cookie text and print consistent user-facing errors."""
     session_payload = _build_rewe_cookie_session_from_text(raw_cookie_text)
     if session_payload is None:
@@ -118,8 +120,8 @@ def _parse_rewe_cookie_session_payload(
 
 
 def load_rewe_cookies_from_file(
-    file_path: Optional[str] = None,
-) -> Optional[requests.Session]:
+    file_path: str | None = None,
+) -> requests.Session | None:
     """Load REWE cookies from a file into a requests session.
 
     Supported formats:
@@ -166,7 +168,7 @@ def load_rewe_cookies_from_file(
         return None
 
 
-def diagnose_rewe_cookie_file(file_path: Optional[str] = None) -> bool:
+def diagnose_rewe_cookie_file(file_path: str | None = None) -> bool:
     """Analyze a REWE cookie/request file and print actionable diagnostics."""
     if file_path is None:
         file_path = ReweConfig.REWE_COOKIES_JSON_FILE
@@ -206,7 +208,7 @@ def diagnose_rewe_cookie_file(file_path: Optional[str] = None) -> bool:
     return status != "ROT"
 
 
-def _parse_cookie_file(raw_cookie_text: str) -> List[dict]:
+def _parse_cookie_file(raw_cookie_text: str) -> list[dict]:
     """Parse supported cookie file formats into a normalized cookie list."""
     stripped = raw_cookie_text.strip()
     if not stripped:
@@ -223,7 +225,7 @@ def _parse_cookie_file(raw_cookie_text: str) -> List[dict]:
     return _parse_cookie_header_or_pairs(stripped)
 
 
-def _parse_netscape_cookies(raw_cookie_text: str) -> List[dict]:
+def _parse_netscape_cookies(raw_cookie_text: str) -> list[dict]:
     """Parse Netscape cookie files exported by browsers/extensions."""
     cookies = []
     for line in raw_cookie_text.splitlines():
@@ -250,7 +252,7 @@ def _parse_netscape_cookies(raw_cookie_text: str) -> List[dict]:
     return cookies
 
 
-def _parse_cookie_header_or_pairs(raw_cookie_text: str) -> List[dict]:
+def _parse_cookie_header_or_pairs(raw_cookie_text: str) -> list[dict]:
     """Parse raw Cookie headers or simple name=value lists."""
     normalized = raw_cookie_text.strip()
 
@@ -292,7 +294,7 @@ def _parse_cookie_header_or_pairs(raw_cookie_text: str) -> List[dict]:
 
 def _build_rewe_cookie_session_from_text(
     raw_cookie_text: str,
-) -> Optional[tuple[requests.Session, int]]:
+) -> tuple[requests.Session, int] | None:
     """Parse raw cookie text and build a REWE session when supported."""
     cookies_list = _parse_cookie_file(raw_cookie_text)
     if not cookies_list:

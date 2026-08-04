@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Optional, TypedDict
+from typing import Callable, TypedDict
 
 from config.lidl_config import LidlConfig
 from config.rewe_config import ReweConfig
@@ -41,7 +41,7 @@ _RUNTIME_DEFINITIONS: dict[str, _RetailerDefinition] = {
 RETAILERS: tuple[str, ...] = tuple(_RUNTIME_DEFINITIONS.keys())
 
 
-def get_retailer_runtime(retailer: str) -> Optional[RetailerRuntime]:
+def get_retailer_runtime(retailer: str) -> RetailerRuntime | None:
     retailer_code = retailer.strip().lower()
     if not retailer_code:
         return None
