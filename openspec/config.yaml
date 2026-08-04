@@ -12,5 +12,5 @@ rules:
     - Must use c4-diagrams skill
   adr:
     - Must use architectural-decision-records skill
-  spec:
+  specs:
     - Must use gherkin-authoring skill 
