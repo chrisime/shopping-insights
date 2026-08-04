@@ -1,0 +1,16 @@
+schema: intent-driven
+
+#   context: |
+#     Tech stack: TypeScript, Python, Vue3, Node.js
+#     We use conventional commits
+#     Domain: shopping analytics
+
+rules:
+  proposal:
+    - Must use grill-me skill
+  design:
+    - Must use c4-diagrams skill
+  adr:
+    - Must use architectural-decision-records skill
+  spec:
+    - Must use gherkin-authoring skill 
