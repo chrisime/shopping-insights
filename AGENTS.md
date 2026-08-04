@@ -1,3 +1,7 @@
+# AGENTS.md
+
+- For OpenSpec propose/apply/verify/archive workflows, use the local `openspec-git-discipline` skill to enforce proposal commits before apply and merge-before-archive discipline.
+
 ## Goal
 - Python supermarket-ticket analyzer for Lidl and REWE.
 - Downloads receipts, parses HTML/PDF data, normalizes it, stores it in SQLite, and serves KPI data to the Vue dashboard.
