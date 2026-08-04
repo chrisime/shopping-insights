@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import sqlite3
-from contextlib import closing
-from pathlib import Path
 from typing import Any, Optional, Sequence
+
+from sqlalchemy import Connection, select
 
 from config import storage_config
 from result_types import PersistResult
@@ -13,6 +12,7 @@ from shared.receipt_dto import ReceiptDTO, receipt_dto_to_dict
 from shared.receipt_hashes import calculate_receipt_payload_hash
 from shared.receipt_store import ReceiptStore
 
+from .database import connect, get_engine
 from .sqlite_domains import (
     PaymentMethodDomain,
     PurchaseDomain,
@@ -32,28 +32,17 @@ from .sqlite_entity_builders import (
     build_retailer_entity,
     build_store_entity,
 )
-from .sqlite_migration_runner import apply_sqlite_migrations
+from .sqlite_schema import (
+    payment_method_table,
+    purchase_item_table,
+    purchase_lidl_table,
+    purchase_rewe_table,
+    purchase_table,
+    store_table,
+)
 
 
-def _connect_sqlite() -> sqlite3.Connection:
-    """Open a SQLite connection with foreign keys enabled and schema ensured."""
-    db_path = Path(storage_config.SQLITE_RECEIPTS_DB_FILE)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(db_path)
-    connection.row_factory = sqlite3.Row
-    connection.execute("pragma foreign_keys = on")
-    _ensure_schema(connection)
-    connection.execute("pragma foreign_keys = on")
-    return connection
-
-
-def _ensure_schema(connection: sqlite3.Connection) -> None:
-    """Apply all pending SQLite migrations before the store is used."""
-    apply_sqlite_migrations(connection)
-    connection.commit()
-
-
-def _persist_receipt_row(receipt: ReceiptDTO, payload_hash: str, connection: sqlite3.Connection) -> str | None:
+def _persist_receipt_row(receipt: ReceiptDTO, payload_hash: str, connection: Connection) -> str | None:
     """Persist one receipt and return whether it was created, updated or unchanged."""
     store_domain = StoreDomain(connection)
     purchase_domain = PurchaseDomain(connection)
@@ -84,19 +73,22 @@ def _persist_receipt_row(receipt: ReceiptDTO, payload_hash: str, connection: sql
     return action
 
 
-def _delete_purchase_children(connection: sqlite3.Connection, purchase_id: str) -> None:
+def _delete_purchase_children(connection: Connection, purchase_id: str) -> None:
     """Delete all child rows of a purchase before re-inserting updated data.
 
     This replaces the old INSERT OR REPLACE pattern which triggered
     ON DELETE CASCADE unexpectedly (SQLite REPLACE = DELETE + INSERT).
     """
-    connection.execute("DELETE FROM purchase_item WHERE purchase_id = ?", (purchase_id,))
-    connection.execute("DELETE FROM payment_method WHERE purchase_id = ?", (purchase_id,))
-    connection.execute("DELETE FROM purchase_lidl WHERE purchase_id = ?", (purchase_id,))
-    connection.execute("DELETE FROM purchase_rewe WHERE purchase_id = ?", (purchase_id,))
+    for table in (
+        purchase_item_table,
+        payment_method_table,
+        purchase_lidl_table,
+        purchase_rewe_table,
+    ):
+        connection.execute(table.delete().where(table.c.purchase_id == purchase_id))
 
 
-def _map_store_projection(purchase: PurchaseEntity, connection: sqlite3.Connection) -> tuple[str, str | None, dict[str, str]]:
+def _map_store_projection(purchase: PurchaseEntity, connection: Connection) -> tuple[str, str | None, dict[str, str]]:
     store_domain = StoreDomain(connection)
     store_id = purchase.store_id
     if store_id is None:
@@ -137,7 +129,7 @@ def _map_payment_method_rows(payment_methods: Sequence[Any]) -> list[dict[str, A
     ]
 
 
-def _map_purchase_to_receipt_dict(purchase: PurchaseEntity, retailer: str, connection: sqlite3.Connection) -> dict[str, Any]:
+def _map_purchase_to_receipt_dict(purchase: PurchaseEntity, retailer: str, connection: Connection) -> dict[str, Any]:
     """Map one persisted purchase aggregate back to the canonical receipt dictionary."""
     purchase_item_domain = PurchaseItemDomain(connection)
     payment_method_domain = PaymentMethodDomain(connection)
@@ -182,15 +174,14 @@ class SqliteReceiptStore(ReceiptStore):
     """SQLite-backed receipt store used for relational persistence plus delta checks."""
 
     def find_existing_ids(self, retailer: str) -> set[str]:
-        with closing(_connect_sqlite()) as connection:
+        with connect() as connection:
             purchase_domain = PurchaseDomain(connection)
             return purchase_domain.find_ids_by_retailer(retailer)
-
 
     @staticmethod
     def list_receipts(retailer: str) -> list[dict[str, Any]]:
         """Load all persisted receipts for one retailer and map them to schema dictionaries."""
-        with closing(_connect_sqlite()) as connection:
+        with connect() as connection:
             purchase_domain = PurchaseDomain(connection)
             purchases = purchase_domain.find_by_retailer(retailer)
 
@@ -202,7 +193,6 @@ class SqliteReceiptStore(ReceiptStore):
                 for purchase in purchases
             ]
 
-
     @staticmethod
     def list_receipts_by_item(
         name: str,
@@ -210,45 +200,34 @@ class SqliteReceiptStore(ReceiptStore):
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
     ) -> list[dict[str, Any]]:
-        with closing(_connect_sqlite()) as connection:
+        with connect() as connection:
             purchase_item_domain = PurchaseItemDomain(connection)
             purchase_ids = purchase_item_domain.find_purchase_ids_by_item_name(name)
 
             if not purchase_ids:
                 return []
 
-            placeholders = ",".join("?" for _ in purchase_ids)
-            params: list[Any] = purchase_ids[:]
-            where_clauses = [f"purchase.id IN ({placeholders})"]
-
+            stmt = (
+                select(purchase_table.c.id)
+                .join(store_table, store_table.c.id == purchase_table.c.store_id)
+                .where(purchase_table.c.id.in_(purchase_ids))
+            )
             if retailer:
-                where_clauses.append("store.retailer_code = ?")
-                params.append(retailer.lower())
-
+                stmt = stmt.where(store_table.c.retailer_code == retailer.lower())
             if start_date:
-                where_clauses.append("purchase.purchase_date >= ?")
-                params.append(start_date)
-
+                stmt = stmt.where(purchase_table.c.purchase_date >= start_date)
             if end_date:
-                where_clauses.append("purchase.purchase_date <= ?")
-                params.append(end_date)
+                stmt = stmt.where(purchase_table.c.purchase_date <= end_date)
+            stmt = stmt.order_by(purchase_table.c.purchase_date.desc(), purchase_table.c.id)
 
-            rows = connection.execute(
-                f"""
-                SELECT purchase.id FROM purchase
-                JOIN store ON store.id = purchase.store_id
-                WHERE {' AND '.join(where_clauses)}
-                ORDER BY purchase.purchase_date DESC, purchase.id
-                """,
-                params,
-            ).fetchall()
+            rows = connection.execute(stmt).fetchall()
 
             purchase_domain = PurchaseDomain(connection)
             store_domain = StoreDomain(connection)
             matched_name_upper = name.upper()
             receipts: list[dict[str, Any]] = []
             for row in rows:
-                purchase = purchase_domain.find_by_id(str(row["id"]))
+                purchase = purchase_domain.find_by_id(str(row._mapping["id"]))
                 if purchase is None:
                     continue
                 store_id = purchase.store_id
@@ -271,35 +250,24 @@ class SqliteReceiptStore(ReceiptStore):
         end_date: str,
         retailer: Optional[str] = None,
     ) -> list[dict[str, Any]]:
-        with closing(_connect_sqlite()) as connection:
-            params: list[Any] = []
-            where_clauses: list[str] = []
-
+        with connect() as connection:
+            stmt = (
+                select(purchase_table.c.id)
+                .join(store_table, store_table.c.id == purchase_table.c.store_id)
+                .where(purchase_table.c.purchase_date >= start_date)
+                .where(purchase_table.c.purchase_date <= end_date)
+            )
             if retailer:
-                where_clauses.append("store.retailer_code = ?")
-                params.append(retailer.lower())
+                stmt = stmt.where(store_table.c.retailer_code == retailer.lower())
+            stmt = stmt.order_by(purchase_table.c.purchase_date.desc(), purchase_table.c.id)
 
-            where_clauses.append("purchase.purchase_date >= ?")
-            params.append(start_date)
-
-            where_clauses.append("purchase.purchase_date <= ?")
-            params.append(end_date)
-
-            rows = connection.execute(
-                f"""
-                SELECT purchase.id FROM purchase
-                JOIN store ON store.id = purchase.store_id
-                WHERE {' AND '.join(where_clauses)}
-                ORDER BY purchase.purchase_date DESC, purchase.id
-                """,
-                params,
-            ).fetchall()
+            rows = connection.execute(stmt).fetchall()
 
             purchase_domain = PurchaseDomain(connection)
             store_domain = StoreDomain(connection)
             receipts: list[dict[str, Any]] = []
             for row in rows:
-                purchase = purchase_domain.find_by_id(str(row["id"]))
+                purchase = purchase_domain.find_by_id(str(row._mapping["id"]))
                 if purchase is None:
                     continue
                 actual_retailer = retailer or ""
@@ -319,22 +287,21 @@ class SqliteReceiptStore(ReceiptStore):
         retailer_code = retailer.lower()
         retailer_entity = build_retailer_entity(retailer_code)
 
-        with closing(_connect_sqlite()) as connection:
+        with get_engine().begin() as connection:
             retailer_domain = RetailerDomain(connection)
             purchase_domain = PurchaseDomain(connection)
 
-            with connection:
-                retailer_domain.upsert(retailer_entity)
+            retailer_domain.upsert(retailer_entity)
 
-                for receipt in receipts:
-                    payload_hash = calculate_receipt_payload_hash(receipt_dto_to_dict(receipt))
-                    action = _persist_receipt_row(receipt, payload_hash, connection)
+            for receipt in receipts:
+                payload_hash = calculate_receipt_payload_hash(receipt_dto_to_dict(receipt))
+                action = _persist_receipt_row(receipt, payload_hash, connection)
 
-                    if action == "created":
-                        created_count += 1
-                    elif action == "updated":
-                        updated_count += 1
+                if action == "created":
+                    created_count += 1
+                elif action == "updated":
+                    updated_count += 1
 
-                total_receipts = purchase_domain.count_by_retailer(retailer_code)
+            total_receipts = purchase_domain.count_by_retailer(retailer_code)
 
         return PersistResult(created_count, updated_count, total_receipts)

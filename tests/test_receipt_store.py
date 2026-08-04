@@ -18,6 +18,7 @@ from storage import (
     SqliteReceiptStore,
     create_receipt_store,
 )
+from storage.database import reset_engine_cache
 
 
 class ReceiptStoreTests(unittest.TestCase):
@@ -25,6 +26,7 @@ class ReceiptStoreTests(unittest.TestCase):
         tmp_dir = self.enterContext(tempfile.TemporaryDirectory())
         db_path = Path(tmp_dir) / "receipts.sqlite"
         self.enterContext(patch.object(storage_config, "SQLITE_RECEIPTS_DB_FILE", str(db_path)))
+        reset_engine_cache()
         return db_path
 
     @staticmethod
@@ -114,7 +116,7 @@ class ReceiptStoreTests(unittest.TestCase):
 
         self.assertEqual(existing_ids, {"rewe-0605-8-01042026-1908-7714"})
 
-    def test_sqlite_receipt_store_applies_sql_migrations_once_and_creates_all_tables(self):
+    def test_sqlite_receipt_store_applies_schema_once_and_creates_all_tables(self):
         db_path = self.isolated_receipts_db()
         store = SqliteReceiptStore()
 
@@ -133,14 +135,10 @@ class ReceiptStoreTests(unittest.TestCase):
             row[1]
             for row in self.query_all(db_path, "pragma table_info(purchase)")
         }
-        applied_migrations = self.query_all(
-            db_path,
-            "select version, script_name from schema_migration order by version",
-        )
+        applied_version = self.query_one(db_path, "select version_num from alembic_version")
 
         self.assertTrue(
             {
-                "schema_migration",
                 "retailer",
                 "store",
                 "purchase",
@@ -162,12 +160,7 @@ class ReceiptStoreTests(unittest.TestCase):
                 for name in ("uq_payment_method__purchase_position", "sqlite_autoindex_payment_method_1")
             )
         )
-        self.assertEqual(
-            applied_migrations,
-            [
-                ("V001", "V001__core_schema.sql"),
-            ],
-        )
+        self.assertEqual(applied_version, ("0001_initial_schema",))
 
     def test_sqlite_receipt_store_persist_receipts_migrates_precreated_empty_db_file(self):
         db_path = self.isolated_receipts_db()

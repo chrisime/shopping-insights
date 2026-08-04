@@ -1,27 +1,58 @@
-"""SQLite-backed KPI query store."""
+"""SQLAlchemy Core based SQLite KPI query store."""
 
 from __future__ import annotations
 
-import sqlite3
-from contextlib import closing
-from pathlib import Path
 from typing import Optional
+
+from sqlalchemy import Integer, Row, Select, distinct, func, select
 
 from config import storage_config
 from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
 
+from .database import connect
+from .sqlite_schema import (
+    purchase_item_table,
+    purchase_lidl_table,
+    purchase_rewe_table,
+    purchase_table,
+    store_table,
+)
 
-def _connect() -> sqlite3.Connection:
-    db_path = Path(storage_config.SQLITE_RECEIPTS_DB_FILE)
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
+
+def _apply_filters(
+    stmt: Select,
+    retailer: Optional[str],
+    start_date: Optional[str],
+    end_date: Optional[str],
+) -> Select:
+    if retailer:
+        stmt = stmt.where(store_table.c.retailer_code == retailer.lower())
+    if start_date:
+        stmt = stmt.where(purchase_table.c.purchase_date >= start_date)
+    if end_date:
+        stmt = stmt.where(purchase_table.c.purchase_date <= end_date)
+    return stmt
 
 
-def _retailer_filter(retailer: Optional[str]) -> tuple[str, tuple]:
-    if retailer is None:
-        return "", ()
-    return "AND s.retailer_code = ?", (retailer.lower(),)
+def _apply_date_filters(
+    stmt: Select,
+    start_date: Optional[str],
+    end_date: Optional[str],
+) -> Select:
+    if start_date:
+        stmt = stmt.where(purchase_table.c.purchase_date >= start_date)
+    if end_date:
+        stmt = stmt.where(purchase_table.c.purchase_date <= end_date)
+    return stmt
+
+
+def _map_time_series_row(row: Row) -> TimeSeriesRow:
+    return TimeSeriesRow(
+        period=str(row._mapping["period"]),
+        total_spent=float(row._mapping["total_spent"]),
+        receipt_count=int(row._mapping["receipt_count"]),
+        retailers=row._mapping["retailers"].split(",") if row._mapping["retailers"] else [],
+    )
 
 
 class MetricsStore:
@@ -33,48 +64,32 @@ class MetricsStore:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
     ) -> BasicKPIs:
-        where_parts = ["WHERE 1=1"]
-        params: list = []
+        stmt = (
+            select(
+                func.coalesce(func.sum(purchase_table.c.total_price), 0).label("total_spent"),
+                func.count(purchase_table.c.id).label("total_receipts"),
+                func.coalesce(func.avg(purchase_table.c.total_price), 0).label("avg_receipt"),
+                func.coalesce(func.sum(purchase_table.c.discount), 0).label("total_discount"),
+                func.coalesce(func.sum(purchase_table.c.saved_deposit), 0).label("total_saved_deposit"),
+                func.min(purchase_table.c.purchase_date).label("min_date"),
+                func.max(purchase_table.c.purchase_date).label("max_date"),
+            )
+            .select_from(purchase_table)
+            .join(store_table, store_table.c.id == purchase_table.c.store_id)
+        )
+        stmt = _apply_filters(stmt, retailer, start_date, end_date)
 
-        retailer_clause, retailer_params = _retailer_filter(retailer)
-        if retailer_clause:
-            where_parts.append(retailer_clause)
-            params.extend(retailer_params)
-
-        if start_date:
-            where_parts.append("AND p.purchase_date >= ?")
-            params.append(start_date)
-        if end_date:
-            where_parts.append("AND p.purchase_date <= ?")
-            params.append(end_date)
-
-        where = " ".join(where_parts)
-
-        sql = f"""
-            SELECT
-                COALESCE(SUM(p.total_price), 0) AS total_spent,
-                COUNT(p.id) AS total_receipts,
-                COALESCE(AVG(p.total_price), 0) AS avg_receipt,
-                COALESCE(SUM(p.discount), 0) AS total_discount,
-                COALESCE(SUM(p.saved_deposit), 0) AS total_saved_deposit,
-                MIN(p.purchase_date) AS min_date,
-                MAX(p.purchase_date) AS max_date
-            FROM purchase p
-            JOIN store s ON s.id = p.store_id
-            {where}
-        """
-
-        with closing(_connect()) as conn:
-            row = conn.execute(sql, tuple(params)).fetchone()
+        with connect() as connection:
+            row = connection.execute(stmt).one()
 
         return BasicKPIs(
-            total_spent=float(row["total_spent"]),
-            total_receipts=int(row["total_receipts"]),
-            avg_receipt=float(row["avg_receipt"]),
-            total_discount=float(row["total_discount"]),
-            total_saved_deposit=float(row["total_saved_deposit"]),
-            min_date=row["min_date"],
-            max_date=row["max_date"],
+            total_spent=float(row._mapping["total_spent"]),
+            total_receipts=int(row._mapping["total_receipts"]),
+            avg_receipt=float(row._mapping["avg_receipt"]),
+            total_discount=float(row._mapping["total_discount"]),
+            total_saved_deposit=float(row._mapping["total_saved_deposit"]),
+            min_date=row._mapping["min_date"],
+            max_date=row._mapping["max_date"],
         )
 
     def retailer_bonus_kpis(
@@ -83,62 +98,53 @@ class MetricsStore:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
     ) -> RetailerBonusKPIs:
-        date_parts = []
-        date_params: list = []
-        if start_date:
-            date_parts.append("AND p.purchase_date >= ?")
-            date_params.append(start_date)
-        if end_date:
-            date_parts.append("AND p.purchase_date <= ?")
-            date_params.append(end_date)
-        date_clause = " ".join(date_parts)
-
         rewe_bonus_collected = 0.0
         rewe_bonus_balance = 0.0
         rewe_bonus_redeemed = 0.0
 
-        if retailer is None or retailer == "rewe":
-            sql_rewe = f"""
-                SELECT
-                    COALESCE(SUM(pr.rewe_bonus_amount), 0) AS bonus_collected,
-                    COALESCE(SUM(pr.rewe_bonus_discount), 0) AS bonus_redeemed
-                FROM purchase_rewe pr
-                JOIN purchase p ON p.id = pr.purchase_id
-                WHERE 1=1 {date_clause}
-            """
-            with closing(_connect()) as conn:
-                row = conn.execute(sql_rewe, tuple(date_params)).fetchone()
-                rewe_bonus_collected = float(row["bonus_collected"])
-                rewe_bonus_redeemed = float(row["bonus_redeemed"])
+        with connect() as connection:
+            if retailer is None or retailer == "rewe":
+                rewe_stmt = (
+                    select(
+                        func.coalesce(func.sum(purchase_rewe_table.c.rewe_bonus_amount), 0).label("bonus_collected"),
+                        func.coalesce(func.sum(purchase_rewe_table.c.rewe_bonus_discount), 0).label("bonus_redeemed"),
+                    )
+                    .select_from(purchase_rewe_table)
+                    .join(purchase_table, purchase_table.c.id == purchase_rewe_table.c.purchase_id)
+                )
+                rewe_stmt = _apply_date_filters(rewe_stmt, start_date, end_date)
+                row = connection.execute(rewe_stmt).one()
+                rewe_bonus_collected = float(row._mapping["bonus_collected"])
+                rewe_bonus_redeemed = float(row._mapping["bonus_redeemed"])
 
-                sql_balance = f"""
-                    SELECT pr.rewe_bonus_total_amount
-                    FROM purchase_rewe pr
-                    JOIN purchase p ON p.id = pr.purchase_id
-                    WHERE 1=1 {date_clause}
-                    ORDER BY p.purchase_date DESC
-                    LIMIT 1
-                """
-                balance_row = conn.execute(sql_balance, tuple(date_params)).fetchone()
-                if balance_row:
-                    rewe_bonus_balance = float(balance_row["rewe_bonus_total_amount"])
+                balance_stmt = (
+                    select(purchase_rewe_table.c.rewe_bonus_total_amount)
+                    .select_from(purchase_rewe_table)
+                    .join(purchase_table, purchase_table.c.id == purchase_rewe_table.c.purchase_id)
+                    .order_by(purchase_table.c.purchase_date.desc())
+                    .limit(1)
+                )
+                balance_stmt = _apply_date_filters(balance_stmt, start_date, end_date)
+                balance_row = connection.execute(balance_stmt).fetchone()
+                if balance_row is not None:
+                    rewe_bonus_balance = float(balance_row._mapping["rewe_bonus_total_amount"])
 
-        lidlplus_discount = 0.0
-        sticker_discount = 0.0
+            lidlplus_discount = 0.0
+            sticker_discount = 0.0
 
-        if retailer is None or retailer == "lidl":
-            sql_lidl = f"""
-                SELECT
-                    COALESCE(SUM(pl.lidlplus_discount), 0) AS lidlplus,
-                    COALESCE(SUM(pl.sticker_discount), 0) AS sticker
-                FROM purchase_lidl pl
-                JOIN purchase p ON p.id = pl.purchase_id
-                WHERE 1=1 {date_clause}
-            """
-            with closing(_connect()) as conn:
-                row = conn.execute(sql_lidl, tuple(date_params)).fetchone()
-                lidlplus_discount = float(row["lidlplus"])
-                sticker_discount = float(row["sticker"])
+            if retailer is None or retailer == "lidl":
+                lidl_stmt = (
+                    select(
+                        func.coalesce(func.sum(purchase_lidl_table.c.lidlplus_discount), 0).label("lidlplus"),
+                        func.coalesce(func.sum(purchase_lidl_table.c.sticker_discount), 0).label("sticker"),
+                    )
+                    .select_from(purchase_lidl_table)
+                    .join(purchase_table, purchase_table.c.id == purchase_lidl_table.c.purchase_id)
+                )
+                lidl_stmt = _apply_date_filters(lidl_stmt, start_date, end_date)
+                row = connection.execute(lidl_stmt).one()
+                lidlplus_discount = float(row._mapping["lidlplus"])
+                sticker_discount = float(row._mapping["sticker"])
 
         return RetailerBonusKPIs(
             rewe_bonus_collected=rewe_bonus_collected,
@@ -154,48 +160,8 @@ class MetricsStore:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
     ) -> list[TimeSeriesRow]:
-        where_parts = ["WHERE p.total_price IS NOT NULL"]
-        params: list = []
-
-        retailer_clause, retailer_params = _retailer_filter(retailer)
-        if retailer_clause:
-            where_parts.append(retailer_clause)
-            params.extend(retailer_params)
-
-        if start_date:
-            where_parts.append("AND p.purchase_date >= ?")
-            params.append(start_date)
-        if end_date:
-            where_parts.append("AND p.purchase_date <= ?")
-            params.append(end_date)
-
-        where = " ".join(where_parts)
-
-        sql = f"""
-            SELECT
-                DATE(p.purchase_date) AS period,
-                SUM(p.total_price) AS total_spent,
-                COUNT(p.id) AS receipt_count,
-                GROUP_CONCAT(DISTINCT s.retailer_code) AS retailers
-            FROM purchase p
-            JOIN store s ON s.id = p.store_id
-            {where}
-            GROUP BY DATE(p.purchase_date)
-            ORDER BY period
-        """
-
-        with closing(_connect()) as conn:
-            rows = conn.execute(sql, tuple(params)).fetchall()
-
-        return [
-            TimeSeriesRow(
-                period=str(row["period"]),
-                total_spent=float(row["total_spent"]),
-                receipt_count=int(row["receipt_count"]),
-                retailers=row["retailers"].split(",") if row["retailers"] else [],
-            )
-            for row in rows
-        ]
+        period = func.date(purchase_table.c.purchase_date).label("period")
+        return self._spending_by_period(period, retailer, start_date, end_date)
 
     def spending_by_month(
         self,
@@ -203,48 +169,8 @@ class MetricsStore:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
     ) -> list[TimeSeriesRow]:
-        where_parts = ["WHERE p.total_price IS NOT NULL"]
-        params: list = []
-
-        retailer_clause, retailer_params = _retailer_filter(retailer)
-        if retailer_clause:
-            where_parts.append(retailer_clause)
-            params.extend(retailer_params)
-
-        if start_date:
-            where_parts.append("AND p.purchase_date >= ?")
-            params.append(start_date)
-        if end_date:
-            where_parts.append("AND p.purchase_date <= ?")
-            params.append(end_date)
-
-        where = " ".join(where_parts)
-
-        sql = f"""
-            SELECT
-                STRFTIME('%Y-%m', p.purchase_date) AS period,
-                SUM(p.total_price) AS total_spent,
-                COUNT(p.id) AS receipt_count,
-                GROUP_CONCAT(DISTINCT s.retailer_code) AS retailers
-            FROM purchase p
-            JOIN store s ON s.id = p.store_id
-            {where}
-            GROUP BY STRFTIME('%Y-%m', p.purchase_date)
-            ORDER BY period
-        """
-
-        with closing(_connect()) as conn:
-            rows = conn.execute(sql, tuple(params)).fetchall()
-
-        return [
-            TimeSeriesRow(
-                period=str(row["period"]),
-                total_spent=float(row["total_spent"]),
-                receipt_count=int(row["receipt_count"]),
-                retailers=row["retailers"].split(",") if row["retailers"] else [],
-            )
-            for row in rows
-        ]
+        period = func.strftime("%Y-%m", purchase_table.c.purchase_date).label("period")
+        return self._spending_by_period(period, retailer, start_date, end_date)
 
     def spending_by_year(
         self,
@@ -252,48 +178,34 @@ class MetricsStore:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
     ) -> list[TimeSeriesRow]:
-        where_parts = ["WHERE p.total_price IS NOT NULL"]
-        params: list = []
+        period = func.strftime("%Y", purchase_table.c.purchase_date).label("period")
+        return self._spending_by_period(period, retailer, start_date, end_date)
 
-        retailer_clause, retailer_params = _retailer_filter(retailer)
-        if retailer_clause:
-            where_parts.append(retailer_clause)
-            params.extend(retailer_params)
-
-        if start_date:
-            where_parts.append("AND p.purchase_date >= ?")
-            params.append(start_date)
-        if end_date:
-            where_parts.append("AND p.purchase_date <= ?")
-            params.append(end_date)
-
-        where = " ".join(where_parts)
-
-        sql = f"""
-            SELECT
-                STRFTIME('%Y', p.purchase_date) AS period,
-                SUM(p.total_price) AS total_spent,
-                COUNT(p.id) AS receipt_count,
-                GROUP_CONCAT(DISTINCT s.retailer_code) AS retailers
-            FROM purchase p
-            JOIN store s ON s.id = p.store_id
-            {where}
-            GROUP BY STRFTIME('%Y', p.purchase_date)
-            ORDER BY period
-        """
-
-        with closing(_connect()) as conn:
-            rows = conn.execute(sql, tuple(params)).fetchall()
-
-        return [
-            TimeSeriesRow(
-                period=str(row["period"]),
-                total_spent=float(row["total_spent"]),
-                receipt_count=int(row["receipt_count"]),
-                retailers=row["retailers"].split(",") if row["retailers"] else [],
+    def _spending_by_period(
+        self,
+        period,
+        retailer: Optional[str],
+        start_date: Optional[str],
+        end_date: Optional[str],
+    ) -> list[TimeSeriesRow]:
+        stmt = (
+            select(
+                period,
+                func.sum(purchase_table.c.total_price).label("total_spent"),
+                func.count(purchase_table.c.id).label("receipt_count"),
+                func.group_concat(distinct(store_table.c.retailer_code)).label("retailers"),
             )
-            for row in rows
-        ]
+            .select_from(purchase_table)
+            .join(store_table, store_table.c.id == purchase_table.c.store_id)
+            .where(purchase_table.c.total_price.is_not(None))
+        )
+        stmt = _apply_filters(stmt, retailer, start_date, end_date)
+        stmt = stmt.group_by(period).order_by(period)
+
+        with connect() as connection:
+            rows = connection.execute(stmt).fetchall()
+
+        return [_map_time_series_row(row) for row in rows]
 
     def _top_items_query(
         self,
@@ -305,70 +217,61 @@ class MetricsStore:
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[TopItemRow], int]:
-        where_parts = ["WHERE 1=1"]
-        params: list = []
+        total_quantity = func.sum(purchase_item_table.c.quantity).label("total_quantity")
+        total_spent = func.sum(purchase_item_table.c.price * purchase_item_table.c.quantity).label("total_spent")
+        order_expr = total_quantity if order_col == "total_quantity" else total_spent
 
-        retailer_clause, retailer_params = _retailer_filter(retailer)
-        if retailer_clause:
-            where_parts.append(retailer_clause)
-            params.extend(retailer_params)
-
-        if start_date:
-            where_parts.append("AND p.purchase_date >= ?")
-            params.append(start_date)
-        if end_date:
-            where_parts.append("AND p.purchase_date <= ?")
-            params.append(end_date)
-
-        where_parts.append("AND UPPER(pi.name) NOT LIKE '%PFAND%'")
-
+        base_stmt = (
+            select(1)
+            .select_from(purchase_item_table)
+            .join(purchase_table, purchase_table.c.id == purchase_item_table.c.purchase_id)
+            .join(store_table, store_table.c.id == purchase_table.c.store_id)
+            .where(func.upper(purchase_item_table.c.name).notlike("%PFAND%"))
+        )
         if search:
-            where_parts.append("AND UPPER(pi.name) LIKE ?")
-            params.append(f"%{search.upper()}%")
+            base_stmt = base_stmt.where(func.upper(purchase_item_table.c.name).like(f"%{search.upper()}%"))
+        base_stmt = _apply_filters(base_stmt, retailer, start_date, end_date)
 
-        where = " ".join(where_parts)
+        count_subquery = base_stmt.group_by(
+            func.upper(purchase_item_table.c.name), purchase_item_table.c.unit
+        ).subquery()
+        count_stmt = select(func.count()).select_from(count_subquery)
 
-        count_sql = f"""
-            SELECT COUNT(*) AS total
-            FROM (
-                SELECT 1
-                FROM purchase_item pi
-                JOIN purchase p ON p.id = pi.purchase_id
-                JOIN store s ON s.id = p.store_id
-                {where}
-                GROUP BY UPPER(pi.name), pi.unit
+        data_stmt = (
+            select(
+                purchase_item_table.c.name,
+                total_quantity,
+                total_spent,
+                func.count(distinct(purchase_table.c.id)).label("purchase_count"),
+                purchase_item_table.c.unit,
             )
-        """
-
-        sql = f"""
-            SELECT
-                pi.name,
-                SUM(pi.quantity) AS total_quantity,
-                SUM(pi.price * pi.quantity) AS total_spent,
-                COUNT(DISTINCT p.id) AS purchase_count,
-                pi.unit
-            FROM purchase_item pi
-            JOIN purchase p ON p.id = pi.purchase_id
-            JOIN store s ON s.id = p.store_id
-            {where}
-            GROUP BY UPPER(pi.name), pi.unit
-            ORDER BY {order_col} DESC
-            LIMIT ? OFFSET ?
-        """
+            .select_from(purchase_item_table)
+            .join(purchase_table, purchase_table.c.id == purchase_item_table.c.purchase_id)
+            .join(store_table, store_table.c.id == purchase_table.c.store_id)
+            .where(func.upper(purchase_item_table.c.name).notlike("%PFAND%"))
+        )
+        if search:
+            data_stmt = data_stmt.where(func.upper(purchase_item_table.c.name).like(f"%{search.upper()}%"))
+        data_stmt = _apply_filters(data_stmt, retailer, start_date, end_date)
         offset = (page - 1) * page_size
-        data_params = list(params) + [page_size, offset]
+        data_stmt = (
+            data_stmt.group_by(func.upper(purchase_item_table.c.name), purchase_item_table.c.unit)
+            .order_by(order_expr.desc())
+            .limit(page_size)
+            .offset(offset)
+        )
 
-        with closing(_connect()) as conn:
-            total = conn.execute(count_sql, tuple(params)).fetchone()["total"]
-            rows = conn.execute(sql, tuple(data_params)).fetchall()
+        with connect() as connection:
+            total = connection.execute(count_stmt).scalar_one()
+            rows = connection.execute(data_stmt).fetchall()
 
         return [
             TopItemRow(
-                name=str(row["name"]),
-                total_quantity=float(row["total_quantity"]),
-                total_spent=float(row["total_spent"]),
-                purchase_count=int(row["purchase_count"]),
-                unit=str(row["unit"]),
+                name=str(row._mapping["name"]),
+                total_quantity=float(row._mapping["total_quantity"]),
+                total_spent=float(row._mapping["total_spent"]),
+                purchase_count=int(row._mapping["purchase_count"]),
+                unit=str(row._mapping["unit"]),
             )
             for row in rows
         ], int(total)
@@ -417,53 +320,38 @@ class MetricsStore:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
     ) -> list[WeekdayRow]:
-        where_parts = ["WHERE p.total_price IS NOT NULL"]
-        params: list = []
-
-        retailer_clause, retailer_params = _retailer_filter(retailer)
-        if retailer_clause:
-            where_parts.append(retailer_clause)
-            params.extend(retailer_params)
-
-        if start_date:
-            where_parts.append("AND p.purchase_date >= ?")
-            params.append(start_date)
-        if end_date:
-            where_parts.append("AND p.purchase_date <= ?")
-            params.append(end_date)
-
-        where = " ".join(where_parts)
-
-        sql = f"""
-            SELECT
-                CAST(STRFTIME('%w', p.purchase_date) AS INTEGER) AS dow_raw,
-                COUNT(p.id) AS trip_count,
-                AVG(p.total_price) AS avg_spent,
-                SUM(p.total_price) AS total_spent
-            FROM purchase p
-            JOIN store s ON s.id = p.store_id
-            {where}
-            GROUP BY dow_raw
-            ORDER BY dow_raw
-        """
+        dow_raw = func.cast(func.strftime("%w", purchase_table.c.purchase_date), Integer).label("dow_raw")
+        stmt = (
+            select(
+                dow_raw,
+                func.count(purchase_table.c.id).label("trip_count"),
+                func.avg(purchase_table.c.total_price).label("avg_spent"),
+                func.sum(purchase_table.c.total_price).label("total_spent"),
+            )
+            .select_from(purchase_table)
+            .join(store_table, store_table.c.id == purchase_table.c.store_id)
+            .where(purchase_table.c.total_price.is_not(None))
+        )
+        stmt = _apply_filters(stmt, retailer, start_date, end_date)
+        stmt = stmt.group_by(dow_raw).order_by(dow_raw)
 
         weekday_names = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"]
         remap = {0: 6, 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}
 
-        with closing(_connect()) as conn:
-            rows = conn.execute(sql, tuple(params)).fetchall()
+        with connect() as connection:
+            rows = connection.execute(stmt).fetchall()
 
         results = []
         for row in rows:
-            dow_raw = int(row["dow_raw"])
-            german_idx = remap[dow_raw]
+            dow_value = int(row._mapping["dow_raw"])
+            german_idx = remap[dow_value]
             results.append(
                 WeekdayRow(
                     weekday=german_idx,
-                    weekday_name=weekday_names[dow_raw],
-                    trip_count=int(row["trip_count"]),
-                    avg_spent=float(row["avg_spent"]),
-                    total_spent=float(row["total_spent"]),
+                    weekday_name=weekday_names[dow_value],
+                    trip_count=int(row._mapping["trip_count"]),
+                    avg_spent=float(row._mapping["avg_spent"]),
+                    total_spent=float(row._mapping["total_spent"]),
                 )
             )
 
