@@ -4,6 +4,8 @@
 
 from requests import Session
 
+from .dm_browser_auth import DmBrowserCookieExtractor
+from .dm_file_auth import load_dm_cookies_from_file
 from .lidl_file_auth import load_lidl_cookies_from_file
 from .lidl_browser_auth import LidlBrowserCookieExtractor
 from .rewe_browser_auth import ReweBrowserCookieExtractor
@@ -12,11 +14,13 @@ from .rewe_file_auth import load_rewe_cookies_from_file
 RETAILER_BROWSER_EXTRACTORS = {
     "lidl": LidlBrowserCookieExtractor,
     "rewe": ReweBrowserCookieExtractor,
+    "dm": DmBrowserCookieExtractor,
 }
 
 RETAILER_FILE_LOADERS = {
     "lidl": load_lidl_cookies_from_file,
     "rewe": load_rewe_cookies_from_file,
+    "dm": load_dm_cookies_from_file,
 }
 
 

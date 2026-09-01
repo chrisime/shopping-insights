@@ -22,3 +22,10 @@ LIDL_IDENTITY_COOKIE_NAMES = {
     "LidlID",
 }
 
+# dm session cookies. The dm SSO session cookie (_SI_SID_*) carries a
+# tenant-specific suffix, so required/recommended sets are resolved against
+# the actual cookie names via these prefixes.
+DM_REQUIRED_COOKIE_PREFIXES = ("_SI_SID_",)
+DM_REQUIRED_COOKIE_NAMES = {"sessionid", "_sessionid"}
+DM_RECOMMENDED_COOKIE_PREFIXES = ("_SI_DID_", "_SI_VID_", "_dyjsession", "_dyid_server")
+

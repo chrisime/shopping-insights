@@ -76,6 +76,7 @@ function currency(value: unknown) {
 function retailerLabel(value: unknown): string {
   if (value === "lidl") return "Lidl";
   if (value === "rewe") return "REWE";
+  if (value === "dm") return "dm";
   return text(value);
 }
 

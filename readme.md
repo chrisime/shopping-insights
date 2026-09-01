@@ -1,31 +1,33 @@
 # Shopping Analyzer
 
-Ein Tool zum Extrahieren, Prüfen und Verwalten von Kassenbons aus Online-Kaufhistorien von **LIDL** und **REWE**.
+Ein Tool zum Extrahieren, Prüfen und Verwalten von Kassenbons aus Online-Kaufhistorien von **LIDL**, **REWE** und **dm**.
 
 > [!IMPORTANT]
 > Falls du das Projekt aus einem älteren Video oder einer älteren Anleitung kennst: Der Ablauf hat sich geändert. Bitte orientiere dich an den aktuellen CLI- und Menüpfaden in dieser Dokumentation.
 
 ## Überblick
 
-Das Projekt unterstützt aktuell zwei Händler:
+Das Projekt unterstützt aktuell drei Händler:
 
 - **LIDL**: Abruf der digitalen Bons, Parsing, Validierung und Persistierung in `shopping_receipts.sqlite`
 - **REWE**: Download der eBon-ZIP, PDF-Extraktion, Parsing, Validierung und Persistierung in `shopping_receipts.sqlite`
+- **dm**: Abruf der Kaufhistorie (Markt-eBons) über die dm-API, Parsing, Validierung und Persistierung in `shopping_receipts.sqlite`
 
 JSON-Dateien sind ein **Exportformat** aus dem aktuellen DB-Stand.
 
-Zusätzlich gibt es für beide Händler einen Diagnosepfad für Cookie-/Request-Dateien:
+Zusätzlich gibt es für alle Händler einen Diagnosepfad für Cookie-/Request-Dateien:
 
 ```bash
 python fetch_tickets.py check --retailer lidl --cookies-file lidl_cookies.json
 python fetch_tickets.py check --retailer rewe --cookies-file rewe_cookies.json
+python fetch_tickets.py check --retailer dm --cookies-file dm_cookies.json
 ```
 
 ## Voraussetzungen
 
 - Python 3.10 oder neuer
 - installierte Projekt-Abhängigkeiten aus `requirements.txt`
-- ein aktives LIDL- oder REWE-Konto
+- ein aktives LIDL-, REWE- oder dm-Konto
 - entweder ein unterstütztes Browserprofil oder eine exportierte Cookie-/Request-Datei
 
 Installation:
@@ -56,6 +58,7 @@ Im Menü kannst du je nach Händler folgende Aktionen wählen:
 
 - **LIDL**: Sync, JSON aus DB erzeugen, Cookie-Datei prüfen
 - **REWE**: Initial, Update, JSON aus DB erzeugen, Cookie-/Request-Datei prüfen
+- **dm**: Initial, Update, JSON aus DB erzeugen, Cookie-Datei prüfen
 
 ### Direkte CLI-Aufrufe
 
@@ -69,6 +72,11 @@ python fetch_tickets.py initial --retailer rewe --cookies-file rewe_cookies.json
 python fetch_tickets.py update --retailer rewe --output-dir tmp/rewe
 python fetch_tickets.py check --retailer rewe --cookies-file rewe_cookies.json
 python fetch_tickets.py export --retailer rewe --output-file rewe_receipts.json
+
+python fetch_tickets.py initial --retailer dm --cookies-file dm_cookies.json
+python fetch_tickets.py update --retailer dm --output-dir tmp/dm
+python fetch_tickets.py check --retailer dm --cookies-file dm_cookies.json
+python fetch_tickets.py export --retailer dm --output-file dm_receipts.json
 ```
 
 Optional kann für den Export ein alternativer DB-Pfad gesetzt werden:
@@ -80,15 +88,23 @@ python fetch_tickets.py export --retailer rewe --db-path shopping_receipts.sqlit
 ## Händler-spezifische Anleitungen
 
 - [`docs/LIBREWOLF_SESSION_COOKIES.md`](./docs/LIBREWOLF_SESSION_COOKIES.md) – ergänzende Hinweise zur Cookie-Gewinnung aus LibreWolf
+- [`README_LIDL_RECEIPTS.md`](./README_LIDL_RECEIPTS.md) – LIDL-Kassenbons abrufen und importieren
+- [`README_REWE_EBONS.md`](./README_REWE_EBONS.md) – REWE-eBons herunterladen und importieren
+- [`README_DM_EBONS.md`](./README_DM_EBONS.md) – dm-Kaufhistorie abrufen und importieren (OAuth-Flow, Cookie-Export, CLI)
+
+### dm – Cookie-Export für den OAuth-Flow
+
+dm authentifiziert sich über einen OAuth-2.0-Flow mit PKCE gegen `signin.dm.de`. Der Abruf benötigt eine exportierte Cookie-Datei, die **mindestens die dm-Session-Cookies** enthält (z. B. `_SI_SID_*` auf `.dm.de` sowie die `signin.dm.de`-Session-Cookies). Ohne eine gültige dm-Session kann kein kurzfristiger Access-Token erstellt werden (`fetch_tickets.py check --retailer dm` zeigt eine Ampel-Diagnose). Ausführliche Schritte stehen in [`README_DM_EBONS.md`](./README_DM_EBONS.md).
 
 ## Ausgaben
 
 Je nach Workflow entstehen insbesondere folgende Dateien:
 
 - `shopping_receipts.sqlite`
-- optionale Exporte: `lidl_receipts.json`, `rewe_receipts.json`
+- optionale Exporte: `lidl_receipts.json`, `rewe_receipts.json`, `dm_receipts.json`
 - `tmp/rewe/receipts.zip`
 - `tmp/rewe/pdfs/`
+- `tmp/dm/ebons/` (eBon-JSONs), `tmp/dm/pdf/` (eBon-PDFs)
 
 ## Dashboard
 

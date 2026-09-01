@@ -33,6 +33,7 @@ class ReceiptData(TypedDict, total=False):
     rewe_bonus_amount: float | None
     rewe_bonus_discount: float | None
     rewe_bonus_total_amount: float | None
+    dm_payback_points: int | None
 
 
 SHARED_MONEY_FIELDS = {
@@ -52,6 +53,9 @@ _RETAILER_EXTRA_DEFAULTS: dict[str, dict[str, Any]] = {
         "rewe_bonus_amount": None,
         "rewe_bonus_discount": None,
         "rewe_bonus_total_amount": None,
+    },
+    "dm": {
+        "dm_payback_points": None,
     },
 }
 
@@ -106,6 +110,7 @@ def build_receipt_schema(
         "rewe_bonus_amount": None,
         "rewe_bonus_discount": None,
         "rewe_bonus_total_amount": None,
+        "dm_payback_points": None,
     }
     receipt_data.update(overrides)  # type: ignore[arg-type]
     return receipt_data

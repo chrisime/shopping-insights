@@ -86,4 +86,4 @@ def download_receipts_zip(
     return None
 
 
-test_rewe_session.__test__ = False
+test_rewe_session.__test__ = False  # type: ignore[attr-defined]

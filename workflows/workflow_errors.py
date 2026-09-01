@@ -31,6 +31,15 @@ REWE_INITIAL_ERROR_DETAILS: dict[int, WorkflowErrorInfo] = {
     2209: WorkflowErrorInfo("rewe", 2209, "REWE ZIP-Abruf ohne customerId fehlgeschlagen."),
 }
 
+DM_INITIAL_ERROR_DETAILS: dict[int, WorkflowErrorInfo] = {
+    2301: WorkflowErrorInfo("dm", 2301, "dm benötigt --cookies-file oder --browser."),
+    2302: WorkflowErrorInfo("dm", 2302, "dm-Cookies aus der Datei konnten nicht geladen werden."),
+    2303: WorkflowErrorInfo("dm", 2303, "dm-Browserprofil konnte keine Cookies liefern."),
+    2304: WorkflowErrorInfo("dm", 2304, "dm-Session ist ungültig oder abgelaufen (kein Access-Token)."),
+    2305: WorkflowErrorInfo("dm", 2305, "dm-Access-Token konnte nicht ausgestellt werden."),
+    2306: WorkflowErrorInfo("dm", 2306, "dm-Kaufhistorie konnte nicht abgerufen werden."),
+}
+
 CONCURRENT_IMPORT_ERROR = WorkflowErrorInfo("shared", 4091, "Import bereits aktiv")
 
 _state = local()
@@ -58,3 +67,7 @@ def lidl_initial_error(key: str) -> WorkflowErrorInfo:
 
 def rewe_initial_error(error_code: int) -> WorkflowErrorInfo:
     return REWE_INITIAL_ERROR_DETAILS[error_code]
+
+
+def dm_initial_error(error_code: int) -> WorkflowErrorInfo:
+    return DM_INITIAL_ERROR_DETAILS[error_code]

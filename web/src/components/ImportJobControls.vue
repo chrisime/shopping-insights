@@ -35,7 +35,8 @@ const showCustomerId = ref(false);
 function applyRetailerDefaults(retailer: ImportRetailer) {
   authMode.value = "cookies-file";
   browser.value = "firefox";
-  cookiesFile.value = retailer === "lidl" ? "lidl_cookies.json" : "rewe_cookies.json";
+  cookiesFile.value =
+    retailer === "lidl" ? "lidl_cookies.json" : retailer === "rewe" ? "rewe_cookies.json" : "dm_cookies.json";
   authMode.value = "browser";
   customerId.value = "";
   showCustomerId.value = false;
@@ -68,6 +69,7 @@ const startPayload = computed(() =>
           <OSelect :model-value="retailer" expanded @update:model-value="emit('update:retailer', $event as ImportRetailer)">
             <option value="lidl">Lidl</option>
             <option value="rewe">REWE</option>
+            <option value="dm">dm</option>
           </OSelect>
         </OField>
 

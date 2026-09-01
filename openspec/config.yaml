@@ -1,15 +1,23 @@
 schema: intent-driven
+stack: python
 
-#   context: |
-#     Tech stack: TypeScript, Python, Vue3, Node.js
-#     We use conventional commits
-#     Domain: shopping analytics
+context: |
+  This project uses the intent-driven schema: proposals capture the why and
+  what, behaviour specs are authored as Gherkin-style requirements and
+  scenarios executed by the behave runner (python stack), design records the
+  implementation approach, and ADRs are reviewed per change. Changes without a
+  Jira ticket follow this schema; all user-facing content is written in English.
 
 rules:
   proposal:
-    - Must use grill-me skill
+    - "Must use brainstorming skill"
+    - "Must use grill-me skill"
+    # - "Must use adversarial-authoring skill"
+    # - "Must use glossary skill"
+  specs:
+    - "Must use gherkin-authoring skill"
   design:
-    - Must use c4-diagrams skill
+    - "Must use c4-diagrams skill"
   adr:
     - Must use architectural-decision-records skill
   specs:

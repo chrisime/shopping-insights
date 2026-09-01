@@ -3,7 +3,7 @@
 Receipt Data Updater - Entry Point
 
 Main entry point for the shopping analyzer application. Supports multiple
-retailers (currently LIDL and REWE).
+retailers (currently LIDL, REWE and dm).
 
 For first-time setup or complete refresh, use the 'initial' command.
 For monthly updates (adds only new data), use the 'update' command.
@@ -21,6 +21,12 @@ Usage:
     python fetch_tickets.py check   --retailer lidl --cookies-file lidl_cookies.json
     python fetch_tickets.py check   --retailer rewe --cookies-file rewe_cookies.json
     python fetch_tickets.py export  --retailer lidl --output-file lidl_receipts.json
+    python fetch_tickets.py initial --retailer dm --cookies-file dm_cookies.json
+    python fetch_tickets.py check   --retailer dm --cookies-file dm_cookies.json
+
+dm requires a cookies-file export that includes the signin.dm.de session
+cookies (and optionally the *.services.dmtech.com cookies) so the OAuth flow
+can mint a short-lived access token.
 """
 
 from __future__ import annotations
@@ -28,7 +34,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from config import LidlConfig, ReweConfig
+from config import DmConfig, LidlConfig, ReweConfig
 from shared.retailer_runtime import RETAILERS
 
 
@@ -36,7 +42,7 @@ def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser with subcommands."""
     parser = argparse.ArgumentParser(
         prog="fetch_tickets.py",
-        description="Extract and manage receipt data from supported retailers (LIDL, REWE).",
+        description="Extract and manage receipt data from supported retailers (LIDL, REWE, dm).",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -56,7 +62,7 @@ def create_parser() -> argparse.ArgumentParser:
             "--browser",
             choices=["firefox", "librewolf", "chrome", "chromium"],
             help="Browser to extract cookies from (non-interactive mode). "
-                 "LIDL/REWE: firefox/librewolf/chrome/chromium.",
+                 "LIDL/REWE/dm: firefox/librewolf/chrome/chromium.",
         )
         group.add_argument(
             "--cookies-file",
@@ -145,12 +151,18 @@ def _dispatch_check(args: argparse.Namespace) -> bool:
 
         return diagnose_rewe_cookie_file(args.cookies_file)
 
+    if args.retailer == "dm":
+        from auth.dm_file_auth import diagnose_dm_cookie_file
+
+        return diagnose_dm_cookie_file(args.cookies_file)
+
     print(f"✗ Unbekannter Händler: {args.retailer}", file=sys.stderr)
     return False
 
 
 def _dispatch_workflow(args: argparse.Namespace, mode: str) -> bool:
     """Run the requested retailer workflow for `initial` or `update`."""
+    from workflows.dm_workflow import run_dm_initial, run_dm_update
     from workflows.lidl_workflow import run_lidl_initial, run_lidl_update
     from workflows.rewe_workflow import run_rewe_initial, run_rewe_update
 
@@ -175,6 +187,16 @@ def _dispatch_workflow(args: argparse.Namespace, mode: str) -> bool:
                 output_dir=output_dir,
             )
         return run_rewe_update(output_dir=output_dir)
+
+    if args.retailer == "dm":
+        output_dir = args.output_dir or DmConfig.DEFAULT_OUTPUT_DIR
+        if mode == "initial":
+            return run_dm_initial(
+                browser=args.browser,
+                cookies_file=args.cookies_file,
+                output_dir=output_dir,
+            )
+        return run_dm_update(output_dir=output_dir)
 
     print(f"✗ Unbekannter Händler: {args.retailer}", file=sys.stderr)
     return False

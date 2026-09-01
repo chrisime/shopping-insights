@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, TypedDict
 
+from config.dm_config import DmConfig
 from config.lidl_config import LidlConfig
 from config.rewe_config import ReweConfig
 
@@ -35,6 +36,11 @@ _RUNTIME_DEFINITIONS: dict[str, _RetailerDefinition] = {
         "name": "REWE",
         "country_getter": ReweConfig.get_country_code,
         "receipts_json_file": ReweConfig.RECEIPTS_JSON_FILE,
+    },
+    "dm": {
+        "name": "DM",
+        "country_getter": DmConfig.get_country_code,
+        "receipts_json_file": DmConfig.RECEIPTS_JSON_FILE,
     },
 }
 

@@ -19,7 +19,6 @@ export function useDashboard() {
   const loading = ref(false);
   const error = ref<string | null>(null);
   const skipNextAutoRefresh = ref(false);
-  const pendingDateRangeReset = ref(false);
   let requestToken = 0;
 
   const filters = computed(() => ({
@@ -51,9 +50,9 @@ export function useDashboard() {
         if (
           response.min_date &&
           response.max_date &&
-          (pendingDateRangeReset.value || (!startDate.value && !endDate.value))
+          !startDate.value &&
+          !endDate.value
         ) {
-          pendingDateRangeReset.value = false;
           syncDateRange(response.min_date, response.max_date);
         }
       }
@@ -90,10 +89,7 @@ export function useDashboard() {
         return;
       }
 
-      pendingDateRangeReset.value = true;
       skipNextAutoRefresh.value = true;
-      startDate.value = "";
-      endDate.value = "";
       page.value = 1;
       search.value = "";
       void refresh();

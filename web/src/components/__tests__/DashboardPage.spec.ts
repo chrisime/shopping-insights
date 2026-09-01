@@ -105,15 +105,63 @@ describe("DashboardPage", () => {
     expect(html).toContain("Shopping Analyzer Dashboard");
   });
 
-  it("resets the date range when the retailer changes", async () => {
+  it("preserves the date range and resets pagination/search when the retailer changes", async () => {
+    const payload = () => ({
+      ok: true,
+      json: async () => ({
+        title: "Shopping Analyzer Dashboard",
+        min_date: "2024-01-01",
+        max_date: "2024-01-31",
+        sections: [],
+      }),
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(payload())
+      .mockResolvedValueOnce(payload())
+      .mockResolvedValueOnce(payload())
+      .mockResolvedValueOnce(payload());
+    vi.stubGlobal("fetch", fetchMock);
+
+    const scope = effectScope();
+    const dashboard = scope.run(() => useDashboard());
+    expect(dashboard).toBeDefined();
+
+    await dashboard!.refresh();
+    await nextTick();
+
+    dashboard!.search.value = "lidl";
+    dashboard!.page.value = 3;
+    await nextTick();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    dashboard!.retailer.value = "lidl";
+    await nextTick();
+    await Promise.resolve();
+    await Promise.resolve();
+    await nextTick();
+
+    const retailerFetch = new URL(String(fetchMock.mock.calls[fetchMock.mock.calls.length - 1][0]));
+    expect(retailerFetch.searchParams.get("start_date")).toBe("2024-01-01");
+    expect(retailerFetch.searchParams.get("end_date")).toBe("2024-01-31");
+    expect(dashboard!.startDate.value).toBe("2024-01-01");
+    expect(dashboard!.endDate.value).toBe("2024-01-31");
+    expect(dashboard!.search.value).toBe("");
+    expect(dashboard!.page.value).toBe(1);
+
+    scope.stop();
+  });
+
+  it("seeds the date range from the new retailer payload when no range is set", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           title: "Shopping Analyzer Dashboard",
-          min_date: "2024-01-01",
-          max_date: "2024-01-31",
+          min_date: null,
+          max_date: null,
           sections: [],
         }),
       })
@@ -135,15 +183,15 @@ describe("DashboardPage", () => {
     await dashboard!.refresh();
     await nextTick();
 
+    expect(dashboard!.startDate.value).toBe("");
+    expect(dashboard!.endDate.value).toBe("");
+
     dashboard!.retailer.value = "lidl";
     await nextTick();
     await Promise.resolve();
     await Promise.resolve();
     await nextTick();
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(new URL(String(fetchMock.mock.calls[1][0])).searchParams.get("start_date")).toBeNull();
-    expect(new URL(String(fetchMock.mock.calls[1][0])).searchParams.get("end_date")).toBeNull();
     expect(dashboard!.startDate.value).toBe("2024-02-01");
     expect(dashboard!.endDate.value).toBe("2024-02-29");
 

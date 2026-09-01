@@ -78,7 +78,7 @@ def test_receipt_export_without_retailer_merges_all_retailers(monkeypatch):
             {"id": "r1", "purchase_date": "2024-01-01", "total_price": 10.0},
         ]
     }
-    assert calls == ["lidl", "rewe"]
+    assert calls == ["lidl", "rewe", "dm"]
 
 
 def test_receipt_export_filters_by_retailer_and_date_range(monkeypatch):

@@ -130,6 +130,7 @@ async function handleExport() {
             <option value="">Alle</option>
             <option value="lidl">Lidl</option>
             <option value="rewe">REWE</option>
+            <option value="dm">dm</option>
           </OSelect>
         </OField>
 

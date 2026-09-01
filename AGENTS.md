@@ -73,13 +73,24 @@
 - `shared/kpi_dtos.py` — TimeSeriesRow with `retailers` field
 - `storage/kpi_store.py` — GROUP_CONCAT in time-series SQL
 - `client/lidl_client.py`
+- `client/rewe_client.py`
+- `client/dm_client.py` — dm purchase history / eBon / PDF client with 401 token refresh
+- `config/dm_config.py` — dm endpoints, OAuth PKCE issuer/client, cookie + JSON file paths
+- `auth/dm_auth.py` — OAuth 2.0 authorization-code + PKCE token mint (incl. login-form POST)
+- `auth/dm_file_auth.py` — dm cookie-file loading + traffic-light diagnostics with live token check
+- `auth/dm_browser_auth.py` — dm browser cookie extraction
+- `parsing/dm_ebons_parser.py` — dm eBon JSON → shared receipt schema (pdfItems preferred, DAN merge)
+- `parsing/dm_pdf_items_extractor.py` — item names/prices from dm eBon PDFs
+- `parsing/dm_validator.py`
+- `workflows/dm_workflow.py` — dm initial/update via shared `import_local_sources()`
+- `cli/dm_menu.py` — interactive dm submenu
 - `fetch_tickets.py`
-- `workflows/` — de-abstraction: `local_import.py` (shared import path), `lidl_workflow.py`, `rewe_workflow.py`, `import_workflow.py` (thin base); `import_pipeline.py` removed
+- `workflows/` — de-abstraction: `local_import.py` (shared import path), `lidl_workflow.py`, `rewe_workflow.py`, `dm_workflow.py`, `import_workflow.py` (thin base); `import_pipeline.py` removed
 - `auth/cookie_diagnostics.py` — split from `shared_file_auth.py` (session construction remains in `shared_file_auth.py`)
-- `frontend/dashboard_errors.py`
-- `frontend/dashboard_state.py`
-- `frontend/ui_model.py`
-- `frontend/schema.py`
+- `api/services/dashboard_errors.py`
+- `api/services/dashboard_models.py` — dashboard DTOs
+- `api/services/dashboard_builders.py` — pure dashboard builders
+- `api/services/dashboard_service.py` — thin dashboard service
 - `web/src/components/TrendBarChart.vue` — D3 SVG chart with tooltip + hover
 - `web/src/components/TrendChartPanel.vue` — emits `select-period` for bar click
 - `web/src/components/ReceiptListModal.vue` — period drill-down modal

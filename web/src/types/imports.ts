@@ -1,4 +1,4 @@
-export type ImportRetailer = "lidl" | "rewe";
+export type ImportRetailer = "lidl" | "rewe" | "dm";
 
 export interface ImportProgressState {
   current: number;

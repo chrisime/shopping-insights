@@ -2,6 +2,11 @@
 
 from typing import Any, Callable, Sequence, TypeVar
 
+from parsing.dm_ebons_parser import parse_dm_ebon
+from parsing.dm_validator import (
+    DmReceiptValidationError,
+    validate_dm_receipt_data,
+)
 from parsing.lidl_receipt_parser import parse_lidl_ticket
 from parsing.lidl_validator import (
     LidlReceiptValidationError,
@@ -21,7 +26,7 @@ from .pipeline_types import (
     StageResult,
 )
 from .progress_display import ProgressState, ReceiptProgressDisplay
-from .workflow_constants import RETAILER_LIDL, RETAILER_REWE
+from .workflow_constants import RETAILER_DM, RETAILER_LIDL, RETAILER_REWE
 
 T = TypeVar("T")
 
@@ -36,16 +41,19 @@ def _lookup(table: dict[str, T], retailer: str, label: str) -> T:
 _PARSERS: dict[str, Callable[..., Any]] = {
     RETAILER_LIDL: parse_lidl_ticket,
     RETAILER_REWE: parse_rewe_ticket,
+    RETAILER_DM: parse_dm_ebon,
 }
 
 _VALIDATORS: dict[str, Callable[..., None]] = {
     RETAILER_LIDL: validate_lidl_receipt_data,
     RETAILER_REWE: validate_rewe_receipt_data,
+    RETAILER_DM: validate_dm_receipt_data,
 }
 
 _VALIDATION_ERROR_TYPES: dict[str, tuple[type[Exception], ...]] = {
     RETAILER_LIDL: (LidlReceiptValidationError,),
     RETAILER_REWE: (ReweReceiptValidationError,),
+    RETAILER_DM: (DmReceiptValidationError,),
 }
 
 

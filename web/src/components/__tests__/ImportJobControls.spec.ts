@@ -124,4 +124,49 @@ describe("ImportJobControls", () => {
 
     expect(wrapper.emitted("start-import")?.[0][0]).toEqual({ retailer: "lidl", browser: "firefox" });
   });
+
+  it("offers dm as an import retailer", async () => {
+    const wrapper = mount(ImportJobControls, {
+      props: {
+        retailer: "dm",
+        running: false,
+        progress: { current: 0, total: 0, added: 0, skipped: 0, errors: 0, items: 0, current_receipt: "-" },
+        message: null,
+        error: null,
+        technicalError: null,
+      },
+      global: {
+        stubs: {
+          OField: { template: "<div><slot /></div>" },
+          OSelect: { template: "<select><slot /></select>" },
+        },
+      },
+    });
+
+    const optionValues = wrapper.findAll("option").map((o) => o.attributes("value"));
+    expect(optionValues).toContain("dm");
+  });
+
+  it("emits start-import for dm without customer_id", async () => {
+    const wrapper = mount(ImportJobControls, {
+      props: {
+        retailer: "dm",
+        running: false,
+        progress: { current: 0, total: 0, added: 0, skipped: 0, errors: 0, items: 0, current_receipt: "-" },
+        message: null,
+        error: null,
+        technicalError: null,
+      },
+      global: {
+        stubs: {
+          OField: { template: "<div><slot /></div>" },
+          OSelect: { template: "<select><slot /></select>" },
+        },
+      },
+    });
+
+    await wrapper.get("button").trigger("click");
+
+    expect(wrapper.emitted("start-import")?.[0][0]).toEqual({ retailer: "dm", browser: "firefox" });
+  });
 });
