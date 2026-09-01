@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from workflows.dm_workflow import run_dm_initial
 from workflows.lidl_workflow import run_lidl_initial
 from workflows.rewe_workflow import run_rewe_initial
 
@@ -23,3 +24,12 @@ def trigger_rewe_fetch(
 ) -> dict[str, Any]:
     started = run_rewe_initial(browser=browser, cookies_file=cookies_file, customer_id=customer_id)
     return {"data": {"retailer": "rewe", "started": bool(started), "days_back": days_back}}
+
+
+def trigger_dm_fetch(
+    days_back: int = 30,
+    browser: str | None = None,
+    cookies_file: str | None = None,
+) -> dict[str, Any]:
+    started = run_dm_initial(browser=browser, cookies_file=cookies_file)
+    return {"data": {"retailer": "dm", "started": bool(started), "days_back": days_back}}

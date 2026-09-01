@@ -131,6 +131,12 @@ def _run_import_job(
                 customer_id=customer_id,
                 progress_listener=progress_listener,
             )
+        elif retailer == "dm":
+            started = cast(Callable[..., object], trigger_service.run_dm_initial)(
+                browser=browser,
+                cookies_file=cookies_file,
+                progress_listener=progress_listener,
+            )
         else:
             raise ValueError(f"Unsupported retailer: {retailer}")
         if not started:

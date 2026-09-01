@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 
 class ImportStartRequest(BaseModel):
-    retailer: Literal["lidl", "rewe"]
+    retailer: Literal["lidl", "rewe", "dm"]
     browser: str | None = None
     cookies_file: str | None = None
     customer_id: str | None = None
@@ -16,4 +16,4 @@ class ImportStartRequest(BaseModel):
 
 class ImportStartResponse(BaseModel):
     job_id: str
-    retailer: Literal["lidl", "rewe"]
+    retailer: Literal["lidl", "rewe", "dm"]
