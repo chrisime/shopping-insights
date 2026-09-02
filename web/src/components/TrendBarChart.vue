@@ -3,7 +3,7 @@ import { computed, ref, onMounted, watch } from "vue";
 import * as d3 from "d3";
 
 import { amount, text } from "../utils/format";
-import type { MonthLabel } from "../chart-plugins/monthHeaderPlugin";
+import type { MonthLabel } from "../types/chart";
 
 const monthNames = [
   "Januar", "Februar", "März", "April", "Mai", "Juni",

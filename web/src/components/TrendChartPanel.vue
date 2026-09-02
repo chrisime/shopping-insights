@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import TrendBarChart from "./TrendBarChart.vue";
 import { amount, text, euro } from "../utils/format";
-import type { MonthLabel } from "../chart-plugins/monthHeaderPlugin";
+import type { MonthLabel } from "../types/chart";
 
 const emit = defineEmits<{
   (e: "select-period", payload: { startDate: string; endDate: string; label: string }): void;
