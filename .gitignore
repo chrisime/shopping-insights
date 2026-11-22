@@ -4,6 +4,7 @@ __pycache__/
 
 lidl_cookies.json
 rewe_cookies.json
+rossmann_cookies.json
 
 tmp/
 
@@ -13,5 +14,13 @@ web/dist/
 .superpowers/
 
 shopping_receipts.sqlite
+shopping_receipts.sqlite.bkp
+
+.idea/
+.pnpm-store/
+skills/
+.opencode/plans/
+
+openspec/schemas/*/.tmp-validate/
 
 .DS_Store
