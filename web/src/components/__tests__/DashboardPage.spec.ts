@@ -24,7 +24,7 @@ describe("DashboardPage", () => {
           sections: [
             {
               kind: "metrics",
-              title: "Kennzahlen",
+              title: "Allgemeine Informationen",
               items: [
                 {
                   spendings: 10.0,
@@ -50,7 +50,7 @@ describe("DashboardPage", () => {
     const html = await renderToString(createSSRApp(DashboardPage));
 
     expect(html).toContain("Monatsübersicht");
-    expect(html).toContain("Kennzahlen");
+    expect(html).toContain("Allgemeine Informationen");
     expect(html).toContain("Ausgaben gesamt");
     expect(html).toContain("Ausgaben über Zeit");
   });

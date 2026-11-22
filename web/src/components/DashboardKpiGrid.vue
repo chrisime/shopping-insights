@@ -47,6 +47,7 @@ const rossmannCards: KpiCardDef[] = [
   { title: "Rossmann 10% Coupon", fields: ["rossmann_basket_coupon_amount"] },
   { title: "Rossmann Produktcoupons", fields: ["rossmann_product_coupon_amount", "rossmann_product_coupon_pct"] },
   { title: "Rossmann andere Coupons", fields: ["rossmann_unclassified_coupon_amount"] },
+  { title: "Preisvorteil", fields: ["rossmann_discount_amount", "rossmann_discount_pct"] },
 ];
 
 function hasAllFields(group: KpiCardGroup): boolean {
@@ -88,12 +89,15 @@ function fieldLabel(key: string): string {
     rossmann_product_coupon_amount: "Gespart",
     rossmann_product_coupon_pct: "Sparquote",
     rossmann_unclassified_coupon_amount: "Gespart",
+    rossmann_discount_amount: "Gespart",
+    rossmann_discount_pct: "Sparquote",
   };
   return labels[key] ?? key;
 }
 
 function visibleGroups(): KpiCardGroup[] {
-  const groups = [...cardGroups];
+  const groups: KpiCardGroup[] = [];
+  if (props.data.spendings !== undefined) groups.push(...cardGroups);
   if (hasAllFields(reweGroup)) groups.push(reweGroup);
   if (hasAllFields(lidlGroup)) groups.push(lidlGroup);
   const visibleRossmannCards = rossmannCards.filter(({ fields }) =>

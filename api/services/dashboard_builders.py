@@ -112,6 +112,25 @@ def _build_top_items(
     )
 
 
+_GENERAL_METRIC_KEYS = frozenset(
+    {
+        "spendings",
+        "spendings_without_discount",
+        "receipt_count",
+        "avg_receipt_amount",
+        "saved_deposit",
+        "total_savings",
+        "total_savings_pct",
+    }
+)
+
+
+def _split_kpi_metrics(metrics: dict[str, float]) -> tuple[dict[str, float], dict[str, float]]:
+    general = {key: value for key, value in metrics.items() if key in _GENERAL_METRIC_KEYS}
+    discounts = {key: value for key, value in metrics.items() if key not in _GENERAL_METRIC_KEYS}
+    return general, discounts
+
+
 def _build_kpi_metrics(state: DashboardState) -> dict[str, float]:
     metrics: dict[str, float] = {
         "spendings": state.kpis.total_spent,
@@ -124,44 +143,48 @@ def _build_kpi_metrics(state: DashboardState) -> dict[str, float]:
     }
 
     if state.retailer in (None, "rewe"):
-        rewe_bonus = (
-            state.rewe_bonus_kpis
-            if state.retailer is None and state.rewe_bonus_kpis is not None
-            else state.bonus_kpis
-        )
-        rewe_regular = (
-            state.rewe_kpis.total_discount
+        rewe_kpis = (
+            state.rewe_kpis
             if state.retailer is None and state.rewe_kpis is not None
-            else state.kpis.total_discount
+            else state.kpis
         )
-        rewe_bonus_open = max(0.0, rewe_bonus.rewe_bonus_collected - rewe_bonus.rewe_bonus_redeemed)
-        metrics["rewe_discount_amount"] = rewe_regular
-        metrics["rewe_discount_pct"] = _pct(rewe_regular, _retailer_spent(state, "rewe"))
-        metrics["rewe_bonus_collected"] = rewe_bonus.rewe_bonus_collected
-        metrics["rewe_bonus_balance"] = rewe_bonus.rewe_bonus_balance
-        metrics["rewe_bonus_redeemed"] = rewe_bonus.rewe_bonus_redeemed
-        metrics["rewe_bonus_open"] = rewe_bonus_open
+        if state.retailer == "rewe" or rewe_kpis.total_receipts > 0:
+            rewe_bonus = (
+                state.rewe_bonus_kpis
+                if state.retailer is None and state.rewe_bonus_kpis is not None
+                else state.bonus_kpis
+            )
+            rewe_regular = rewe_kpis.total_discount
+            rewe_bonus_open = max(0.0, rewe_bonus.rewe_bonus_collected - rewe_bonus.rewe_bonus_redeemed)
+            metrics["rewe_discount_amount"] = rewe_regular
+            metrics["rewe_discount_pct"] = _pct(rewe_regular, _retailer_spent(state, "rewe"))
+            metrics["rewe_bonus_collected"] = rewe_bonus.rewe_bonus_collected
+            metrics["rewe_bonus_balance"] = rewe_bonus.rewe_bonus_balance
+            metrics["rewe_bonus_redeemed"] = rewe_bonus.rewe_bonus_redeemed
+            metrics["rewe_bonus_open"] = rewe_bonus_open
 
     if state.retailer in (None, "lidl"):
-        lidl_bonus = (
-            state.lidl_bonus_kpis
-            if state.retailer is None and state.lidl_bonus_kpis is not None
-            else state.bonus_kpis
-        )
-        lidl_regular = (
-            state.lidl_kpis.total_discount
+        lidl_kpis = (
+            state.lidl_kpis
             if state.retailer is None and state.lidl_kpis is not None
-            else state.kpis.total_discount
+            else state.kpis
         )
-        metrics["lidlplus_discount_amount"] = lidl_bonus.lidlplus_discount
-        metrics["lidlplus_discount_pct"] = _pct(lidl_bonus.lidlplus_discount, _retailer_spent(state, "lidl"))
-        metrics["sticker_discount_amount"] = lidl_bonus.sticker_discount
-        metrics["sticker_discount_pct"] = _pct(lidl_bonus.sticker_discount, _retailer_spent(state, "lidl"))
-        metrics["lidl_discount_amount"] = lidl_regular
-        metrics["lidl_discount_pct"] = _pct(lidl_regular, _retailer_spent(state, "lidl"))
+        if state.retailer == "lidl" or lidl_kpis.total_receipts > 0:
+            lidl_bonus = (
+                state.lidl_bonus_kpis
+                if state.retailer is None and state.lidl_bonus_kpis is not None
+                else state.bonus_kpis
+            )
+            lidl_regular = lidl_kpis.total_discount
+            metrics["lidlplus_discount_amount"] = lidl_bonus.lidlplus_discount
+            metrics["lidlplus_discount_pct"] = _pct(lidl_bonus.lidlplus_discount, _retailer_spent(state, "lidl"))
+            metrics["sticker_discount_amount"] = lidl_bonus.sticker_discount
+            metrics["sticker_discount_pct"] = _pct(lidl_bonus.sticker_discount, _retailer_spent(state, "lidl"))
+            metrics["lidl_discount_amount"] = lidl_regular
+            metrics["lidl_discount_pct"] = _pct(lidl_regular, _retailer_spent(state, "lidl"))
 
     rossmann_kpis = state.kpis if state.retailer == "rossmann" else state.rossmann_kpis
-    if rossmann_kpis is not None:
+    if rossmann_kpis is not None and (state.retailer == "rossmann" or rossmann_kpis.total_receipts > 0):
         metrics["rossmann_discount_amount"] = rossmann_kpis.total_discount
         metrics["rossmann_discount_pct"] = _pct(rossmann_kpis.total_discount, rossmann_kpis.total_spent)
         coupon = state.bonus_kpis.rossmann_coupon_discount
@@ -368,7 +391,12 @@ def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
             error=state.error,
         )
 
-    sections = [DashboardSection(kind="metrics", title="Kennzahlen", items=[_build_kpi_metrics(state)])]
+    general_metrics, discount_metrics = _split_kpi_metrics(_build_kpi_metrics(state))
+    sections = [
+        DashboardSection(kind="metrics", title="Allgemeine Informationen", items=[general_metrics]),
+    ]
+    if discount_metrics:
+        sections.append(DashboardSection(kind="metrics", title="Rabatte", items=[discount_metrics]))
 
     sections.extend(
         [

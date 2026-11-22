@@ -83,20 +83,22 @@ def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
 
     assert page["min_date"] == "2024-01-01"
     assert page["max_date"] == "2024-01-31"
-    metrics = next(section for section in page["sections"] if section["kind"] == "metrics")
+    general = next(section for section in page["sections"] if section["title"] == "Allgemeine Informationen")
+    discounts = next(section for section in page["sections"] if section["title"] == "Rabatte")
 
-    assert metrics["items"][0]["spendings"] == 100.0
-    assert metrics["items"][0]["receipt_count"] == 4
-    assert metrics["items"][0]["saved_deposit"] == 2.0
-    assert metrics["items"][0]["total_savings"] == 19.0
-    assert metrics["items"][0]["rewe_discount_amount"] == 10.0
-    assert metrics["items"][0]["rewe_bonus_collected"] == 1.0
-    assert metrics["items"][0]["rewe_bonus_balance"] == 2.0
-    assert metrics["items"][0]["rewe_bonus_redeemed"] == 3.0
-    assert metrics["items"][0]["rewe_bonus_open"] == 0.0
-    assert metrics["items"][0]["lidlplus_discount_amount"] == 4.0
-    assert metrics["items"][0]["sticker_discount_amount"] == 5.0
-    assert metrics["items"][0]["lidl_discount_amount"] == 10.0
+    assert general["items"][0]["spendings"] == 100.0
+    assert general["items"][0]["receipt_count"] == 4
+    assert general["items"][0]["saved_deposit"] == 2.0
+    assert general["items"][0]["total_savings"] == 19.0
+    assert "rewe_discount_amount" not in general["items"][0]
+    assert discounts["items"][0]["rewe_discount_amount"] == 10.0
+    assert discounts["items"][0]["rewe_bonus_collected"] == 1.0
+    assert discounts["items"][0]["rewe_bonus_balance"] == 2.0
+    assert discounts["items"][0]["rewe_bonus_redeemed"] == 3.0
+    assert discounts["items"][0]["rewe_bonus_open"] == 0.0
+    assert discounts["items"][0]["lidlplus_discount_amount"] == 4.0
+    assert discounts["items"][0]["sticker_discount_amount"] == 5.0
+    assert discounts["items"][0]["lidl_discount_amount"] == 10.0
 
 
 def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):

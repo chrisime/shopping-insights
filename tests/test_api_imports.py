@@ -238,24 +238,31 @@ def test_rossmann_import_adds_new_receipt_with_items_only_once(monkeypatch, tmp_
         assert response.json()[0]["rossmann_coupons"] == coupons
     dashboard = client.get("/ui/dashboard", params={"retailer": "rossmann"})
     assert dashboard.status_code == 200
-    metrics = next(section["items"][0] for section in dashboard.json()["sections"] if section["kind"] == "metrics")
-    assert metrics["receipt_count"] == 2
-    assert metrics["rossmann_discount_amount"] == metrics["total_savings"] == 1.50
-    assert metrics["rossmann_discount_pct"] == 16.67
-    assert metrics["spendings_without_discount"] == 10.50
-    assert metrics["rossmann_coupon_discount_amount"] == 0.40
-    assert metrics["rossmann_app_coupon_discount_amount"] == 0.60
-    assert metrics["rossmann_basket_coupon_amount"] == 0.40
-    assert metrics["rossmann_product_coupon_amount"] == 0.60
-    assert metrics["rossmann_unclassified_coupon_amount"] == 0
-    assert metrics["rossmann_other_discount_amount"] == 0.50
+    sections = dashboard.json()["sections"]
+    general = next(section["items"][0] for section in sections if section["title"] == "Allgemeine Informationen")
+    discounts = next(section["items"][0] for section in sections if section["title"] == "Rabatte")
+    assert general["receipt_count"] == 2
+    assert general["total_savings"] == 1.50
+    assert general["spendings_without_discount"] == 10.50
+    assert discounts["rossmann_discount_amount"] == 1.50
+    assert discounts["rossmann_discount_pct"] == 16.67
+    assert discounts["rossmann_coupon_discount_amount"] == 0.40
+    assert discounts["rossmann_app_coupon_discount_amount"] == 0.60
+    assert discounts["rossmann_basket_coupon_amount"] == 0.40
+    assert discounts["rossmann_product_coupon_amount"] == 0.60
+    assert discounts["rossmann_unclassified_coupon_amount"] == 0
+    assert discounts["rossmann_other_discount_amount"] == 0.50
 
     date_filtered = client.get("/ui/dashboard", params={"retailer": "rossmann", "end_date": "2026-11-01"})
-    metrics = next(section["items"][0] for section in date_filtered.json()["sections"] if section["kind"] == "metrics")
-    assert metrics["rossmann_discount_amount"] == metrics["rossmann_discount_pct"] == 0
-    assert "rossmann_app_coupon_discount_amount" not in metrics
+    discounts = next(
+        section["items"][0] for section in date_filtered.json()["sections"] if section["title"] == "Rabatte"
+    )
+    assert discounts["rossmann_discount_amount"] == discounts["rossmann_discount_pct"] == 0
+    assert "rossmann_app_coupon_discount_amount" not in discounts
 
     dashboard = client.get("/ui/dashboard")
-    metrics = next(section["items"][0] for section in dashboard.json()["sections"] if section["kind"] == "metrics")
-    assert metrics["rossmann_discount_amount"] == 1.50
-    assert metrics["rossmann_app_coupon_discount_amount"] == 0.60
+    discounts = next(
+        section["items"][0] for section in dashboard.json()["sections"] if section["title"] == "Rabatte"
+    )
+    assert discounts["rossmann_discount_amount"] == 1.50
+    assert discounts["rossmann_app_coupon_discount_amount"] == 0.60

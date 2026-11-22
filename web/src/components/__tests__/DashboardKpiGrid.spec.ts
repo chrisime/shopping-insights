@@ -95,11 +95,39 @@ describe("DashboardKpiGrid", () => {
     expect(wrapper.text()).not.toContain("Lidl Plus");
   });
 
-  it("does not render a separate Rossmann total savings card", () => {
+  it("renders the Rossmann Preisvorteil card", () => {
     const wrapper = mount(DashboardKpiGrid, {
-      props: { data: kpiData({ rossmann_discount_amount: 4.91, rossmann_discount_pct: 48.95 }) },
+      props: { data: kpiData({ rossmann_discount_amount: 4.91, rossmann_discount_pct: 48.9 }) },
     });
-    expect(wrapper.text()).not.toContain("Rossmann gesamter Preisvorteil");
+    expect(wrapper.text()).toContain("Preisvorteil");
+    expect(wrapper.text()).toContain("48,9%");
+  });
+
+  it("renders only general cards when the data has no discount fields", () => {
+    const wrapper = mount(DashboardKpiGrid, { props: { data: kpiData() } });
+    expect(wrapper.text()).toContain("Ausgaben");
+    expect(wrapper.text()).toContain("Kassenbons");
+    expect(wrapper.text()).not.toContain("Rewe Rabatte");
+    expect(wrapper.text()).not.toContain("Rossmann");
+  });
+
+  it("renders only discount cards when the data has no general fields", () => {
+    const wrapper = mount(DashboardKpiGrid, {
+      props: {
+        data: {
+          rossmann_discount_amount: 8,
+          rossmann_discount_pct: 20,
+          rossmann_basket_coupon_amount: 2,
+          rossmann_product_coupon_amount: 4,
+          rossmann_product_coupon_pct: 10,
+          rossmann_unclassified_coupon_amount: 0,
+        },
+      },
+    });
+    expect(wrapper.text()).not.toContain("Ausgaben");
+    expect(wrapper.text()).not.toContain("Kassenbons");
+    expect(wrapper.text()).toContain("Rossmann 10% Coupon");
+    expect(wrapper.text()).toContain("Preisvorteil");
   });
 
   it("splits Rossmann coupons and shows other coupons only for a positive amount", async () => {

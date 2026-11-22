@@ -33,6 +33,7 @@ def test_build_dashboard_page_model_maps_state_to_ui_sections():
 
     assert page.title == "Shopping Analyzer Dashboard"
     assert page.sections[0].kind == "metrics"
+    assert page.sections[0].title == "Allgemeine Informationen"
     metrics = page.sections[0].items[0]
     assert metrics["spendings"] == 100.0
     assert metrics["spendings_without_discount"] == 122.0
@@ -41,12 +42,50 @@ def test_build_dashboard_page_model_maps_state_to_ui_sections():
     assert metrics["saved_deposit"] == 2.0
     assert metrics["total_savings"] == 22.0
     assert metrics["total_savings_pct"] == 22.0
-    assert metrics["lidlplus_discount_amount"] == 4.0
-    assert metrics["sticker_discount_amount"] == 5.0
-    assert metrics["lidl_discount_amount"] == 10.0
-    assert "rewe_discount_amount" not in metrics
-    assert page.sections[1].title == "Ausgaben über Zeit"
-    assert page.sections[3].title == "Top-Artikel"
+    assert "lidlplus_discount_amount" not in metrics
+
+    assert page.sections[1].kind == "metrics"
+    assert page.sections[1].title == "Rabatte"
+    discounts = page.sections[1].items[0]
+    assert discounts["lidlplus_discount_amount"] == 4.0
+    assert discounts["sticker_discount_amount"] == 5.0
+    assert discounts["lidl_discount_amount"] == 10.0
+    assert "rewe_discount_amount" not in discounts
+    assert page.sections[2].title == "Ausgaben über Zeit"
+    assert page.sections[4].title == "Top-Artikel"
+
+
+def test_build_dashboard_page_model_omits_discounts_section_without_discount_metrics():
+    from api.services.dashboard_service import build_dashboard_page_model
+    from api.services.dashboard_service import DashboardDerivedMetrics, DashboardState
+
+    state = DashboardState(
+        retailer="dm",
+        start_date="2024-01-01",
+        end_date="2024-01-31",
+        time_granularity="Monatlich",
+        spending_view="Absolut",
+        top_view="Menge",
+        top_limit=10,
+        search=None,
+        page=1,
+        available_kpis=BasicKPIs(10.0, 2, 5.0, 0.0, 0.0, "2024-01-01", "2024-01-31"),
+        kpis=BasicKPIs(10.0, 2, 5.0, 0.0, 0.0, "2024-01-01", "2024-01-31"),
+        bonus_kpis=RetailerBonusKPIs(0.0, 0.0, 0.0, 0.0, 0.0),
+        derived=DashboardDerivedMetrics(10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+        time_series=[TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1)],
+        weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
+        top_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
+        top_items_total=0,
+        min_date=date(2024, 1, 1),
+        max_date=date(2024, 1, 31),
+    )
+
+    page = build_dashboard_page_model(state)
+
+    titles = [section.title for section in page.sections]
+    assert "Allgemeine Informationen" in titles
+    assert "Rabatte" not in titles
 
 
 def test_dashboard_page_model_roundtrip_serializer():
