@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-0007](./0007-authenticate-rossmann-per-import.md).
 
 ## Date
 

@@ -102,7 +102,7 @@ describe("ImportJobControls", () => {
     expect(wrapper.text()).toContain("Code 2102");
   });
 
-  it("emits start-import when the button is clicked", async () => {
+  it("emits start-import when the form is submitted", async () => {
     const wrapper = mount(ImportJobControls, {
       props: {
         retailer: "lidl",
@@ -120,7 +120,7 @@ describe("ImportJobControls", () => {
       },
     });
 
-    await wrapper.get("button").trigger("click");
+    await wrapper.get("form").trigger("submit");
 
     expect(wrapper.emitted("start-import")?.[0][0]).toEqual({ retailer: "lidl", browser: "firefox" });
   });
@@ -165,8 +165,38 @@ describe("ImportJobControls", () => {
       },
     });
 
-    await wrapper.get("button").trigger("click");
+    await wrapper.get("form").trigger("submit");
 
     expect(wrapper.emitted("start-import")?.[0][0]).toEqual({ retailer: "dm", browser: "firefox" });
+  });
+
+  it("starts a Rossmann account import and clears the password", async () => {
+    const wrapper = mount(ImportJobControls, {
+      props: {
+        retailer: "rossmann",
+        running: false,
+        progress: { current: 0, total: 0, added: 0, skipped: 0, errors: 0, items: 0, current_receipt: "-" },
+        message: null,
+        error: null,
+      },
+      global: {
+        stubs: {
+          OField: { template: "<div><slot /></div>" },
+          OSelect: { template: "<select><slot /></select>" },
+        },
+      },
+    });
+
+    const password = wrapper.get<HTMLInputElement>('input[type="password"]');
+    expect(wrapper.get("button").attributes("disabled")).toBeDefined();
+    await wrapper.get('input[type="email"]').setValue("person@example.test");
+    await password.setValue("test-password");
+    await wrapper.get("form").trigger("submit");
+
+    expect(wrapper.emitted("start-import")?.[0][0]).toEqual({
+      retailer: "rossmann",
+      rossmann_login: { email: "person@example.test", password: "test-password" },
+    });
+    expect(password.element.value).toBe("");
   });
 });

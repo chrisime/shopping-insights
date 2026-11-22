@@ -95,6 +95,34 @@ describe("DashboardKpiGrid", () => {
     expect(wrapper.text()).not.toContain("Lidl Plus");
   });
 
+  it("does not render a separate Rossmann total savings card", () => {
+    const wrapper = mount(DashboardKpiGrid, {
+      props: { data: kpiData({ rossmann_discount_amount: 4.91, rossmann_discount_pct: 48.95 }) },
+    });
+    expect(wrapper.text()).not.toContain("Rossmann gesamter Preisvorteil");
+  });
+
+  it("splits Rossmann coupons and shows other coupons only for a positive amount", async () => {
+    const data = kpiData({
+      rossmann_discount_amount: 8,
+      rossmann_discount_pct: 20,
+      rossmann_basket_coupon_amount: 2,
+      rossmann_product_coupon_amount: 4,
+      rossmann_product_coupon_pct: 10,
+      rossmann_unclassified_coupon_amount: 0,
+    });
+    const wrapper = mount(DashboardKpiGrid, { props: { data } });
+    expect(wrapper.text()).toContain("Rossmann 10% Coupon");
+    const productCard = wrapper.findAll("article").find((card) => card.text().includes("Rossmann Produktcoupons"));
+    expect(productCard?.text()).toContain("10,0%");
+    expect(wrapper.text()).not.toContain("Rossmann andere Coupons");
+
+    await wrapper.setProps({ data: { ...data, rossmann_unclassified_coupon_amount: 2 } });
+    expect(wrapper.text()).toContain("Rossmann andere Coupons");
+    await wrapper.setProps({ data: { ...data, rossmann_unclassified_coupon_amount: -2 } });
+    expect(wrapper.text()).not.toContain("Rossmann andere Coupons");
+  });
+
   it("aligns Sparquote/Guthaben/Offen to the right", () => {
     const wrapper = mount(DashboardKpiGrid, {
       props: {

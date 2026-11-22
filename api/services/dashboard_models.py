@@ -46,6 +46,7 @@ class DashboardState:
     error: DashboardError | None = None
     rewe_kpis: BasicKPIs | None = None
     lidl_kpis: BasicKPIs | None = None
+    rossmann_kpis: BasicKPIs | None = None
     rewe_bonus_kpis: RetailerBonusKPIs | None = None
     lidl_bonus_kpis: RetailerBonusKPIs | None = None
 

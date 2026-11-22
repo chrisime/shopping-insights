@@ -84,6 +84,32 @@ describe("DashboardPage", () => {
     scope.stop();
   });
 
+  it("includes newly imported dates when the dashboard is using its automatic range", async () => {
+    let latestDate = "2024-01-31";
+    const fetchMock = vi.fn().mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({ title: "Dashboard", min_date: "2024-01-01", max_date: latestDate, sections: [] }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const scope = effectScope();
+    const dashboard = scope.run(() => useDashboard())!;
+
+    await dashboard.refresh();
+    await nextTick();
+    latestDate = "2024-02-01";
+    await dashboard.refresh(true);
+    await nextTick();
+    expect(dashboard.endDate.value).toBe("2024-02-01");
+    expect(String(fetchMock.mock.lastCall?.[0])).not.toContain("end_date");
+
+    dashboard.endDate.value = "2024-01-15";
+    await nextTick();
+    await dashboard.refresh(true);
+    expect(dashboard.endDate.value).toBe("2024-01-15");
+    expect(String(fetchMock.mock.lastCall?.[0])).toContain("end_date=2024-01-15");
+    scope.stop();
+  });
+
   it("shows an empty-state message when the payload reports a dashboard error", async () => {
     vi.stubGlobal(
       "fetch",

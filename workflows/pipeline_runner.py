@@ -17,6 +17,11 @@ from parsing.rewe_validator import (
     ReweReceiptValidationError,
     validate_rewe_receipt_data,
 )
+from parsing.rossmann_receipt_parser import parse_rossmann_receipt
+from parsing.rossmann_validator import (
+    RossmannReceiptValidationError,
+    validate_rossmann_receipt_data,
+)
 
 from .error_mapping import render_exception_reason, render_validation_reason
 from .pipeline_types import (
@@ -26,7 +31,7 @@ from .pipeline_types import (
     StageResult,
 )
 from .progress_display import ProgressState, ReceiptProgressDisplay
-from .workflow_constants import RETAILER_DM, RETAILER_LIDL, RETAILER_REWE
+from .workflow_constants import RETAILER_DM, RETAILER_LIDL, RETAILER_REWE, RETAILER_ROSSMANN
 
 T = TypeVar("T")
 
@@ -42,18 +47,21 @@ _PARSERS: dict[str, Callable[..., Any]] = {
     RETAILER_LIDL: parse_lidl_ticket,
     RETAILER_REWE: parse_rewe_ticket,
     RETAILER_DM: parse_dm_ebon,
+    RETAILER_ROSSMANN: parse_rossmann_receipt,
 }
 
 _VALIDATORS: dict[str, Callable[..., None]] = {
     RETAILER_LIDL: validate_lidl_receipt_data,
     RETAILER_REWE: validate_rewe_receipt_data,
     RETAILER_DM: validate_dm_receipt_data,
+    RETAILER_ROSSMANN: validate_rossmann_receipt_data,
 }
 
 _VALIDATION_ERROR_TYPES: dict[str, tuple[type[Exception], ...]] = {
     RETAILER_LIDL: (LidlReceiptValidationError,),
     RETAILER_REWE: (ReweReceiptValidationError,),
     RETAILER_DM: (DmReceiptValidationError,),
+    RETAILER_ROSSMANN: (RossmannReceiptValidationError,),
 }
 
 

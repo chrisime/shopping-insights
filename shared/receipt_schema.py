@@ -8,6 +8,11 @@ from shared.payment_methods import normalize_payment_method_entry
 from shared.receipt_dates import normalize_purchase_date
 
 
+class ReceiptCoupon(TypedDict):
+    name: str
+    savings: float
+
+
 class ReceiptData(TypedDict, total=False):
     """Typed schema for a normalized receipt dictionary."""
 
@@ -34,6 +39,11 @@ class ReceiptData(TypedDict, total=False):
     rewe_bonus_discount: float | None
     rewe_bonus_total_amount: float | None
     dm_payback_points: int | None
+    rossmann_coupons: list[ReceiptCoupon]
+    rossmann_coupon_discount: float | None
+    rossmann_app_coupon_discount: float | None
+    rossmann_basket_coupon_discount: float | None
+    rossmann_product_coupon_discount: float | None
 
 
 SHARED_MONEY_FIELDS = {
@@ -57,11 +67,16 @@ _RETAILER_EXTRA_DEFAULTS: dict[str, dict[str, Any]] = {
     "dm": {
         "dm_payback_points": None,
     },
+    "rossmann": {
+        "rossmann_coupon_discount": None,
+        "rossmann_app_coupon_discount": None,
+    },
 }
 
 _RETAILER_EXTRA_MONEY_FIELDS: dict[str, set[str]] = {
     "lidl": {"sticker_discount", "lidlplus_amount_saved", "lidlplus_discount"},
     "rewe": {"rewe_bonus_amount", "rewe_bonus_discount", "rewe_bonus_total_amount"},
+    "rossmann": {"rossmann_coupon_discount", "rossmann_app_coupon_discount"},
 }
 
 

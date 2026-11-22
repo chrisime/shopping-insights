@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ReceiptCouponSavings from "./ReceiptCouponSavings.vue";
 import { computed, ref, watch } from "vue";
 import { fetchReceiptsByDateRange } from "../api/dashboard";
 
@@ -77,6 +78,7 @@ function retailerLabel(value: unknown): string {
   if (value === "lidl") return "Lidl";
   if (value === "rewe") return "REWE";
   if (value === "dm") return "dm";
+  if (value === "rossmann") return "Rossmann";
   return text(value);
 }
 
@@ -186,6 +188,8 @@ function addressText(addr: unknown): string {
                 </div>
               </div>
             </div>
+
+            <ReceiptCouponSavings v-if="current.retailer === 'rossmann'" :coupons="current.rossmann_coupons" :currency="current.currency" />
 
             <div class="mt-4 border-t border-slate-200 pt-3 text-right">
               <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Gesamt</span>

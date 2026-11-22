@@ -14,6 +14,7 @@ export function useDashboard() {
   const search = ref("");
   const page = ref(1);
   let searchTimer: ReturnType<typeof setTimeout> | null = null;
+  let automaticDateRange: [string, string] | null = null;
 
   const payload = ref<DashboardPayload | null>(null);
   const loading = ref(false);
@@ -38,20 +39,24 @@ export function useDashboard() {
     searchTimer = setTimeout(() => void refresh(), delay);
   }
 
-  async function refresh() {
+  async function refresh(afterImport = false) {
     const token = ++requestToken;
+    const followDateRange = afterImport && automaticDateRange?.[0] === startDate.value
+      && automaticDateRange[1] === endDate.value;
     loading.value = true;
     error.value = null;
 
     try {
-      const response = await fetchDashboard(filters.value);
+      const requestFilters = followDateRange
+        ? { ...filters.value, start_date: undefined, end_date: undefined }
+        : filters.value;
+      const response = await fetchDashboard(requestFilters);
       if (token === requestToken) {
         payload.value = response;
         if (
           response.min_date &&
           response.max_date &&
-          !startDate.value &&
-          !endDate.value
+          (followDateRange || (!startDate.value && !endDate.value))
         ) {
           syncDateRange(response.min_date, response.max_date);
         }
@@ -98,6 +103,7 @@ export function useDashboard() {
   );
 
   function syncDateRange(minDate: string, maxDate: string) {
+    automaticDateRange = [minDate, maxDate];
     if (startDate.value === minDate && endDate.value === maxDate) {
       return;
     }
@@ -114,7 +120,7 @@ export function useDashboard() {
       }
     });
 
-    onServerPrefetch(refresh);
+    onServerPrefetch(() => refresh());
   }
 
   return {

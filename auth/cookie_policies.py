@@ -29,3 +29,9 @@ DM_REQUIRED_COOKIE_PREFIXES = ("_SI_SID_",)
 DM_REQUIRED_COOKIE_NAMES = {"sessionid", "_sessionid"}
 DM_RECOMMENDED_COOKIE_PREFIXES = ("_SI_DID_", "_SI_VID_", "_dyjsession", "_dyid_server")
 
+# Rossmann digital receipts are served by anybill. The Rossmann session lives
+# on app.rossmann.de / rsmappapi.rossmann.net; the exact cookie names are
+# validated at runtime via the account.ws reachability check.
+ROSSMANN_SESSION_COOKIE_PREFIXES = ("SAP_SESSION", "JSESSION", "session", "Token")
+ROSSMANN_COOKIE_SUFFIX = "rossmann"
+

@@ -8,6 +8,7 @@ from typing import Callable, TypedDict
 from config.dm_config import DmConfig
 from config.lidl_config import LidlConfig
 from config.rewe_config import ReweConfig
+from config.rossmann_config import RossmannConfig
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,11 @@ _RUNTIME_DEFINITIONS: dict[str, _RetailerDefinition] = {
         "name": "DM",
         "country_getter": DmConfig.get_country_code,
         "receipts_json_file": DmConfig.RECEIPTS_JSON_FILE,
+    },
+    "rossmann": {
+        "name": "ROSSMANN",
+        "country_getter": RossmannConfig.get_country_code,
+        "receipts_json_file": RossmannConfig.RECEIPTS_JSON_FILE,
     },
 }
 

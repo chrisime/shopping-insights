@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+from shared.receipt_schema import ReceiptCoupon
 from typing import Any, Mapping
 
 
@@ -55,6 +57,11 @@ class ReceiptDTO:
     rewe_bonus_amount: float | None = None
     rewe_bonus_total_amount: float | None = None
     rewe_bonus_discount: float | None = None
+    rossmann_coupons: tuple[ReceiptCoupon, ...] = ()
+    rossmann_coupon_discount: float | None = None
+    rossmann_app_coupon_discount: float | None = None
+    rossmann_basket_coupon_discount: float | None = None
+    rossmann_product_coupon_discount: float | None = None
 
 
 def receipt_dict_to_dto(receipt_data: Mapping[str, Any], retailer: str | None = None) -> ReceiptDTO:
@@ -90,6 +97,11 @@ def receipt_dict_to_dto(receipt_data: Mapping[str, Any], retailer: str | None = 
         rewe_bonus_amount=_to_optional_float(receipt_data.get("rewe_bonus_amount")),
         rewe_bonus_total_amount=_to_optional_float(receipt_data.get("rewe_bonus_total_amount")),
         rewe_bonus_discount=_to_optional_float(receipt_data.get("rewe_bonus_discount")),
+        rossmann_coupons=tuple(receipt_data.get("rossmann_coupons") or ()),
+        rossmann_coupon_discount=_to_optional_float(receipt_data.get("rossmann_coupon_discount")),
+        rossmann_basket_coupon_discount=_to_optional_float(receipt_data.get("rossmann_basket_coupon_discount")),
+        rossmann_product_coupon_discount=_to_optional_float(receipt_data.get("rossmann_product_coupon_discount")),
+        rossmann_app_coupon_discount=_to_optional_float(receipt_data.get("rossmann_app_coupon_discount")),
     )
 
 
@@ -147,6 +159,17 @@ def receipt_dto_to_dict(receipt: ReceiptDTO) -> dict[str, Any]:
         result["rewe_bonus_amount"] = receipt.rewe_bonus_amount
         result["rewe_bonus_total_amount"] = receipt.rewe_bonus_total_amount
         result["rewe_bonus_discount"] = receipt.rewe_bonus_discount
+    elif retailer == "rossmann":
+        if receipt.rossmann_coupons:
+            result["rossmann_coupons"] = list(receipt.rossmann_coupons)
+        if receipt.rossmann_product_coupon_discount is not None:
+            result["rossmann_product_coupon_discount"] = receipt.rossmann_product_coupon_discount
+        if receipt.rossmann_basket_coupon_discount is not None:
+            result["rossmann_basket_coupon_discount"] = receipt.rossmann_basket_coupon_discount
+        if receipt.rossmann_coupon_discount is not None:
+            result["rossmann_coupon_discount"] = receipt.rossmann_coupon_discount
+        if receipt.rossmann_app_coupon_discount is not None:
+            result["rossmann_app_coupon_discount"] = receipt.rossmann_app_coupon_discount
 
     return result
 

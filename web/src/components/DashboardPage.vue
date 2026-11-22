@@ -37,7 +37,7 @@ const {
 } = useDashboard();
 
 const importRetailer = ref<ImportRetailer>("lidl");
-const importJob = useImportJob(refresh);
+const importJob = useImportJob(() => refresh(true));
 
 const exporting = ref(false);
 const sidebarCollapsed = ref(false);
@@ -131,6 +131,7 @@ async function handleExport() {
             <option value="lidl">Lidl</option>
             <option value="rewe">REWE</option>
             <option value="dm">dm</option>
+            <option value="rossmann">Rossmann</option>
           </OSelect>
         </OField>
 

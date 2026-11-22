@@ -10,17 +10,21 @@ from .lidl_file_auth import load_lidl_cookies_from_file
 from .lidl_browser_auth import LidlBrowserCookieExtractor
 from .rewe_browser_auth import ReweBrowserCookieExtractor
 from .rewe_file_auth import load_rewe_cookies_from_file
+from .rossmann_browser_auth import RossmannBrowserCookieExtractor
+from .rossmann_file_auth import load_rossmann_cookies_from_file
 
 RETAILER_BROWSER_EXTRACTORS = {
     "lidl": LidlBrowserCookieExtractor,
     "rewe": ReweBrowserCookieExtractor,
     "dm": DmBrowserCookieExtractor,
+    "rossmann": RossmannBrowserCookieExtractor,
 }
 
 RETAILER_FILE_LOADERS = {
     "lidl": load_lidl_cookies_from_file,
     "rewe": load_rewe_cookies_from_file,
     "dm": load_dm_cookies_from_file,
+    "rossmann": load_rossmann_cookies_from_file,
 }
 
 

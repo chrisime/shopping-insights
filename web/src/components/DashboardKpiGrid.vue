@@ -43,6 +43,12 @@ const lidlGroup: KpiCardGroup = {
   ],
 };
 
+const rossmannCards: KpiCardDef[] = [
+  { title: "Rossmann 10% Coupon", fields: ["rossmann_basket_coupon_amount"] },
+  { title: "Rossmann Produktcoupons", fields: ["rossmann_product_coupon_amount", "rossmann_product_coupon_pct"] },
+  { title: "Rossmann andere Coupons", fields: ["rossmann_unclassified_coupon_amount"] },
+];
+
 function hasAllFields(group: KpiCardGroup): boolean {
   return group.cards.every((card) => card.fields.every((f) => props.data[f] !== undefined));
 }
@@ -78,6 +84,10 @@ function fieldLabel(key: string): string {
     sticker_discount_pct: "Sparquote",
     lidl_discount_amount: "Gespart",
     lidl_discount_pct: "Sparquote",
+    rossmann_basket_coupon_amount: "Gespart",
+    rossmann_product_coupon_amount: "Gespart",
+    rossmann_product_coupon_pct: "Sparquote",
+    rossmann_unclassified_coupon_amount: "Gespart",
   };
   return labels[key] ?? key;
 }
@@ -86,6 +96,11 @@ function visibleGroups(): KpiCardGroup[] {
   const groups = [...cardGroups];
   if (hasAllFields(reweGroup)) groups.push(reweGroup);
   if (hasAllFields(lidlGroup)) groups.push(lidlGroup);
+  const visibleRossmannCards = rossmannCards.filter(({ fields }) =>
+    fields.every((field) => props.data[field] !== undefined)
+    && (fields[0] !== "rossmann_unclassified_coupon_amount" || props.data[fields[0]] > 0),
+  );
+  if (visibleRossmannCards.length) groups.push({ cards: visibleRossmannCards });
   return groups;
 }
 </script>
@@ -96,7 +111,7 @@ function visibleGroups(): KpiCardGroup[] {
       v-for="(group, gi) in visibleGroups()"
       :key="gi"
       class="grid gap-3"
-      :class="group.cards.length === 3 ? 'lg:grid-cols-3' : group.cards.length === 2 ? 'lg:grid-cols-2' : ''"
+      :class="group.cards.length === 4 ? 'lg:grid-cols-2 xl:grid-cols-4' : group.cards.length === 3 ? 'lg:grid-cols-3' : group.cards.length === 2 ? 'lg:grid-cols-2' : ''"
     >
       <article
         v-for="(card, ci) in group.cards"
@@ -112,7 +127,7 @@ function visibleGroups(): KpiCardGroup[] {
             v-for="(field, fi) in card.fields"
             :key="field"
             class="grid gap-1"
-            :class="fi === 1 ? 'justify-items-end text-right' : ''"
+            :class="fi % 2 === 1 ? 'justify-items-end text-right' : ''"
           >
             <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">{{ fieldLabel(field) }}</span>
             <strong class="text-2xl font-semibold tracking-tight text-slate-900">{{ formatValue(field, data[field]) }}</strong>

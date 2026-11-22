@@ -15,8 +15,20 @@ router = APIRouter(prefix="/imports", tags=["imports"])
 
 @router.post("/start", response_model=ImportStartResponse)
 def start_import(payload: ImportStartRequest) -> ImportStartResponse:
+    login = payload.rossmann_login
+    if login is not None and (
+        payload.retailer != "rossmann"
+        or payload.browser is not None
+        or payload.cookies_file is not None
+        or not login.email.strip()
+        or not login.password.get_secret_value()
+    ):
+        raise HTTPException(status_code=422, detail="Rossmann-Anmeldung benötigt E-Mail und Passwort.")
+
     try:
-        if payload.browser is None and payload.cookies_file is None and payload.customer_id is None:
+        if login is not None:
+            job_id = import_job_service.start_import_job(payload.retailer, rossmann_login=login)
+        elif payload.browser is None and payload.cookies_file is None and payload.customer_id is None:
             job_id = import_job_service.start_import_job(payload.retailer)
         else:
             job_id = import_job_service.start_import_job(

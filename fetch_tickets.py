@@ -3,7 +3,7 @@
 Receipt Data Updater - Entry Point
 
 Main entry point for the shopping analyzer application. Supports multiple
-retailers (currently LIDL, REWE and dm).
+retailers (currently LIDL, REWE, dm and Rossmann).
 
 For first-time setup or complete refresh, use the 'initial' command.
 For monthly updates (adds only new data), use the 'update' command.
@@ -23,10 +23,17 @@ Usage:
     python fetch_tickets.py export  --retailer lidl --output-file lidl_receipts.json
     python fetch_tickets.py initial --retailer dm --cookies-file dm_cookies.json
     python fetch_tickets.py check   --retailer dm --cookies-file dm_cookies.json
+python fetch_tickets.py initial --retailer rossmann --cookies-file rossmann_cookies.json
+    python fetch_tickets.py initial --retailer rossmann --login
+    python fetch_tickets.py check   --retailer rossmann --cookies-file rossmann_cookies.json
 
 dm requires a cookies-file export that includes the signin.dm.de session
 cookies (and optionally the *.services.dmtech.com cookies) so the OAuth flow
 can mint a short-lived access token.
+
+Rossmann serves digital receipts through anybill. It needs the Rossmann ``accountId``/
+``accountHash`` (as ``--account-id``/``--account-hash``, embedded in the
+cookies file, or obtained interactively via ``--login``) to mint the anybill token.
 """
 
 from __future__ import annotations
@@ -34,7 +41,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from config import DmConfig, LidlConfig, ReweConfig
+from config import DmConfig, LidlConfig, ReweConfig, RossmannConfig
 from shared.retailer_runtime import RETAILERS
 
 
@@ -42,7 +49,7 @@ def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser with subcommands."""
     parser = argparse.ArgumentParser(
         prog="fetch_tickets.py",
-        description="Extract and manage receipt data from supported retailers (LIDL, REWE, dm).",
+        description="Extract and manage receipt data from supported retailers (LIDL, REWE, dm, Rossmann).",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -62,7 +69,7 @@ def create_parser() -> argparse.ArgumentParser:
             "--browser",
             choices=["firefox", "librewolf", "chrome", "chromium"],
             help="Browser to extract cookies from (non-interactive mode). "
-                 "LIDL/REWE/dm: firefox/librewolf/chrome/chromium.",
+                 "LIDL/REWE/dm/Rossmann: firefox/librewolf/chrome/chromium.",
         )
         group.add_argument(
             "--cookies-file",
@@ -81,6 +88,26 @@ def create_parser() -> argparse.ArgumentParser:
             metavar="UUID",
             help="[REWE only] REWE customerId used by the ZIP endpoint "
                  "(optional if detectable from session/file/cache)",
+        )
+        # Rossmann-specific
+        subparser.add_argument(
+            "--account-id",
+            metavar="ID",
+            help="[Rossmann only] Rossmann accountId used by the receipt-auth "
+                 "token mint (optional if embedded in the cookies file)",
+        )
+        subparser.add_argument(
+            "--account-hash",
+            metavar="HASH",
+            help="[Rossmann only] Rossmann accountHash used by the receipt-auth "
+                 "token mint (optional if embedded in the cookies file)",
+        )
+        subparser.add_argument(
+            "--login",
+            action="store_true",
+            help="[Rossmann only] Prompt interactively for Rossmann account "
+                 "credentials (email/password, never stored) and log in via "
+                 "the account API to obtain accountId/accountHash",
         )
         subparser.add_argument(
             "--output-dir",
@@ -156,6 +183,11 @@ def _dispatch_check(args: argparse.Namespace) -> bool:
 
         return diagnose_dm_cookie_file(args.cookies_file)
 
+    if args.retailer == "rossmann":
+        from auth.rossmann_file_auth import diagnose_rossmann_cookie_file
+
+        return diagnose_rossmann_cookie_file(args.cookies_file)
+
     print(f"✗ Unbekannter Händler: {args.retailer}", file=sys.stderr)
     return False
 
@@ -165,6 +197,7 @@ def _dispatch_workflow(args: argparse.Namespace, mode: str) -> bool:
     from workflows.dm_workflow import run_dm_initial, run_dm_update
     from workflows.lidl_workflow import run_lidl_initial, run_lidl_update
     from workflows.rewe_workflow import run_rewe_initial, run_rewe_update
+    from workflows.rossmann_workflow import run_rossmann_initial, run_rossmann_update
 
     if args.retailer == "lidl":
         output_dir = args.output_dir or LidlConfig.DEFAULT_OUTPUT_DIR
@@ -197,6 +230,19 @@ def _dispatch_workflow(args: argparse.Namespace, mode: str) -> bool:
                 output_dir=output_dir,
             )
         return run_dm_update(output_dir=output_dir)
+
+    if args.retailer == "rossmann":
+        output_dir = args.output_dir or RossmannConfig.DEFAULT_OUTPUT_DIR
+        if mode == "initial":
+            return run_rossmann_initial(
+                browser=args.browser,
+                cookies_file=args.cookies_file,
+                account_id=args.account_id,
+                account_hash=args.account_hash,
+                output_dir=output_dir,
+                prompt_login=args.login,
+            )
+        return run_rossmann_update(output_dir=output_dir)
 
     print(f"✗ Unbekannter Händler: {args.retailer}", file=sys.stderr)
     return False

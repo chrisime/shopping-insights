@@ -31,6 +31,17 @@ REWE_INITIAL_ERROR_DETAILS: dict[int, WorkflowErrorInfo] = {
     2209: WorkflowErrorInfo("rewe", 2209, "REWE ZIP-Abruf ohne customerId fehlgeschlagen."),
 }
 
+ROSSMANN_INITIAL_ERROR_DETAILS: dict[int, WorkflowErrorInfo] = {
+    2401: WorkflowErrorInfo("rossmann", 2401, "Rossmann benötigt --cookies-file oder --browser."),
+    2402: WorkflowErrorInfo("rossmann", 2402, "Rossmann-Cookies aus der Datei konnten nicht geladen werden."),
+    2403: WorkflowErrorInfo("rossmann", 2403, "Rossmann-Browserprofil konnte keine Cookies liefern."),
+    2404: WorkflowErrorInfo("rossmann", 2404, "Rossmann-Session ist ungültig (kein anybill-Token mintbar)."),
+    2405: WorkflowErrorInfo("rossmann", 2405, "Rossmann-accountId/accountHash konnten nicht ermittelt werden."),
+    2406: WorkflowErrorInfo("rossmann", 2406, "anybill-Abruf der Belegliste fehlgeschlagen."),
+    2407: WorkflowErrorInfo("rossmann", 2407, "Rossmann-Anmeldung fehlgeschlagen. Prüfe E-Mail und Passwort."),
+    2408: WorkflowErrorInfo("rossmann", 2408, "Rossmann konnte nicht alle neuen Belege laden. Starte den Import erneut."),
+}
+
 DM_INITIAL_ERROR_DETAILS: dict[int, WorkflowErrorInfo] = {
     2301: WorkflowErrorInfo("dm", 2301, "dm benötigt --cookies-file oder --browser."),
     2302: WorkflowErrorInfo("dm", 2302, "dm-Cookies aus der Datei konnten nicht geladen werden."),
@@ -71,3 +82,7 @@ def rewe_initial_error(error_code: int) -> WorkflowErrorInfo:
 
 def dm_initial_error(error_code: int) -> WorkflowErrorInfo:
     return DM_INITIAL_ERROR_DETAILS[error_code]
+
+
+def rossmann_initial_error(error_code: int) -> WorkflowErrorInfo:
+    return ROSSMANN_INITIAL_ERROR_DETAILS[error_code]

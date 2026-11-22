@@ -26,20 +26,28 @@ const emit = defineEmits<{
   (event: "start-import", payload: ImportStartRequest): void;
 }>();
 
-const authMode = ref<"browser" | "cookies-file">("browser");
+const authMode = ref<"browser" | "cookies-file" | "rossmann-login">("browser");
 const browser = ref<(typeof BROWSER_OPTIONS)[number]["value"]>("firefox");
 const cookiesFile = ref("lidl_cookies.json");
 const customerId = ref("");
 const showCustomerId = ref(false);
+const rossmannEmail = ref("");
+const rossmannPassword = ref("");
 
 function applyRetailerDefaults(retailer: ImportRetailer) {
-  authMode.value = "cookies-file";
   browser.value = "firefox";
-  cookiesFile.value =
-    retailer === "lidl" ? "lidl_cookies.json" : retailer === "rewe" ? "rewe_cookies.json" : "dm_cookies.json";
-  authMode.value = "browser";
+  const defaultFiles: Record<ImportRetailer, string> = {
+    lidl: "lidl_cookies.json",
+    rewe: "rewe_cookies.json",
+    dm: "dm_cookies.json",
+    rossmann: "rossmann_cookies.json",
+  };
+  cookiesFile.value = defaultFiles[retailer] ?? "lidl_cookies.json";
+  authMode.value = retailer === "rossmann" ? "rossmann-login" : "browser";
   customerId.value = "";
   showCustomerId.value = false;
+  rossmannEmail.value = "";
+  rossmannPassword.value = "";
 }
 
 watch(
@@ -50,33 +58,51 @@ watch(
   { immediate: true },
 );
 
-const startPayload = computed(() =>
-  authMode.value === "browser"
-    ? props.retailer === "rewe"
-      ? { retailer: props.retailer, browser: browser.value, customer_id: customerId.value || null }
-      : { retailer: props.retailer, browser: browser.value }
-    : props.retailer === "rewe"
-      ? { retailer: props.retailer, cookies_file: cookiesFile.value, customer_id: customerId.value || null }
-      : { retailer: props.retailer, cookies_file: cookiesFile.value },
+watch(authMode, () => {
+  rossmannPassword.value = "";
+});
+
+const canStart = computed(() =>
+  !props.running && (authMode.value !== "rossmann-login" || Boolean(rossmannEmail.value.trim() && rossmannPassword.value)),
 );
+
+function submitImport() {
+  if (!canStart.value) return;
+
+  const payload: ImportStartRequest = { retailer: props.retailer };
+  if (authMode.value === "rossmann-login") {
+    payload.rossmann_login = { email: rossmannEmail.value.trim(), password: rossmannPassword.value };
+    rossmannPassword.value = "";
+  } else if (authMode.value === "browser") {
+    payload.browser = browser.value;
+  } else {
+    payload.cookies_file = cookiesFile.value;
+  }
+  if (props.retailer === "rewe") {
+    payload.customer_id = customerId.value || null;
+  }
+  emit("start-import", payload);
+}
 </script>
 
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-    <div class="grid gap-4">
+    <form class="grid gap-4" @submit.prevent="submitImport">
       <div class="grid gap-4 sm:grid-cols-2">
         <OField label="Importieren für">
           <OSelect :model-value="retailer" expanded @update:model-value="emit('update:retailer', $event as ImportRetailer)">
             <option value="lidl">Lidl</option>
             <option value="rewe">REWE</option>
             <option value="dm">dm</option>
+            <option value="rossmann">Rossmann</option>
           </OSelect>
         </OField>
 
         <div class="grid gap-4 sm:grid-cols-2">
           <OField label="Authentifizierung">
             <OSelect v-model="authMode" expanded>
-              <option value="browser">Browser-Profil</option>
+              <option v-if="retailer === 'rossmann'" value="rossmann-login">Rossmann-Konto</option>
+              <option v-else value="browser">Browser-Profil</option>
               <option value="cookies-file">Cookie-Datei</option>
             </OSelect>
           </OField>
@@ -93,6 +119,17 @@ const startPayload = computed(() =>
         </div>
       </div>
 
+      <div v-if="authMode === 'rossmann-login'" class="grid gap-4 sm:grid-cols-2">
+        <OField label="Rossmann-E-Mail" label-for="rossmann-import-email">
+          <input id="rossmann-import-email" v-model="rossmannEmail" autocomplete="username" type="email" required
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+        </OField>
+        <OField label="Rossmann-Passwort" label-for="rossmann-import-password">
+          <input id="rossmann-import-password" v-model="rossmannPassword" autocomplete="current-password" type="password" required
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+        </OField>
+      </div>
+
       <div v-if="retailer === 'rewe'" class="space-y-2">
         <button type="button" class="text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" @click="showCustomerId = !showCustomerId">
           {{ showCustomerId ? "customerId verbergen" : "customerId optional eingeben" }}
@@ -103,14 +140,13 @@ const startPayload = computed(() =>
       </div>
 
       <button
-        type="button"
+        type="submit"
         class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-        :disabled="running"
-        @click="emit('start-import', startPayload)"
+        :disabled="!canStart"
       >
         {{ running ? "Import läuft..." : "Import" }}
       </button>
-    </div>
+    </form>
 
     <div class="mt-4 space-y-2">
       <div class="h-2 overflow-hidden rounded-full bg-slate-100">

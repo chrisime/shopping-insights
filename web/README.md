@@ -31,3 +31,9 @@ pnpm build
 
 Das Frontend liest das Dashboard über `GET /ui/dashboard`.
 Der Export-Button lädt die aktuell gefilterten Belege als JSON über `GET /exports/receipts` herunter.
+
+## Rossmann-Import
+
+Öffne **Import**, wähle **Rossmann** als Händler und **Rossmann-Konto** zur Anmeldung. Der Import übernimmt neue Filialbons samt Artikeln. Fortschritt und Ergebnis erscheinen im Importbereich. Unter **Ausgaben** und **Artikel** kannst du die importierten Daten nach Rossmann filtern.
+
+Das Dashboard startet den Vorgang über `POST /imports/start` und verfolgt ihn über `GET /imports/{job_id}/events`. Für die Kontoanmeldung verwendet das Frontend HTTPS oder eine lokale HTTP-Verbindung zum Backend. [Rossmann-Anleitung](../README_ROSSMANN_RECEIPTS.md)

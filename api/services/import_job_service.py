@@ -7,7 +7,9 @@ from threading import Condition, Lock, Thread
 from typing import Callable, Literal, cast
 from uuid import uuid4
 
-from workflows.workflow_errors import get_last_workflow_error, clear_last_workflow_error
+from api.schemas.imports import RossmannLogin
+from auth.rossmann_auth import RossmannAuthError, authenticate_rossmann_account
+from workflows.workflow_errors import get_last_workflow_error, clear_last_workflow_error, rossmann_initial_error, set_last_workflow_error
 from workflows.progress_display import ProgressState
 
 
@@ -35,6 +37,8 @@ def start_import_job(
     browser: str | None = None,
     cookies_file: str | None = None,
     customer_id: str | None = None,
+    *,
+    rossmann_login: RossmannLogin | None = None,
 ) -> str:
     with _jobs_lock:
         active_job = next((job for job in _jobs.values() if job.status == "running"), None)
@@ -53,7 +57,11 @@ def start_import_job(
 
     _append_job_event(job_id, "progress", get_import_job(job_id))
 
-    thread = Thread(target=_run_import_job, args=(job_id, retailer, browser, cookies_file, customer_id), daemon=True)
+    thread = Thread(
+        target=_run_import_job,
+        args=(job_id, retailer, browser, cookies_file, customer_id, rossmann_login),
+        daemon=True,
+    )
     try:
         thread.start()
     except Exception:
@@ -112,6 +120,7 @@ def _run_import_job(
     browser: str | None,
     cookies_file: str | None,
     customer_id: str | None,
+    rossmann_login: RossmannLogin | None,
 ) -> None:
     progress_listener = _build_progress_listener(job_id, retailer)
     try:
@@ -137,25 +146,48 @@ def _run_import_job(
                 cookies_file=cookies_file,
                 progress_listener=progress_listener,
             )
+        elif retailer == "rossmann":
+            account_args = {}
+            if rossmann_login is not None:
+                try:
+                    account = authenticate_rossmann_account(
+                        rossmann_login.email.strip(), rossmann_login.password.get_secret_value()
+                    )
+                except RossmannAuthError:
+                    info = rossmann_initial_error(2407)
+                    set_last_workflow_error(info)
+                    raise RuntimeError(info.detail) from None
+                account_args = {"account_id": account.account_id, "account_hash": account.account_hash}
+            started = cast(Callable[..., object], trigger_service.run_rossmann_initial)(
+                browser=browser,
+                cookies_file=cookies_file,
+                progress_listener=progress_listener,
+                **account_args,
+            )
         else:
             raise ValueError(f"Unsupported retailer: {retailer}")
         if not started:
             raise RuntimeError(f"Import workflow returned False for retailer: {retailer}")
     except Exception as exc:
         workflow_error = get_last_workflow_error()
+        detail = workflow_error.detail if workflow_error is not None else (
+            "Rossmann-Import fehlgeschlagen." if rossmann_login is not None else str(exc)
+        )
         _update_job(
             job_id,
             status="error",
             error={
                 "error_code": workflow_error.error_code if workflow_error is not None else _import_error_code_for_exception(exc),
-                "detail": workflow_error.detail if workflow_error is not None else str(exc),
+                "detail": detail,
             },
-            message=workflow_error.detail if workflow_error is not None else str(exc),
+            message=detail,
         )
         clear_last_workflow_error()
     else:
         clear_last_workflow_error()
-        _update_job(job_id, status="success", message=None)
+        _update_job(
+            job_id, status="success", message="Rossmann-Import abgeschlossen." if retailer == "rossmann" else None
+        )
 
 
 def _build_progress_listener(job_id: str, retailer: str) -> Callable[[ProgressState], None]:

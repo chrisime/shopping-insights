@@ -23,6 +23,7 @@ EXPECTED_TABLES = {
     "payment_method",
     "purchase_lidl",
     "purchase_rewe",
+    "purchase_rossmann",
 }
 
 
@@ -63,7 +64,7 @@ class AlembicMigrationTests(unittest.TestCase):
             self.table_names(),
             EXPECTED_TABLES,
         )
-        self.assertEqual(self.current_alembic_version(), "0001_initial_schema")
+        self.assertEqual(self.current_alembic_version(), "0004_rossmann_coupon_details")
 
     def test_migrations_run_once_for_cached_engine(self):
         get_engine()
@@ -92,7 +93,7 @@ class AlembicMigrationTests(unittest.TestCase):
             self.table_names(),
             EXPECTED_TABLES,
         )
-        self.assertEqual(self.current_alembic_version(), "0001_initial_schema")
+        self.assertEqual(self.current_alembic_version(), "0004_rossmann_coupon_details")
 
 
 if __name__ == "__main__":

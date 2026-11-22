@@ -28,6 +28,10 @@ class RetailerBonusKPIs:
     rewe_bonus_redeemed: float
     lidlplus_discount: float
     sticker_discount: float
+    rossmann_coupon_discount: float | None = None
+    rossmann_app_coupon_discount: float | None = None
+    rossmann_basket_coupon_discount: float | None = None
+    rossmann_product_coupon_discount: float | None = None
 
 
 @dataclass(frozen=True)

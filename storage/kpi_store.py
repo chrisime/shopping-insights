@@ -14,6 +14,7 @@ from .sqlite_schema import (
     purchase_item_table,
     purchase_lidl_table,
     purchase_rewe_table,
+    purchase_rossmann_table,
     purchase_table,
     store_table,
 )
@@ -101,6 +102,10 @@ class MetricsStore:
         rewe_bonus_collected = 0.0
         rewe_bonus_balance = 0.0
         rewe_bonus_redeemed = 0.0
+        rossmann_coupon_discount = None
+        rossmann_basket_coupon_discount = None
+        rossmann_product_coupon_discount = None
+        rossmann_app_coupon_discount = None
 
         with connect() as connection:
             if retailer is None or retailer == "rewe":
@@ -146,12 +151,34 @@ class MetricsStore:
                 lidlplus_discount = float(row._mapping["lidlplus"])
                 sticker_discount = float(row._mapping["sticker"])
 
+            if retailer is None or retailer == "rossmann":
+                rossmann_stmt = (
+                    select(
+                        func.sum(purchase_rossmann_table.c.coupon_discount),
+                        func.sum(purchase_rossmann_table.c.basket_coupon_discount),
+                        func.sum(purchase_rossmann_table.c.product_coupon_discount),
+                        func.sum(purchase_rossmann_table.c.app_coupon_discount),
+                    )
+                    .select_from(purchase_rossmann_table)
+                    .join(purchase_table, purchase_table.c.id == purchase_rossmann_table.c.purchase_id)
+                )
+                (
+                    rossmann_coupon_discount, rossmann_basket_coupon_discount,
+                    rossmann_product_coupon_discount, rossmann_app_coupon_discount,
+                ) = connection.execute(
+                    _apply_date_filters(rossmann_stmt, start_date, end_date)
+                ).one()
+
         return RetailerBonusKPIs(
             rewe_bonus_collected=rewe_bonus_collected,
             rewe_bonus_balance=rewe_bonus_balance,
             rewe_bonus_redeemed=rewe_bonus_redeemed,
             lidlplus_discount=lidlplus_discount,
             sticker_discount=sticker_discount,
+            rossmann_coupon_discount=rossmann_coupon_discount,
+            rossmann_basket_coupon_discount=rossmann_basket_coupon_discount,
+            rossmann_product_coupon_discount=rossmann_product_coupon_discount,
+            rossmann_app_coupon_discount=rossmann_app_coupon_discount,
         )
 
     def spending_by_day(

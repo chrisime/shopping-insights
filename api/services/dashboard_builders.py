@@ -160,6 +160,31 @@ def _build_kpi_metrics(state: DashboardState) -> dict[str, float]:
         metrics["lidl_discount_amount"] = lidl_regular
         metrics["lidl_discount_pct"] = _pct(lidl_regular, _retailer_spent(state, "lidl"))
 
+    rossmann_kpis = state.kpis if state.retailer == "rossmann" else state.rossmann_kpis
+    if rossmann_kpis is not None:
+        metrics["rossmann_discount_amount"] = rossmann_kpis.total_discount
+        metrics["rossmann_discount_pct"] = _pct(rossmann_kpis.total_discount, rossmann_kpis.total_spent)
+        coupon = state.bonus_kpis.rossmann_coupon_discount
+        app_coupon = state.bonus_kpis.rossmann_app_coupon_discount
+        basket_coupon = state.bonus_kpis.rossmann_basket_coupon_discount
+        product_coupon = state.bonus_kpis.rossmann_product_coupon_discount
+        if basket_coupon is not None or product_coupon is not None:
+            metrics["rossmann_basket_coupon_amount"] = round(basket_coupon or 0, 2)
+            metrics["rossmann_product_coupon_amount"] = round(product_coupon or 0, 2)
+            metrics["rossmann_product_coupon_pct"] = _pct(product_coupon or 0, rossmann_kpis.total_spent)
+        if coupon is not None or app_coupon is not None:
+            metrics["rossmann_unclassified_coupon_amount"] = round(
+                (coupon or 0) + (app_coupon or 0) - (basket_coupon or 0) - (product_coupon or 0), 2
+            )
+        if coupon is not None:
+            metrics["rossmann_coupon_discount_amount"] = round(coupon, 2)
+        if app_coupon is not None:
+            metrics["rossmann_app_coupon_discount_amount"] = round(app_coupon, 2)
+        if coupon is not None or app_coupon is not None:
+            metrics["rossmann_other_discount_amount"] = round(
+                rossmann_kpis.total_discount - (coupon or 0) - (app_coupon or 0), 2
+            )
+
     return metrics
 
 
@@ -279,11 +304,12 @@ def build_dashboard_state(
                 available_kpis=available_kpis,
             )
         bonus_kpis = store.retailer_bonus_kpis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
-        rewe_kpis = lidl_kpis = None
+        rewe_kpis = lidl_kpis = rossmann_kpis = None
         rewe_bonus_kpis = lidl_bonus_kpis = None
         if normalized_retailer is None:
             rewe_kpis = store.basic_kpis(retailer="rewe", start_date=start_date, end_date=end_date)
             lidl_kpis = store.basic_kpis(retailer="lidl", start_date=start_date, end_date=end_date)
+            rossmann_kpis = store.basic_kpis(retailer="rossmann", start_date=start_date, end_date=end_date)
             rewe_bonus_kpis = store.retailer_bonus_kpis(retailer="rewe", start_date=start_date, end_date=end_date)
             lidl_bonus_kpis = store.retailer_bonus_kpis(retailer="lidl", start_date=start_date, end_date=end_date)
         time_series = _build_time_series(store, normalized_retailer, start_date, end_date, time_granularity)
@@ -319,6 +345,7 @@ def build_dashboard_state(
         bonus_kpis=bonus_kpis,
         rewe_kpis=rewe_kpis,
         lidl_kpis=lidl_kpis,
+        rossmann_kpis=rossmann_kpis,
         rewe_bonus_kpis=rewe_bonus_kpis,
         lidl_bonus_kpis=lidl_bonus_kpis,
         derived=derived,

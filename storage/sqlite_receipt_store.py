@@ -37,6 +37,7 @@ from .sqlite_schema import (
     purchase_item_table,
     purchase_lidl_table,
     purchase_rewe_table,
+    purchase_rossmann_table,
     purchase_table,
     store_table,
 )
@@ -67,6 +68,19 @@ def _persist_receipt_row(receipt: ReceiptDTO, payload_hash: str, connection: Con
         purchase_lidl_domain.insert(build_purchase_lidl_entity(receipt))
     elif retailer_code == "rewe":
         purchase_rewe_domain.insert(build_purchase_rewe_entity(receipt))
+    elif retailer_code == "rossmann" and (
+        receipt.rossmann_coupon_discount is not None or receipt.rossmann_app_coupon_discount is not None
+    ):
+        connection.execute(
+            purchase_rossmann_table.insert().values(
+                purchase_id=receipt.id,
+                coupons=list(receipt.rossmann_coupons) or None,
+                coupon_discount=receipt.rossmann_coupon_discount,
+                basket_coupon_discount=receipt.rossmann_basket_coupon_discount,
+                product_coupon_discount=receipt.rossmann_product_coupon_discount,
+                app_coupon_discount=receipt.rossmann_app_coupon_discount,
+            )
+        )
 
     purchase_item_domain.insert_many(build_purchase_item_entities(receipt))
     payment_method_domain.insert_many(build_payment_method_entities(receipt))
@@ -84,6 +98,7 @@ def _delete_purchase_children(connection: Connection, purchase_id: str) -> None:
         payment_method_table,
         purchase_lidl_table,
         purchase_rewe_table,
+        purchase_rossmann_table,
     ):
         connection.execute(table.delete().where(table.c.purchase_id == purchase_id))
 
@@ -143,7 +158,7 @@ def _map_purchase_to_receipt_dict(purchase: PurchaseEntity, retailer: str, conne
     lidl_extension = purchase_lidl_domain.find_by_purchase_id(purchase.id)
     rewe_extension = purchase_rewe_domain.find_by_purchase_id(purchase.id)
 
-    return {
+    result = {
         "id": purchase.id,
         "retailer": retailer,
         "purchase_date": purchase.purchase_date,
@@ -168,6 +183,17 @@ def _map_purchase_to_receipt_dict(purchase: PurchaseEntity, retailer: str, conne
         "rewe_bonus_total_amount": None if rewe_extension is None else rewe_extension.rewe_bonus_total_amount,
         "rewe_bonus_discount": None if rewe_extension is None else rewe_extension.rewe_bonus_discount,
     }
+    if retailer == "rossmann":
+        coupons = connection.execute(
+            select(purchase_rossmann_table).where(purchase_rossmann_table.c.purchase_id == purchase.id)
+        ).mappings().one_or_none()
+        if coupons is not None:
+            result["rossmann_coupons"] = coupons["coupons"] or []
+            result["rossmann_coupon_discount"] = coupons["coupon_discount"]
+            result["rossmann_basket_coupon_discount"] = coupons["basket_coupon_discount"]
+            result["rossmann_product_coupon_discount"] = coupons["product_coupon_discount"]
+            result["rossmann_app_coupon_discount"] = coupons["app_coupon_discount"]
+    return result
 
 
 class SqliteReceiptStore(ReceiptStore):

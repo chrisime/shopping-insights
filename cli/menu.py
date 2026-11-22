@@ -3,6 +3,7 @@
 from .dm_menu import show_dm_menu
 from .lidl_menu import show_lidl_menu
 from .rewe_menu import show_rewe_menu
+from .rossmann_menu import show_rossmann_menu
 
 
 def main() -> None:
@@ -11,7 +12,7 @@ def main() -> None:
         _print_main_menu()
 
         try:
-            choice = input("\nWähle eine Option (1-4): ").strip()
+            choice = input("\nWähle eine Option (1-5): ").strip()
             if _dispatch_main_menu_choice(choice):
                 continue
             return
@@ -30,7 +31,8 @@ def _print_main_menu() -> None:
     print("1. LIDL")
     print("2. REWE")
     print("3. dm")
-    print("4. Beenden")
+    print("4. Rossmann")
+    print("5. Beenden")
 
 
 def _dispatch_main_menu_choice(choice: str) -> bool:
@@ -48,8 +50,11 @@ def _dispatch_main_menu_choice(choice: str) -> bool:
         show_dm_menu()
         return True
     if choice == "4":
+        show_rossmann_menu()
+        return True
+    if choice == "5":
         print("Auf Wiedersehen!")
         return False
 
-    print("Ungültige Eingabe. Bitte wähle 1, 2, 3 oder 4.")
+    print("Ungültige Eingabe. Bitte wähle 1, 2, 3, 4 oder 5.")
     return True

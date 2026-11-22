@@ -50,7 +50,7 @@ class CliMenuTests(unittest.TestCase):
     def test_main_menu_returns_false_for_exit_choice(self):
         stdout = io.StringIO()
         with patch("sys.stdout", new=stdout):
-            should_continue = main_menu._dispatch_main_menu_choice("4")
+            should_continue = main_menu._dispatch_main_menu_choice("5")
 
         self.assertFalse(should_continue)
         self.assertIn("Auf Wiedersehen!", stdout.getvalue())

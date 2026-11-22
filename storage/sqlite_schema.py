@@ -6,7 +6,7 @@ this metadata; the domains and stores reference these tables.
 
 from __future__ import annotations
 
-from sqlalchemy import Column, Float, ForeignKey, Index, Integer, MetaData, Table, Text, UniqueConstraint
+from sqlalchemy import Column, Float, ForeignKey, Index, Integer, JSON, MetaData, Table, Text, UniqueConstraint
 
 metadata = MetaData()
 
@@ -95,4 +95,15 @@ purchase_rewe_table = Table(
     Column("rewe_bonus_amount", Float, nullable=False, server_default="0"),
     Column("rewe_bonus_total_amount", Float, nullable=False, server_default="0"),
     Column("rewe_bonus_discount", Float, nullable=False, server_default="0"),
+)
+
+purchase_rossmann_table = Table(
+    "purchase_rossmann",
+    metadata,
+    Column("purchase_id", Text, ForeignKey("purchase.id", ondelete="CASCADE", name="fk_purchase_rossmann__purchase"), primary_key=True),
+    Column("coupons", JSON(none_as_null=True), nullable=True),
+    Column("coupon_discount", Float, nullable=True),
+    Column("basket_coupon_discount", Float, nullable=True),
+    Column("product_coupon_discount", Float, nullable=True),
+    Column("app_coupon_discount", Float, nullable=True),
 )

@@ -146,6 +146,7 @@ class ReceiptStoreTests(unittest.TestCase):
                 "payment_method",
                 "purchase_lidl",
                 "purchase_rewe",
+                "purchase_rossmann",
             }.issubset(table_names)
         )
         self.assertTrue(
@@ -160,7 +161,7 @@ class ReceiptStoreTests(unittest.TestCase):
                 for name in ("uq_payment_method__purchase_position", "sqlite_autoindex_payment_method_1")
             )
         )
-        self.assertEqual(applied_version, ("0001_initial_schema",))
+        self.assertEqual(applied_version, ("0004_rossmann_coupon_details",))
 
     def test_sqlite_receipt_store_persist_receipts_migrates_precreated_empty_db_file(self):
         db_path = self.isolated_receipts_db()
