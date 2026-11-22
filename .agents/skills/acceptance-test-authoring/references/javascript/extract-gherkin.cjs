@@ -1,30 +1,8 @@
 'use strict';
 
 // Extracts classic Gherkin from Markdown specs (spec.md) into .feature files.
-//
-// A spec.md holds prose plus Gherkin inside column-0 ```gherkin fences. The
-// extraction copies every line inside a gherkin fence VERBATIM at its
-// original position and turns every other line (prose, fence markers, bodies
-// of non-gherkin fences) into an empty line. The output therefore has the
-// IDENTICAL line count to the input: line N of the extracted .feature is
-// line N of the spec.md. gherkin-lint messages, cucumber failure locations
-// and effective-spec line targeting (`spec.feature:27:33`) all point at valid
-// spec.md lines with no translation. NEVER "improve" this to collapse blank
-// lines — that invariant is what the whole toolchain leans on.
-//
-// Fences follow CommonMark: an opener is 3+ backticks at column 0 with info
-// string exactly `gherkin`; the closer is at least as many backticks at
-// column 0. Non-gherkin fences are tracked too, so a ```gherkin quoted
-// inside a longer documentation fence cannot false-trigger. Gherkin
-// docstrings delimited by ``` are safe: they are always indented, and the
-// closer regex requires column 0.
-//
-// Failure modes are loud, never silent: an unclosed fence, a spec.md with no
-// gherkin fence, or an INDENTED ```gherkin opener (which would otherwise
-// silently drop its scenarios from the suite) are hard errors.
-
-// Deliberately dependency-free (node:fs/node:path only): the CLI form must
-// run from the skill's references/ directory, where no node_modules exists.
+// Lines inside gherkin fences are copied verbatim at their original positions;
+// every other line becomes blank. This preserves line numbers exactly.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -36,7 +14,7 @@ const INDENTED_GHERKIN_RE = /^\s+`{3,}gherkin\s*$/;
 function extractFile(mdPath) {
   const lines = fs.readFileSync(mdPath, 'utf8').split(/\r?\n/);
   const out = [];
-  let state = 'prose'; // 'prose' | 'gherkin' | 'other-fence'
+  let state = 'prose';
   let fenceTicks = 0;
   let openLine = 0;
   let gherkinFences = 0;
@@ -51,9 +29,7 @@ function extractFile(mdPath) {
         gherkinFences += 1;
         out.push('');
       } else if (INDENTED_GHERKIN_RE.test(line)) {
-        throw new Error(
-          `${mdPath}:${i + 1}: indented \`\`\`gherkin fence — gherkin fences must start at column 0`
-        );
+        throw new Error(`${mdPath}:${i + 1}: indented \`\`\`gherkin fence; gherkin fences must start at column 0`);
       } else if ((m = ANY_OPEN_RE.exec(line))) {
         state = 'other-fence';
         fenceTicks = m[1].length;
@@ -64,6 +40,7 @@ function extractFile(mdPath) {
       }
       return;
     }
+
     const close = new RegExp('^`{' + fenceTicks + ',}\\s*$');
     if (close.test(line)) {
       state = 'prose';
@@ -77,7 +54,7 @@ function extractFile(mdPath) {
     throw new Error(`${mdPath}:${openLine}: unclosed fence`);
   }
   if (gherkinFences === 0) {
-    throw new Error(`${mdPath}: no \`\`\`gherkin fences found — a spec.md must contain gherkin`);
+    throw new Error(`${mdPath}: no \`\`\`gherkin fences found; a spec.md must contain gherkin`);
   }
   if (out.length !== lines.length) {
     throw new Error(`${mdPath}: line-count invariant violated (extractor bug)`);
@@ -85,8 +62,6 @@ function extractFile(mdPath) {
   return out.join('\n');
 }
 
-// Recursively collects files named <basename> under <dir>, returned as
-// posix paths relative to <root>, sorted for deterministic output.
 function walk(root, dir, basename, found) {
   if (!fs.existsSync(dir)) return found;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -99,9 +74,6 @@ function walk(root, dir, basename, found) {
   return found;
 }
 
-// Spec roots: specs/ (source of truth) and each active change's specs/ —
-// changes/archive/ is excluded structurally (archive nests one level deeper
-// than changes/<id>/) plus a defensive filter on the collected paths.
 function collectSpecSources(openspecDir, basename) {
   const found = walk(openspecDir, path.join(openspecDir, 'specs'), basename, []);
   const changesDir = path.join(openspecDir, 'changes');
@@ -114,11 +86,6 @@ function collectSpecSources(openspecDir, basename) {
   return found.filter((p) => !p.includes('changes/archive/')).sort();
 }
 
-// Extracts every spec.md under <openspecDir> (source of truth + active
-// change deltas, archive excluded) into <outDir>, mirroring the
-// openspec-relative path with spec.md -> spec.feature. The output dir is
-// wiped first — a stale extraction would keep deleted or renamed
-// capabilities executing.
 function extractAll(openspecDir, outDir) {
   openspecDir = openspecDir ? path.resolve(openspecDir) : path.resolve(__dirname, '../openspec');
   outDir = outDir ? path.resolve(outDir) : path.resolve(__dirname, '.extracted');
@@ -126,15 +93,9 @@ function extractAll(openspecDir, outDir) {
   fs.rmSync(outDir, { recursive: true, force: true });
 
   const sources = collectSpecSources(openspecDir, 'spec.md');
-
-  // Legacy-format tripwire: raw .feature files under openspec/ no longer run
-  // anywhere — flag them instead of letting them silently drop out.
   const legacy = collectSpecSources(openspecDir, '*.feature');
   if (legacy.length > 0) {
-    console.error(
-      `[extract-gherkin] WARNING: legacy .feature file(s) under openspec/ are ignored ` +
-        `(specs are spec.md now): ${legacy.join(', ')}`
-    );
+    console.error(`[extract-gherkin] WARNING: legacy .feature file(s) under openspec/ are ignored: ${legacy.join(', ')}`);
   }
 
   const written = [];
@@ -149,7 +110,6 @@ function extractAll(openspecDir, outDir) {
 
 module.exports = { extractAll, extractFile };
 
-// CLI: node extract-gherkin.cjs [openspecDir] [outDir]
 if (require.main === module) {
   try {
     const { outDir, written } = extractAll(process.argv[2], process.argv[3]);

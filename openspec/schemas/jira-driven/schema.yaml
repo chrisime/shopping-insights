@@ -1,0 +1,440 @@
+name: jira-driven
+version: 1
+description: Jira-driven OpenSpec workflow - proposal (sourced from a Jira ticket) -> specs (Markdown with fenced Gherkin) -> design -> adr -> tasks
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    instruction: >
+      Use the jira-import skill to load the Jira ticket's Summary, Description,
+      and Acceptance Criteria verbatim before drafting the rest of this
+      proposal. The ticket may come from the user's request (an ID or URL) or
+      from the change's context. Fetch the ticket fetch-first: resolve Jira
+      access in order - an opencode.json MCP server whose name matches /jira/i
+      first, then Jira env vars (JIRA_URL + JIRA_API_TOKEN, or JIRA_USERNAME +
+      JIRA_API_TOKEN) for a direct HTTP fetch - and load the ticket verbatim.
+      If no Jira access is configured, ask the user to paste Summary,
+      Description, and Acceptance
+      Criteria verbatim; never invent ticket content. Locate the Acceptance
+      Criteria group by its anchor (ACs, AC, Acceptance Criteria,
+      Akzeptanzkriterien; case-insensitive, first match wins), show the split
+      for confirmation, and if no anchor is found ask the user where the
+      criteria live. Record any gaps under Open Questions. Then create the
+      proposal document that establishes WHY this change is needed.
+
+
+      Sections:
+
+      - **Source**: the loaded ticket (Ticket ID, verbatim Summary, verbatim
+      Description, and each Acceptance Criterion on its own numbered line). This
+      is populated by the jira-import skill.
+
+      - **Why**: 1-2 sentences on the problem or opportunity. What problem does
+      this solve? Why now?
+
+      - **What Changes**: Bullet list of changes. Be specific about new
+      capabilities, modifications, or removals. Mark breaking changes with
+      **BREAKING**.
+
+      - **Capabilities**: Identify which behaviour specs will be created or modified:
+        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `user-auth`, `data-export`).
+        - **Modified Capabilities**: List existing capabilities whose behaviour is changing. Only include if spec-level behaviour changes, not just implementation details. Each needs a fenced-Gherkin delta file at `specs/<name>/spec.md`. Check `openspec/specs/` for existing spec names. Leave empty if no behaviour changes.
+      - **Impact**: Affected code, APIs, dependencies, or systems.
+
+
+      IMPORTANT: The Capabilities section is critical. It creates the contract
+      between proposal and specs phases. Research existing specs before filling
+      this in. Each capability listed here will need a corresponding spec file.
+
+
+      Durable architectural decisions worth carrying across changes are
+      distilled into ADR files at <target-repo>/adr/ by a later step after design.
+
+
+      Keep it concise (1-2 pages). Focus on the "why" not the "how" -
+      implementation details belong in design.md.
+
+
+
+      Run the Grill-Me review in two phases, gated.
+
+      Phase 0 — Decision Questions (DQ): first detect fundamental / scope
+      decisions that gate the AC interpretation (e.g. which system or target repo
+      a ticket targets). Each open DQ goes into the new ## Decision Questions
+      section (before ## Open Questions) using the template format: a checkbox
+      `[DQx] · <question>` with its own monotonic numbering, separate from
+      [FQx] and [ACx], plus a Status line (`awaiting-answers` | `resolved`).
+      A DQ is a question about a decision, not an AC gap: it stays a DQ, is
+      never promoted to an AC, and carries no AC contract. The DQ gate: do NOT
+      generate any Feedback Questions until no DQs are open.
+
+      Phase 1 — Feedback Questions (FQ): only after the DQ gate is clear,
+      document every unresolved AC requirement gap under ## Open Questions
+      using the checkbox format defined in the template (AC reference, stable
+      [FQx] handle assigned at Grill-Me time, gap, recommendation, reason,
+      optional "communicated to Jira" note).
+
+      Handles are stable process identities assigned at Grill-Me time, never
+      renamed, independent of block position and AC numbering:
+      - [DQx] for decision questions (own circle, see above),
+      - [FQx] for feedback questions (AC gaps),
+      - [ACx] for AC annotations in ## Source, replacing the provisional
+        ACx-TBD / AC5-DELETED handles. The `<!-- AC: TICKET-ID#N -->` anchors
+        in the specs stay unchanged — they are workflow-host-local and never
+        reach Jira.
+        (In the specs artifact instruction these map onto the AC numbering:
+        `[AC3]` provisional ↔ `AC3-TBD`, `[AC5] DELETED` ↔ `AC5-DELETED`.)
+
+
+      Grill-Me default for gaps the user cannot answer: when a question depends
+      on a decision only the ticket owner can make, offer the default answer
+      "needs to be asked by the ticket owner". If the user takes it, record the
+      gap as open with no extra marker - the AC keeps its provisional [ACx]
+      handle and its stable [FQx] identity, and the reason line reads exactly
+      "Reason: needs to be asked by the ticket owner". The re-import recognizes
+      the gap by that exact reason (no separate tag, no new field) and, once the
+      owner answers, folds the reply in and ticks the box like any other open
+      question.
+
+      After Grill-Me, offer to export the still-open questions to the Jira ticket as
+      a comment so the reporter/PO can confirm or answer them; this is guided
+      and requires explicit user confirmation before any write. Prefer the MCP
+      write path first (pre-sync diff against existing ticket comments so a
+      question already sent is never sent twice, then write per question with a
+      marker on success); if MCP is not configured or a send fails, fall back to
+      handing the user the ready-to-paste comment to write manually, and make
+      clear that no automated sync is possible in that mode.
+
+      When a DQ or FQ is answered locally — the agent asks the question in
+      conversation and the user answers it, ticking the box as resolved —
+      write that resolved answer back to the Jira ticket as a comment too, as
+      its own comment carrying the same [DQx]/[FQx] handle. This is additive
+      to, and never replaces, the still-open-question export above. It uses the
+      same guarantees: explicit user confirmation before any write (never
+      autonomous), the pre-sync diff keyed on the handle so a resolved question
+      already written back is never sent twice, and the manual ready-to-paste
+      fallback when no Jira access is configured. A question answered through
+      the ticket (folded in by a re-import) is not written back.
+
+      DQ comments target the ticket author (PO/ReqEng — tickets are written by
+      them, so the author is the best available contact for scope decisions):
+      send a `[DQx] · <question>` comment addressed to the author, who sees it,
+      agrees with the DEV team and adjusts the ticket. The re-import diff picks
+      up that adjustment as the resolution.
+
+      After the comment, the change enters the `awaiting-answers` blocked
+      state: add the status marker line and checkbox backlog (see the template)
+      and STOP — do not proceed to specs until the user gives the resume
+      signal. Once the user reports the answers arrived, run the jira-import
+      skill again to load the updated ticket verbatim, fold the answers into
+      ## Decision Questions / ## Open Questions, and tick the resolved boxes.
+      Resume only after all boxes are ticked or the remaining gaps are
+      explicitly accepted.
+
+      DQ state machine (one-way): `awaiting-answers` -> `resolved` on a PO
+      answer in the ticket OR a team decision documented as a `Decision:` note
+      (when the PO is unreachable, the team decides so the workflow never
+      blocks). `resolved` is a latch — a later re-import NEVER flips it back;
+      a re-import with an unchanged ticket leaves an awaiting-answers DQ open.
+      There is no second severity level of awaiting-answers.
+
+
+      This is the foundation - specs, design, adr, and tasks all build on this.
+    requires: []
+  - id: specs
+    generates: "specs/**/spec.md"
+    description: Markdown spec files whose behaviour scenarios live only in fenced Gherkin
+    template: spec.md
+    instruction: |
+      GATE — If the proposal.md carries the status marker `awaiting-answers`
+      (the `**Status:** awaiting-answers` line), do NOT start the specs step.
+      Instead, stop and report the open questions, how long they have been
+      pending, and that the answer wait must be cleared before specs can begin.
+      Only proceed after the user has given the resume signal and the re-import
+      has cleared the marker.
+
+      Create `spec.md` spec files that define WHAT the system should do.
+
+      Create one `spec.md` per capability listed in the proposal's Capabilities
+      section. A spec is a Markdown wrapper around fenced Gherkin: prose
+      (context, rationale, links, Jira AC traceability) may appear outside
+      fences, but the feature, rules, scenarios, and delta operations are
+      authored only inside the fenced Gherkin block. Do not duplicate
+      requirements or scenarios as plain Markdown delta, requirement, or
+      scenario heading sections.
+
+      Paths:
+      - New capabilities: use the exact kebab-case name from the proposal
+        (specs/<capability>/spec.md).
+      - Modified capabilities: use the existing spec folder name from
+        openspec/specs/<capability>/ when creating the delta spec at
+        specs/<capability>/spec.md.
+
+      Fence contract (the extractor and acceptance-test runner depend on it):
+      - Gherkin is executable only inside fences opened by ```gherkin at column
+        0 (info string exactly `gherkin`, nothing more) and closed by ``` at
+        column 0. An indented ```gherkin fence is a hard extraction error.
+      - Every spec.md must contain at least one gherkin fence.
+      - Multiple gherkin fences concatenate in file order and must parse as
+        exactly one top-level `Feature:`. The first fence opens with the
+        `Feature:` line; tags, if any, stay in the same fence immediately above
+        it.
+
+      Gherkin structure:
+      - `Feature:` is the spec file / capability. Exactly one per spec.md.
+      - `Rule:` is one requirement. Each `Rule:` is followed by a short
+        description line. Use SHALL/MUST for normative requirements.
+      - `Scenario:` is a concrete example written with Given/When/Then steps.
+      - Every `Rule:` must have at least one `Scenario:`.
+      - Use `Scenario Outline:` with `Examples:` instead of duplicating
+        scenarios when the same steps repeat with varying data.
+
+      Delta operations use an inline `# @openspec:` marker comment placed inside
+      a gherkin fence, immediately above the `Rule:` it applies to:
+      - `# @openspec: ADDED` - new requirement (include full Rule + scenarios).
+      - `# @openspec: MODIFIED` - changed behavior (include the full updated
+        Rule + all scenarios, not a partial edit).
+      - `# @openspec: REMOVED` - deprecated requirement (the `Rule:` line naming
+        it is enough).
+      - `# @openspec: RENAMED from="<old name>" to="<new name>"` - name change
+        only.
+
+      MODIFIED workflow: locate the existing `Rule:` in
+      openspec/specs/<capability>/spec.md, copy the entire block (Rule
+      description through all scenarios), place it under `# @openspec: MODIFIED`,
+      and edit. Partial MODIFIED content loses detail at archive time; if adding
+      new concerns without changing existing behavior, use ADDED instead.
+
+      Jira traceability: when the capability originates from a Jira ticket,
+      add an HTML comment `<!-- AC: TICKET-ID#N -->` in the Markdown prose
+      directly above the `Rule:`/`Scenario:` group that implements Jira
+      Acceptance Criterion N, so every AC line in the ticket maps to at least
+      one Gherkin scenario. See the jira-import skill for how the ticket
+      content is loaded before this step.
+
+      AC numbering freeze: creating the first spec.md with `<!-- AC:
+      TICKET-ID#N -->` anchors is the freeze point. Before that, ACs in
+      `## Source` may use provisional `[ACx]` handles (`[AC3]` for open
+      questions, `[AC5] DELETED` for removed entries).
+      After the freeze, only two mutations are allowed:
+      append (next number, `AC-N+1`, existing anchors unchanged) and supersede
+      (annotate DELETED in `## Source`, never referenced by scenarios, existing
+      anchors unchanged). Renumbering existing ACs after the freeze is never
+      allowed.
+
+      Specs should be testable. Each scenario is a potential acceptance test.
+      Before considering a spec complete, extract the Gherkin and lint it with
+      gherkin-lint, fixing every reported issue. See the
+      acceptance-test-authoring skill for extraction and lint commands.
+    requires:
+      - proposal
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    instruction: >
+      Create the design document that explains HOW to implement the change.
+
+
+      When to include design.md (create only if any apply):
+
+      - Cross-cutting change (multiple services/modules) or new architectural
+      pattern
+
+      - New external dependency or significant data model changes
+
+      - Security, performance, or migration complexity
+
+      - Ambiguity that benefits from technical decisions before coding
+
+
+      Prior decisions (read existing ADRs first):
+
+      Before writing, list every file in <target-repo>/adr/. Build the supersession
+      graph from each ADR's Supersedes field - an ADR is no longer in force if
+      a later ADR's Supersedes points at it. Only the currently-in-force ADRs
+      (accepted, not superseded) constrain this design. Older superseded ADRs
+      are historical context only and MUST NOT be treated as live commitments.
+      New design choices MUST be coherent with the in-force set. If a current
+      ADR needs to be revisited, do not propose modifying it; flag it under
+      Open Questions and let the adr step record a new superseding ADR.
+
+
+      Sections:
+
+      - **Context**: Background, current state, constraints, stakeholders
+
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes
+
+      - **Decisions**: Key technical choices with rationale (why X over Y?).
+      Include alternatives considered for each decision.
+
+      - **Risks / Trade-offs**: Known limitations, things that could go wrong.
+      Format: [Risk] -> Mitigation
+
+      - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
+
+      - **Open Questions**: Outstanding decisions or unknowns to resolve.
+      Include any in-force ADRs that this design suggests revisiting; the adr
+      step will record the supersession.
+
+
+      Focus on architecture and approach, not line-by-line implementation.
+
+      Reference the proposal for motivation and specs for requirements.
+
+
+      Good design docs explain the "why" behind technical decisions.
+    requires:
+      - proposal
+  - id: adr
+    generates: adr.md
+    description: Per-change ADR review manifest and durable decision handoff
+    template: adr.md
+    instruction: >
+      Complete ADR review for this change by writing a concise manifest at
+      openspec/changes/<change>/adr.md. This change-local file is the artifact
+      completion marker for the adr step. Existing files under <target-repo>/adr/ are
+      required context for the review, but they MUST NOT satisfy completion for
+      a new change.
+
+
+      If the change introduces a major durable architectural decision, also
+      create an Architecture Decision Record under <target-repo>/adr/. The path
+      <target-repo>/adr/ means the target repository's top-level adr/ folder
+      beside openspec/. The target repo is the repository the Jira ticket
+      concerns — in this workflow host and target are the same repository, so
+      this is this repository's own adr/ folder, not any folder inside
+      openspec/. Repository-level ADR files
+      persist across changes and MUST be written outside openspec/.
+
+
+      IRON RULE - ADRs are immutable once accepted. You MUST NOT edit a prior
+      ADR file under any circumstance, not its Status, not its body, not its
+      date. To change a previously accepted decision, record a NEW ADR whose
+      Status is "accepted, supersedes ADR-NNNN" and whose `Supersedes:` field
+      names the prior one. Design consumers derive what is currently in force
+      by walking Supersedes links across the folder. The prior ADR's contents
+      stay frozen as a historical record.
+
+
+      Process:
+
+      1. Read every existing ADR in <target-repo>/adr/. Build the supersession graph
+      from each ADR's Supersedes field. Note the highest sequence number in
+      use.
+
+      2. Re-read design.md. Identify decisions that meet ALL of these:
+
+      - Establish a long-term architectural commitment (pattern, technology,
+      boundary, contract) - not a tactical implementation detail.
+
+      - Will affect future changes beyond this one.
+
+      - Either aren't already captured by a currently-in-force ADR, OR
+      intentionally diverge from one. If diverging, the new ADR supersedes the
+      prior.
+
+      3. For each qualifying decision, create a NEW repository-level file at
+      <target-repo>/adr/NNNN-kebab-title.md, where NNNN is a 4-digit sequence one
+      greater than the highest existing. Include title, Status, Date, optional
+      Supersedes, and MADR-short sections: Context, Decision, and
+      Consequences. If this decision replaces a prior in-force ADR, set Status to
+      "accepted, supersedes ADR-NNNN", populate the `Supersedes:` field, and
+      explain in Context why the prior decision is being revisited. Do NOT
+      touch the prior ADR's file.
+
+      4. Write openspec/changes/<change>/adr.md using the template. The
+      manifest MUST state that ADR review completed for this change, list the
+      in-force ADR context reviewed, and reference every repository-level ADR
+      file created for this change. It MUST NOT duplicate full Context,
+      Decision, or Consequences content from repository-level ADR files.
+
+      5. If nothing meets the bar, do not invent ADRs. The manifest MUST
+      explicitly state that no major durable architectural decisions were
+      introduced and no new repository-level ADR files were created.
+
+
+      Filename convention: NNNN-kebab-title.md (e.g.,
+      0042-use-postgres-for-catalog.md). Sequence is monotonic across the
+      whole repo and never reused.
+    requires:
+      - design
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    instruction: >
+      Create the task list that breaks down the implementation work.
+
+
+      **IMPORTANT: Follow the template below exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be
+      tracked.
+
+
+      Guidelines:
+
+      - Group related tasks under ## numbered headings.
+
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`.
+
+      - Tasks should be small enough to complete in one session.
+
+      - Order tasks by dependency (what must be done first?).
+
+      - If implementation changes behaviour specs, include a task to run the
+      jira-driven validation gate before archive: extract and lint the specs,
+      and check delta markers and Jira AC traceability. The OpenSpec CLI's
+      `openspec validate --strict` / `openspec archive` only parse the
+      spec-driven delta headers and report every fenced-Gherkin change as
+      having "no deltas", so it is NOT the gate for this schema. Instead run:
+
+      ```sh
+      python3 openspec/schemas/jira-driven/validate_specs.py
+      ```
+
+      (from the repository root), which fails on malformed fences, gherkin-lint
+      issues, `Rule:` blocks without an `# @openspec:` marker, ADDED/MODIFIED
+      Rules without a scenario, and Jira AC comments with no mapped scenario.
+      gherkin-lint has no built-in defaults; the validator provisions its
+      `.gherkin-lintrc` into the repository root at invocation time (from an
+      existing root rc, the `acceptance-tests/.gherkin-lintrc` copy, or the
+      acceptance-test-authoring skill's `references/gherkin-lintrc.json`), so
+      no rc needs to be committed for validation to run.
+
+      - If the repository does not yet have `acceptance-tests/`, include setup
+      tasks for the stack declared by `stack:` in `openspec/config.yaml`
+      (`javascript`, `python`, or `java`; `python`/behave is the expected
+      default for this schema's Gherkin-formatted specs). Inline the concrete
+      destination filenames from
+      that stack's "Files to copy" table in the acceptance-test-authoring skill
+      (`references/<stack>/SETUP.md`). If `stack:` is absent, include a first
+      task to record it; do not guess it.
+
+
+      Reference specs for what to build, design for how to build it, and
+      <target-repo>/adr/ for durable architectural commitments to honor.
+
+      Each task should be verifiable - you know when it's done.
+    requires:
+      - specs
+      - adr
+apply:
+  requires:
+    - tasks
+  tracks: tasks.md
+  instruction: |
+    Read context files, work through pending tasks, mark complete as you go.
+    Pause if you hit blockers or need clarification.
+format:
+  extension: ".md"
+  fence:
+    open: '^```gherkin\s*$'
+    close: '^```\s*$'
+  requirement: '^\s*Rule:\s*(?<name>.+)$'
+  scenario: '^\s*Scenario:'
+  delta:
+    marker: '@openspec:\s*(?<op>ADDED|MODIFIED|REMOVED|RENAMED)'
+    rename: '@openspec:\s*RENAMED\s+from="(?<from>[^"]+)"\s+to="(?<to>[^"]+)"'

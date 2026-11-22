@@ -1,10 +1,10 @@
 {
   // Pinned gherkin-lint config for the EXTRACTED .feature files under
-  // .extracted/ (gherkin-lint has no defaults — a config file is mandatory).
+  // .extracted/ (gherkin-lint has no defaults; a config file is mandatory).
   // Copy to acceptance-tests/.gherkin-lintrc (that name is auto-discovered).
   // Line numbers it reports are valid in the source spec.md files.
   //
-  // Deliberately OFF — turning these on makes "fix all lint issues"
+  // Deliberately OFF because enabling these makes "fix all lint issues"
   // unsatisfiable with this toolchain:
   //   no-multiple-empty-lines / new-line-at-eof / indentation:
   //     extraction pads prose to blank lines to preserve line numbers.

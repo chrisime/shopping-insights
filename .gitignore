@@ -18,7 +18,7 @@ shopping_receipts.sqlite.bkp
 
 .idea/
 .pnpm-store/
-skills/
+/skills/
 .opencode/plans/
 
 openspec/schemas/*/.tmp-validate/
