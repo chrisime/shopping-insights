@@ -82,11 +82,11 @@ Rossmann account.ws endpoints, anybill base/clientId, cookie file, and JSON outp
 - **Why:** project constraints forbid third-party retry/HTTP wrappers; keeps symmetry with Lidl/REWE/dm clients.
 - **Alternatives considered:** an OAuth library — rejected by the no-third-party-auth-libraries constraint.
 
-### D4: Normalize into the shared receipt schema, parse item lines from the PDF
-Map anybill receipt fields to `shared/receipt_schema.py` (date, store/address, total, currency). Item names/prices/quantities are parsed from the receipt PDF using the same pattern as the dm PDF extractor (`parsing/dm_pdf_items_extractor.py`), since the anybill list/detail JSON carries limited item detail.
+### D4: Normalize into the shared receipt schema, parse item lines from the receipt detail JSON
+Map anybill receipt fields to `shared/receipt_schema.py` (date, store/address, total, currency). The anybill receipt detail JSON carries full item lines in `data.lines` (type `Default` with `text`, `item.quantity`, `item.pricePerUnit`, `quantityMeasure`), so item names/prices/quantities are read from the JSON directly. The original receipt PDF is downloaded as archive only; if item lines are missing from the JSON, the receipt is stored with empty items and a skip reason (like dm), later enrichment can re-parse.
 
-- **Why:** dashboard KPIs and the items view consume the normalized schema; PDF parsing was already proven for dm.
-- **Alternatives considered:** anybill JSON-only items — rejected, would degrade the items dashboard.
+- **Why:** the anybill detail response is richer than initially expected (it carries the full basket, not just summary fields), which avoids the fragile PDF text extraction for item data; dashboard KPIs and the items view consume the normalized schema.
+ - **Alternatives considered:** anybill PDF-only items — rejected, JSON carries the full item lines, so PDF text extraction would add fragility with no benefit; storing zero items — rejected, would degrade the items dashboard.
 
 ### D5: Drive import through the existing shared path (`import_local_sources`)
 `workflows/rossmann_workflow.py` fetches/parses Rossmann data and delegates to the shared `import_local_sources()` pipeline, per ADR-0003. Dedup/hash handling and skipped-receipt reporting come from the shared machinery.

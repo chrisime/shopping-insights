@@ -12,10 +12,15 @@ Rule: The system MUST persist normalized Rossmann receipts through the shared im
 - **THEN** the receipt is persisted with retailer rossmann
 - **AND** the receipt can be queried through the dashboard APIs
 
-#### Scenario: Extract items from the receipt PDF
-- **GIVEN** a Rossmann receipt PDF has been downloaded
-- **WHEN** the system parses the PDF for item lines
+#### Scenario: Extract items from the receipt detail JSON
+- **GIVEN** a Rossmann receipt detail has been fetched
+- **WHEN** the system parses the receipt detail JSON for item lines
 - **THEN** the receipt is stored with item names, prices, and quantities
+
+#### Scenario: Store the original receipt PDF as archive
+- **GIVEN** a Rossmann receipt PDF has been downloaded
+- **WHEN** the system stores the receipt
+- **THEN** the original PDF is kept alongside the receipt data
 
 #### Scenario: Skip a receipt that cannot be normalized
 - **GIVEN** a Rossmann receipt cannot be normalized into the receipt schema
