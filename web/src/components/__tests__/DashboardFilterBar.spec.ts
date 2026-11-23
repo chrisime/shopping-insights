@@ -12,20 +12,6 @@ afterEach(() => {
 
 describe("DashboardFilterBar", () => {
   it("emits model updates when the user changes search or sort", async () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn().mockImplementation((query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })),
-    );
-
     const wrapper = mount(DashboardFilterBar, {
       props: {
         search: "",

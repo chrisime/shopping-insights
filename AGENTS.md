@@ -10,6 +10,7 @@
 - Vue is the only dashboard frontend.
 - Use `pnpm` in `web/`.
 - The frontend toolchain is Vite+ (`vp`): prefer `pnpm exec vp ...` or the pnpm scripts (`pnpm dev`, `pnpm test`, `pnpm build`).
+- Always run the project-local `vp` from `web/node_modules/.bin`; a globally installed `vp` bundles its own Vitest and cannot resolve project-only deps such as `jsdom`.
 - Use the project venv for backend commands.
 - Lidl requests must retry with exponential backoff on 429/5xx.
 - Shared auth-method resolution (`--browser` / `--cookies-file`) should stay common between Lidl and REWE.

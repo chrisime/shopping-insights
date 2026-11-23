@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
+import Oruga from "@oruga-ui/oruga-next";
 import { describe, expect, it } from "vite-plus/test";
 
 import DashboardSkeleton from "../DashboardSkeleton.vue";
@@ -96,6 +97,9 @@ describe("dashboard panels", () => {
         totalCount: 1,
         topLimit: 20,
       },
+      global: {
+        plugins: [Oruga],
+      },
     });
     expect(topItems.find("table").exists()).toBe(true);
     expect(topItems.text()).toContain("Artikel");
@@ -168,6 +172,9 @@ describe("dashboard panels", () => {
         pageSize: 20,
         totalCount: 1,
         topLimit: 20,
+      },
+      global: {
+        plugins: [Oruga],
       },
     });
 

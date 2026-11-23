@@ -1,5 +1,6 @@
 import { createSSRApp, nextTick, effectScope } from "vue";
 import { renderToString } from "@vue/server-renderer";
+import Oruga from "@oruga-ui/oruga-next";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 vi.mock("../ImportJobControls.vue", () => ({ default: { template: "<div />" } }));
@@ -47,7 +48,7 @@ describe("DashboardPage", () => {
       }),
     );
 
-    const html = await renderToString(createSSRApp(DashboardPage));
+    const html = await renderToString(createSSRApp(DashboardPage).use(Oruga));
 
     expect(html).toContain("Monatsübersicht");
     expect(html).toContain("Allgemeine Informationen");
@@ -127,7 +128,7 @@ describe("DashboardPage", () => {
       }),
     );
 
-    const html = await renderToString(createSSRApp(DashboardPage));
+    const html = await renderToString(createSSRApp(DashboardPage).use(Oruga));
 
     expect(html).toContain("Dashboard data is unavailable");
     expect(html).toContain("Shopping Analyzer Dashboard");

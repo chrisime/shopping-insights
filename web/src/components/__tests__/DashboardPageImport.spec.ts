@@ -2,6 +2,7 @@
 
 import { ref } from "vue";
 import { mount } from "@vue/test-utils";
+import Oruga from "@oruga-ui/oruga-next";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import DashboardPage from "../DashboardPage.vue";
@@ -55,6 +56,7 @@ describe("DashboardPage import", () => {
 
     const wrapper = mount(DashboardPage, {
       global: {
+        plugins: [Oruga],
         stubs: {
           DashboardFilterBar: true,
           ImportJobControls: {

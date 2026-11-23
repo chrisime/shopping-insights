@@ -2,6 +2,7 @@
 
 import { computed, ref } from "vue";
 import { mount } from "@vue/test-utils";
+import Oruga from "@oruga-ui/oruga-next";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import DashboardPage from "../DashboardPage.vue";
@@ -62,6 +63,7 @@ describe("DashboardPage export", () => {
 
     const wrapper = mount(DashboardPage, {
       global: {
+        plugins: [Oruga],
         stubs: {
           ImportJobControls: {
             props: ["retailer", "running", "progress", "message", "error", "technicalError"],

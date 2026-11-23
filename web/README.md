@@ -26,6 +26,12 @@ pnpm exec vp run typecheck  # Typecheck der Vue-SFCs (vue-tsc)
 
 TypeScript ist für `vue-tsc` auf 6.0.x gepinnt; `vp check` nutzt unabhängig davon das gebündelte tsrs.
 
+**Wichtig:** `vp` muss aus `web/node_modules/.bin` kommen. Ein global installiertes `vp` bringt seine eigene Vitest-Kopie mit, die projektspezifische Abhängigkeiten wie `jsdom` nicht findet. Dann laufen nur die Node-Tests; alle jsdom-Suiten enden mit `Cannot find package 'jsdom'` als „unhandled errors“ (`4 passed`, `13 passed`, `12 errors`). Absicherung:
+
+```bash
+pnpm exec vp test      # nutzt immer die Projektversion
+```
+
 ## Tests
 
 ```bash
