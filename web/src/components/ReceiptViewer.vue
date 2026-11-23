@@ -2,7 +2,7 @@
 import { computed } from "vue";
 
 import ReceiptCouponSavings from "./ReceiptCouponSavings.vue";
-import { addressText, euro, retailerLabel, text } from "../utils/format";
+import { addressText, euro, quantity, retailerLabel, text } from "../utils/format";
 import type { Receipt } from "../types/dashboard";
 
 const props = defineProps<{
@@ -136,7 +136,7 @@ function isMatched(item: Receipt["items"][number]): boolean {
                     </span>
                   </div>
                   <span class="shrink-0 text-slate-600">
-                    {{ item.quantity.toLocaleString("de-DE") }} {{ text(item.unit) }} ×
+                    {{ quantity(item.quantity, item.unit) }} ×
                     {{ euro(item.price) }}
                   </span>
                 </div>

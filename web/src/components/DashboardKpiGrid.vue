@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+import { euro, percentage } from "../utils/format";
 import type { MetricsRow } from "../types/dashboard";
 
 const props = defineProps<{
@@ -85,12 +86,12 @@ function hasAllFields(cards: KpiCard[]): boolean {
 
 function formatValue(key: string, value: number): string {
   if (key.endsWith("_pct")) {
-    return `${value.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+    return percentage(value);
   }
   if (key === "receipt_count") {
     return String(value);
   }
-  return `€${value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return euro(value);
 }
 
 const visibleGroups = computed<KpiCard[][]>(() => {

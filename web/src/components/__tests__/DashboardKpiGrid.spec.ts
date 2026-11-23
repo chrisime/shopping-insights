@@ -27,7 +27,7 @@ describe("DashboardKpiGrid", () => {
     expect(wrapper.text()).toContain("Kassenbons");
     expect(wrapper.text()).toContain("Pfandrückgabe");
     expect(wrapper.text()).toContain("Gesamter Preisvorteil");
-    expect(wrapper.text()).toContain("€1.234,00");
+    expect(wrapper.text()).toContain("1.234,00 €");
     expect(wrapper.text()).toContain("4");
   });
 
@@ -35,14 +35,14 @@ describe("DashboardKpiGrid", () => {
     const wrapper = mount(DashboardKpiGrid, {
       props: { data: kpiData({ spendings: 1000.5 }) },
     });
-    expect(wrapper.text()).toContain("€1.000,50");
+    expect(wrapper.text()).toContain("1.000,50 €");
   });
 
   it("formats percentage values", () => {
     const wrapper = mount(DashboardKpiGrid, {
       props: { data: kpiData({ total_savings_pct: 12.5 }) },
     });
-    expect(wrapper.text()).toContain("12,5%");
+    expect(wrapper.text()).toContain("12,5 %");
   });
 
   it("renders REWE bonus group when rewe fields present", () => {
@@ -100,7 +100,7 @@ describe("DashboardKpiGrid", () => {
       props: { data: kpiData({ rossmann_discount_amount: 4.91, rossmann_discount_pct: 48.9 }) },
     });
     expect(wrapper.text()).toContain("Preisvorteil");
-    expect(wrapper.text()).toContain("48,9%");
+    expect(wrapper.text()).toContain("48,9 %");
   });
 
   it("renders only general cards when the data has no discount fields", () => {
@@ -144,7 +144,7 @@ describe("DashboardKpiGrid", () => {
     const productCard = wrapper
       .findAll("article")
       .find((card) => card.text().includes("Rossmann Produktcoupons"));
-    expect(productCard?.text()).toContain("10,0%");
+    expect(productCard?.text()).toContain("10,0 %");
     expect(wrapper.text()).not.toContain("Rossmann andere Coupons");
 
     await wrapper.setProps({ data: { ...data, rossmann_unclassified_coupon_amount: 2 } });

@@ -55,7 +55,7 @@ describe("ReceiptListModal", () => {
 
     expect(wrapper.text()).toContain("Januar 2024");
     expect(wrapper.text()).toContain("Lidl München");
-    expect(wrapper.text()).toContain("€42.50");
+    expect(wrapper.text()).toContain("42,50 €");
     expect(wrapper.text()).toContain("Apfel");
   });
 

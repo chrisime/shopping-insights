@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+import { euro } from "../utils/format";
 import type { ReceiptCoupon } from "../types/dashboard";
 
 const props = defineProps<{
@@ -9,16 +10,6 @@ const props = defineProps<{
 }>();
 
 const rows = computed(() => props.coupons ?? []);
-const formatter = computed(
-  () =>
-    new Intl.NumberFormat("de-DE", {
-      style: "currency",
-      currency:
-        typeof props.currency === "string" && /^[A-Z]{3}$/.test(props.currency)
-          ? props.currency
-          : "EUR",
-    }),
-);
 </script>
 
 <template>
@@ -31,7 +22,7 @@ const formatter = computed(
         class="flex justify-between gap-3 px-3 py-2 text-sm"
       >
         <dt>{{ coupon.name }}</dt>
-        <dd class="shrink-0 font-medium tabular-nums">{{ formatter.format(coupon.savings) }}</dd>
+        <dd class="shrink-0 font-medium tabular-nums">{{ euro(coupon.savings, currency) }}</dd>
       </div>
     </dl>
   </section>

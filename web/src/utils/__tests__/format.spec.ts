@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { addressText, euro, quantity, retailerLabel, text } from "../format";
+import {
+  addressText,
+  compactEuro,
+  euro,
+  percentage,
+  quantity,
+  retailerLabel,
+  text,
+} from "../format";
 
 describe("format helpers", () => {
   it("renders missing values as a dash", () => {
@@ -8,16 +16,33 @@ describe("format helpers", () => {
     expect(text("Apfel")).toBe("Apfel");
   });
 
-  it("formats euro amounts with two decimals", () => {
-    expect(euro(4)).toBe("€4.00");
-    expect(euro(2.5)).toBe("€2.50");
+  it("formats euro amounts with German separators and a non-breaking space", () => {
+    expect(euro(4)).toBe("4,00 €");
+    expect(euro(1234.5)).toBe("1.234,50 €");
     expect(euro(Number.NaN)).toBe("-");
   });
 
-  it("formats kilogram quantities with three decimals and pieces as integers", () => {
-    expect(quantity(0.696, "kg")).toBe("0.696 kg");
-    expect(quantity(2.9, "pc")).toBe("2 pc");
+  it("formats compact chart-axis values as whole German euros", () => {
+    expect(compactEuro(1234.5)).toBe("1.235 €");
+    expect(compactEuro(Number.NaN)).toBe("-");
+  });
+
+  it("formats kilogram quantities with three decimals and preserves fractional pieces", () => {
+    expect(quantity(0.696, "kg")).toBe("0,696 kg");
+    expect(quantity(0.5, "kg")).toBe("0,500 kg");
+    expect(quantity(2.9, "pc")).toBe("2,9 pc");
+    expect(quantity(2, "pc")).toBe("2 pc");
     expect(quantity(Number.NaN, "kg")).toBe("-");
+  });
+
+  it("formats percentages whose input is already expressed in percent", () => {
+    expect(percentage(12.5)).toBe("12,5 %");
+    expect(percentage(Number.NaN)).toBe("-");
+  });
+
+  it("formats coupon values in their supplied currency or defaults to euros", () => {
+    expect(euro(12.5, "USD")).toBe("12,50 $");
+    expect(euro(12.5, "invalid")).toBe("12,50 €");
   });
 
   it("maps retailer codes to display names", () => {

@@ -140,7 +140,7 @@ describe("TrendBarChart", () => {
         items: [
           {
             period: "2024-01",
-            total_spent: 100,
+            total_spent: 1234.5,
             receipt_count: 5,
             retailers: ["lidl"],
           },
@@ -163,7 +163,7 @@ describe("TrendBarChart", () => {
         items: [
           {
             period: "2024-01",
-            total_spent: 100,
+            total_spent: 1234.5,
             receipt_count: 5,
             retailers: ["lidl", "rewe"],
           },
@@ -175,9 +175,9 @@ describe("TrendBarChart", () => {
     await rect.trigger("mouseenter");
 
     expect(wrapper.text()).toContain("Januar 2024");
-    expect(wrapper.text()).toContain("€100.00");
+    expect(wrapper.text()).toContain("1.234,50 €");
     expect(wrapper.text()).toContain("5 Belege");
-    expect(wrapper.text()).toContain("€20.00");
+    expect(wrapper.text()).toContain("246,90 €");
     expect(wrapper.text()).toContain("lidl");
     expect(wrapper.text()).toContain("rewe");
   });

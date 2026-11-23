@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import * as d3 from "d3";
 
+import { compactEuro, euro } from "../utils/format";
 import { CHART_HEIGHT, Y_AXIS_WIDTH, chartWidth, xTickLabel, yAxisTicks } from "../utils/chart";
 import { computePeriod } from "../utils/period";
 import type { MonthLabel, PeriodSelection } from "../types/chart";
@@ -53,7 +54,7 @@ const BAR_LABELS = [
     fontSize: "10px",
     fill: "#475569",
     offset: () => -4,
-    text: (row: TimeSeriesRow) => `€${row.total_spent.toFixed(2)}`,
+    text: (row: TimeSeriesRow) => euro(row.total_spent),
   },
 ];
 
@@ -70,7 +71,7 @@ function renderYAxis(svg: Svg, scale: ValueScale, tickValues: number[]) {
   const axis = d3
     .axisLeft(scale)
     .tickValues(tickValues)
-    .tickFormat((value) => `€${Number(value).toFixed(0)}`)
+    .tickFormat((value) => compactEuro(Number(value)))
     .tickSize(0);
 
   const group = svg.append("g").attr("transform", `translate(${Y_AXIS_WIDTH - 8}, 0)`);
@@ -225,9 +226,9 @@ function showTooltip(tooltip: Group, row: TimeSeriesRow, barX: number, barTop: n
 
   tooltip.attr("transform", `translate(${barX}, ${barTop})`);
   tooltip.select(".tooltip-period").text(computePeriod(row.period, props.granularity).label);
-  tooltip.select(".tooltip-total").text(`€${row.total_spent.toFixed(2)}  Gesamt`);
+  tooltip.select(".tooltip-total").text(`${euro(row.total_spent)}  Gesamt`);
   tooltip.select(".tooltip-count").text(`${count} Belege`);
-  tooltip.select(".tooltip-avg").text(`€${average.toFixed(2)}  Ø/Beleg`);
+  tooltip.select(".tooltip-avg").text(`${euro(average)}  Ø/Beleg`);
   tooltip.select(".tooltip-retailers").text(retailers.join(", "));
   tooltip.select(".tooltip-bg").attr("height", retailers.length > 0 ? 110 : 90);
   tooltip.style("display", "block");

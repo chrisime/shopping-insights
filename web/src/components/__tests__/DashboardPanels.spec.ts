@@ -24,7 +24,7 @@ describe("dashboard panels", () => {
 
     expect(monthly.text()).toContain("2023");
     expect(monthly.text()).toContain("Jan 2023");
-    expect(monthly.text()).toContain("€10.00");
+    expect(monthly.text()).toContain("10,00 €");
     expect(monthly.findAll("svg").length).toBeGreaterThanOrEqual(2);
     expect(monthly.findAll("details")).toHaveLength(0);
 
@@ -90,7 +90,7 @@ describe("dashboard panels", () => {
     const topItems = mount(TopItemsPanel, {
       props: {
         items: [
-          { name: "Apfel", total_quantity: 2, total_spent: 4, purchase_count: 1, unit: "pc" },
+          { name: "Apfel", total_quantity: 2.9, total_spent: 4, purchase_count: 1, unit: "pc" },
         ],
         page: 1,
         pageSize: 20,
@@ -108,7 +108,8 @@ describe("dashboard panels", () => {
     expect(topItems.text()).toContain("Einkäufe");
     expect(topItems.text()).toContain("Apfel");
     expect(topItems.text()).toContain("2");
-    expect(topItems.text()).toContain("€4.00");
+    expect(topItems.text()).toContain("2,9 pc");
+    expect(topItems.text()).toContain("4,00 €");
     expect(topItems.text()).toContain("1");
     expect(topItems.text()).toContain("pc");
 
@@ -152,9 +153,9 @@ describe("dashboard panels", () => {
     });
 
     expect(trend.text()).toContain("Ø Ausgaben pro Zeitraum");
-    expect(trend.text()).toContain("€7.50");
-    expect(trend.text()).toContain("€10.00");
-    expect(trend.text()).toContain("€5.00");
+    expect(trend.text()).toContain("7,50 €");
+    expect(trend.text()).toContain("10,00 €");
+    expect(trend.text()).toContain("5,00 €");
 
     const topItems = mount(TopItemsPanel, {
       props: {
@@ -178,7 +179,7 @@ describe("dashboard panels", () => {
     });
 
     expect(topItems.text()).toContain("Tomaten");
-    expect(topItems.text()).toContain("0.696 kg");
-    expect(topItems.text()).toContain("€3.99");
+    expect(topItems.text()).toContain("0,696 kg");
+    expect(topItems.text()).toContain("3,99 €");
   });
 });
