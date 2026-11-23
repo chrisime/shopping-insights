@@ -28,7 +28,6 @@ describe("DashboardPage import", () => {
       error: ref(null as string | null),
       technicalError: ref(null as { error_code: number; detail: string } | null),
       startImport,
-      closeEventSource: vi.fn(),
     };
 
     vi.spyOn(dashboardComposable, "useDashboard").mockReturnValue({

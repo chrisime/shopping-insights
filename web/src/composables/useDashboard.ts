@@ -1,4 +1,13 @@
-import { computed, getCurrentInstance, onMounted, onServerPrefetch, ref, watch } from "vue";
+import {
+  computed,
+  getCurrentInstance,
+  getCurrentScope,
+  onMounted,
+  onScopeDispose,
+  onServerPrefetch,
+  ref,
+  watch,
+} from "vue";
 
 import { fetchDashboard } from "../api/dashboard";
 import type { DashboardPayload } from "../types/dashboard";
@@ -113,6 +122,12 @@ export function useDashboard() {
     endDate.value = maxDate;
   }
 
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      if (searchTimer) clearTimeout(searchTimer);
+    });
+  }
+
   if (getCurrentInstance()) {
     onMounted(() => {
       if (!payload.value && !loading.value) {
@@ -135,7 +150,6 @@ export function useDashboard() {
     payload,
     loading,
     error,
-    filters,
     refresh,
   };
 }

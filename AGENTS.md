@@ -26,7 +26,7 @@
 - Bar click → ReceiptListModal via `GET /receipts/by-date` API.
 - Monthly x-axis shows "Jan 2024" format.
 - Time-series DTO includes `retailers` field (GROUP_CONCAT in SQL).
-- Backend: 429 tests passing. Frontend: 72 tests (16 files) passing; `vp check`, `vp run typecheck`, and `vp build` succeed.
+- Backend: 429 tests passing. Frontend: 110 tests (23 files) passing; `vp check`, `vp run typecheck`, and `vp build` succeed.
 - Frontend toolchain migrated to Vite+ 1.7.0 (`vp`); lint/format run through Oxlint/Oxfmt, TS typecheck through tsrs, Vue SFCs through a `vue-tsc` task.
 
 ## Backend
@@ -56,7 +56,7 @@
 
 ## Recent Verification
 - `python3 -m pytest -q` → 429 passed.
-- `corepack pnpm exec vp test run` → 72 passed (16 files).
+- `corepack pnpm exec vp test run` → 110 passed (23 files).
 - `corepack pnpm exec vp check` → format, lint, and tsgo typecheck clean.
 - `corepack pnpm exec vp run typecheck` → vue-tsc clean.
 - `corepack pnpm exec vp build` → builds cleanly.
@@ -72,6 +72,7 @@
 - Tooltip SVG group rendered AFTER bars in paint order for correct z-index.
 - Use Vite+ as the single frontend toolchain (`vp dev/build/test/check`); keep `vite`/`vitest` catalog entries in `web/pnpm-workspace.yaml`.
 - TypeScript stays on 6.0.x because `vue-tsc` 3.x requires the upstream `typescript/lib/tsc` entry, which TypeScript 7 (native) no longer exports; `vp check` uses tsrs independently.
+- Frontend components stay presentational: pure logic lives in `web/src/utils/`, shared state in `web/src/composables/`, and API rows are typed in `web/src/types/dashboard.ts` (no `as any` casts in components).
 
 ## Relevant Files
 - `api/main.py`
@@ -98,12 +99,18 @@
 - `api/services/dashboard_models.py` — dashboard DTOs
 - `api/services/dashboard_builders.py` — pure dashboard builders
 - `api/services/dashboard_service.py` — thin dashboard service
-- `web/src/components/TrendBarChart.vue` — D3 SVG chart with tooltip + hover
+- `web/src/components/TrendBarChart.vue` — D3 SVG rendering; chart math lives in `utils/chart.ts`
 - `web/src/components/TrendChartPanel.vue` — emits `select-period` for bar click
-- `web/src/components/ReceiptListModal.vue` — period drill-down modal
+- `web/src/components/ReceiptViewer.vue` — shared receipt overlay/pager/detail
+- `web/src/components/ReceiptModal.vue` / `ReceiptListModal.vue` — thin wrappers over `ReceiptViewer`
+- `web/src/composables/useReceiptBrowser.ts` — receipt loading + navigation for both modals
 - `web/src/components/DashboardPage.vue` — orchestrates modal + period state
+- `web/src/api/http.ts` — shared base URL, query params and JSON fetch
 - `web/src/api/dashboard.ts` — `fetchReceiptsByDateRange()`
-- `web/src/types/dashboard.ts`
+- `web/src/utils/period.ts` — `computePeriod`, `periodLabel`, `buildMonthLabels`, `MONTH_NAMES`
+- `web/src/utils/chart.ts` — `yAxisTicks`, `chartWidth`, `xTickLabel`
+- `web/src/utils/format.ts` — `text`, `euro`, `quantity`, `retailerLabel`, `addressText`
+- `web/src/types/dashboard.ts` — typed section rows and receipts
 - `web/package.json` — depends on `d3` + `@types/d3`
 - `web/vite.config.ts` — Vite+ config (lint/fmt/typecheck, `typecheck` task)
 - `web/pnpm-workspace.yaml` — Vite+ catalog for `vite`, `vitest`, `vite-plus`

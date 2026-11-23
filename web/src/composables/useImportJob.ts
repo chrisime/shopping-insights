@@ -45,39 +45,45 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
     error.value = data.error ? (data.message ?? data.error.detail) : null;
   }
 
-  function parseEventPayload(event: MessageEvent<string>) {
-    return JSON.parse(event.data) as ImportJobEventPayload;
+  function readPayload(event: Event): ImportJobEventPayload | null {
+    if (!("data" in event) || typeof event.data !== "string" || event.data.length === 0) {
+      return null;
+    }
+    try {
+      return JSON.parse(event.data) as ImportJobEventPayload;
+    } catch {
+      return null;
+    }
+  }
+
+  async function handleSuccess(event: Event, token: number) {
+    if (token !== activeToken) return;
+
+    const payload = readPayload(event);
+    if (payload) applyEventPayload(payload);
+    closeEventSource();
+    loading.value = false;
+
+    try {
+      await refreshDashboard();
+    } catch (cause) {
+      error.value = cause instanceof Error ? cause.message : "Failed to refresh dashboard";
+    }
   }
 
   function attachStreamHandlers(stream: EventSource, token: number) {
-    const handleProgress = (event: MessageEvent<string>) => {
-      if (token !== activeToken) {
-        return;
-      }
-      applyEventPayload(parseEventPayload(event));
-    };
+    stream.addEventListener("progress", (event) => {
+      if (token !== activeToken) return;
+      const payload = readPayload(event);
+      if (payload) applyEventPayload(payload);
+    });
 
-    const handleSuccess = async (event: MessageEvent<string>) => {
-      if (token !== activeToken) {
-        return;
-      }
+    stream.addEventListener("success", (event) => {
+      void handleSuccess(event, token);
+    });
 
-      applyEventPayload(parseEventPayload(event));
-      closeEventSource();
-      loading.value = false;
-
-      try {
-        await refreshDashboard();
-      } catch (cause) {
-        error.value = cause instanceof Error ? cause.message : "Failed to refresh dashboard";
-      }
-    };
-
-    const handleError = (event: MessageEvent<string> | Event) => {
-      if (token !== activeToken) {
-        return;
-      }
-
+    stream.addEventListener("error", (event) => {
+      if (token !== activeToken) return;
       if (!("data" in event) || typeof event.data !== "string" || event.data.length === 0) {
         return;
       }
@@ -94,11 +100,7 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
       }
       loading.value = false;
       closeEventSource();
-    };
-
-    stream.addEventListener("progress", handleProgress as EventListener);
-    stream.addEventListener("success", handleSuccess as unknown as EventListener);
-    stream.addEventListener("error", handleError as EventListener);
+    });
   }
 
   async function startImport(payload: ImportStartRequest) {
@@ -150,6 +152,5 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
     technicalError,
     message,
     startImport,
-    closeEventSource,
   };
 }

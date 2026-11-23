@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { computed, ref } from "vue";
+import { ref } from "vue";
 import { mount } from "@vue/test-utils";
 import Oruga from "@oruga-ui/oruga-next";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -44,14 +44,6 @@ describe("DashboardPage export", () => {
       payload,
       loading,
       error,
-      filters: computed(() => ({
-        retailer: retailer.value || undefined,
-        start_date: startDate.value || undefined,
-        end_date: endDate.value || undefined,
-        time_granularity: timeGranularity.value,
-        top_view: topView.value,
-        top_limit: topLimit.value,
-      })),
       refresh: vi.fn(),
     };
 
