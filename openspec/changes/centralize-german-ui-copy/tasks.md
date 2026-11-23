@@ -1,7 +1,7 @@
 ## 1. Backend error-code contract
 
-- [ ] 1.1 Inventory frontend-consumed API error paths and define stable numeric codes for those that currently return only HTTP status or human-readable detail; preserve all existing code meanings.
-- [ ] 1.2 Return the numeric `error_code` consistently for those API failures while preserving HTTP statuses and diagnostic details; add backend contract tests for error responses.
+- [ ] 1.1 Inventory frontend-consumed API error paths and define unique numeric codes from `4001–4099` for 4xx errors and `5001–5099` for 5xx errors, including migrations for existing out-of-range import codes.
+- [ ] 1.2 Return range-compliant `error_code` values consistently while preserving HTTP statuses and diagnostic details; add backend contract tests and do not retain legacy-code aliases.
 
 ## 2. German frontend copy catalog
 

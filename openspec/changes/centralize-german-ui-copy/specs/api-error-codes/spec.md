@@ -6,21 +6,28 @@ Give frontend-visible API errors stable machine-readable identities so the dashb
 
 ### Requirement: Frontend-visible API errors have stable error codes
 
-API errors consumed by the frontend SHALL include a stable numeric `error_code` while preserving the appropriate HTTP status for transport and diagnostics. The frontend SHALL NOT use HTTP status alone to select a user-facing error message or error state. Existing numeric error codes SHALL remain stable.
+Frontend-visible API errors SHALL include a stable numeric `error_code`. Codes SHALL use `4001–4099` for 4xx failures and `5001–5099` for 5xx failures. HTTP status remains available, but the frontend SHALL NOT use it alone to select user-facing text or error state. Assigned code meanings SHALL remain stable.
 
 #### Scenario: An API error is returned with a stable code
 
 - **GIVEN** an API operation fails for a known application reason
 - **WHEN** the error is returned to the dashboard
-- **THEN** the response includes the stable numeric error code for that reason
+- **THEN** the response includes a stable numeric error code from the range matching the HTTP error class
 - **AND** the HTTP status remains available independently
 
-#### Scenario: The same error code is returned with different HTTP statuses
+#### Scenario: A client error code is returned with different 4xx statuses
 
-- **GIVEN** the frontend receives the same error code with different HTTP statuses
+- **GIVEN** the frontend receives the same error code with different 4xx HTTP statuses
 - **WHEN** it presents the error
 - **THEN** it selects the same localized message by error code
 - **AND** it does not infer the error meaning from HTTP status alone
+
+#### Scenario: Legacy import codes are migrated
+
+- **GIVEN** an import error previously used a retailer-specific code outside the defined ranges
+- **WHEN** the API returns that error after this change
+- **THEN** it uses its assigned stable code from the 4xx or 5xx range
+- **AND** the frontend does not accept or require the legacy code as an alias
 
 ### Requirement: The frontend maps error codes to German catalog messages
 
