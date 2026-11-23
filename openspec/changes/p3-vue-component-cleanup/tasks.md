@@ -1,11 +1,11 @@
 ## 1. Establish behavior and interfaces
 
-- [ ] 1.1 Run the focused existing tests for dashboard composition, import controls, receipt modals, KPI cards, and trend chart before refactoring.
-- [ ] 1.2 Record the props, emitted events, and API payloads that the reviewed components must preserve.
+- [x] 1.1 Run the focused existing tests for dashboard composition, import controls, receipt modals, KPI cards, and trend chart before refactoring.
+- [x] 1.2 Record the props, emitted events, and API payloads that the reviewed components must preserve.
 
 ## 2. Give retailer KPI rules clear ownership
 
-- [ ] 2.1 Inventory retailer-specific KPI fields and visibility rules for Lidl, REWE, dm, and Rossmann across the dashboard payload and frontend types; confirm whether dm currently has dedicated KPI data before deciding its component/module boundary.
+- [x] 2.1 Inventory retailer-specific KPI fields and visibility rules for Lidl, REWE, dm, and Rossmann across the dashboard payload and frontend types; confirm whether dm currently has dedicated KPI data before deciding its component/module boundary.
 - [ ] 2.2 Move current retailer-specific KPI definitions and visibility rules out of `DashboardKpiGrid.vue` into retailer-focused components or modules, keeping general spending KPIs separate.
 - [ ] 2.3 Keep shared KPI card rendering only where the retailers use the same presentation responsibility; add focused tests for retailer-specific output, missing fields, and Rossmann coupon visibility.
 
@@ -23,3 +23,13 @@
 
 - [ ] 5.1 Run the full frontend test suite, `vp check`, typecheck, and build.
 - [ ] 5.2 Review the final diff to confirm no user-visible behavior, API contracts, retailer/filter values, or dependencies changed, and validate the OpenSpec change strictly.
+
+## Contract inventory
+
+- `ImportJobControls.vue`: preserve the `retailer`, `running`, `progress`, `message`, `error`, and `technicalError` inputs; `update:retailer` and `start-import` events; and the `ImportStartRequest` payload fields, including REWE `customer_id` and Rossmann credentials.
+- `ReceiptViewer.vue`: preserve its `title`, `visible`, `loading`, `error`, `receipts`, `currentIndex`, and `highlightMatched` inputs, plus `close` and `update:currentIndex` events.
+- Receipt wrappers: preserve `/receipts/by-item` parameters (`name`, optional `retailer`) and `/receipts/by-date` parameters (`start_date`, `end_date`, optional `retailer`) through the current API helpers.
+- `TrendBarChart.vue`: preserve `items`, `granularity`, and `monthLabels` inputs and its `select-period` event; period selection continues to drive the date-range receipt flow.
+- `DashboardKpiGrid.vue`: preserve its `MetricsRow` input and visible KPI values, groupings, and omission rules for incomplete or zero-value retailer data.
+- `DashboardPage.vue`: preserve page-filter values, child component props/events, import/export behavior, and modal selection flow.
+- KPI inventory finding: current retailer-specific dashboard KPI keys are for REWE, Lidl, and Rossmann; no dm-specific KPI fields are present in the dashboard builder or `DashboardKpiGrid.vue`. `dm_payback_points` is receipt-level data, not a dashboard KPI.

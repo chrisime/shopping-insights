@@ -6,7 +6,7 @@ The Vue dashboard already separates shared state and API work into composables a
 - `ImportJobControls.vue` combines retailer/authentication choices, credentials and request construction, and progress/status presentation.
 - `ReceiptViewer.vue` combines modal framing, paging controls, receipt metadata, item rows, and totals. `ReceiptModal.vue` and `ReceiptListModal.vue` already reuse it and `useReceiptBrowser`.
 - `TrendBarChart.vue` combines SVG/D3 drawing, axes, month markers, bar labels, tooltip content/visibility, and click/hover behavior.
-- `DashboardKpiGrid.vue` owns common card rendering and field formatting alongside retailer-specific card definitions and visibility rules for REWE, Lidl, and Rossmann.
+- `DashboardKpiGrid.vue` owns common card rendering and field formatting alongside retailer-specific card definitions and visibility rules for REWE, Lidl, and Rossmann. The dashboard payload currently has no dm-specific KPI fields; `dm_payback_points` is receipt-level data, not a dashboard KPI.
 
 The accepted proposal identifies these as review targets, not as an instruction to split every large file. The refactor must make ownership easier to follow without changing dashboard behavior or introducing abstractions that cost more than they clarify.
 
@@ -73,7 +73,9 @@ Keep D3/SVG lifecycle and DOM operations close to the chart component. Reuse exi
 
 ### Give retailer-specific KPI rules clear ownership
 
-Move REWE, Lidl, and Rossmann card definitions and retailer-specific visibility rules out of `DashboardKpiGrid.vue` into retailer-focused modules or section components. Retain shared formatting and card markup only for the common shape actually shared by these retailers. Keep general spending KPIs separate from retailer-specific KPI ownership. Test retailer visibility and output at the narrowest useful component/module boundary.
+Move current REWE, Lidl, and Rossmann card definitions and retailer-specific visibility rules out of `DashboardKpiGrid.vue` into retailer-focused modules or section components. Retain shared formatting and card markup only for the common shape actually shared by these retailers. Keep general spending KPIs separate from retailer-specific KPI ownership. Test retailer visibility and output at the narrowest useful component/module boundary.
+
+The KPI inventory found no dm-specific dashboard KPI fields in the current backend payload or frontend grid. Do not create an empty or speculative dm KPI component; if dm-specific KPI fields are introduced later, give them retailer-focused ownership then.
 
 **Alternative considered:** Keep one large `DashboardKpiGrid.vue` with configuration arrays for every retailer. Rejected because it centralizes retailer knowledge and makes changes for one shop require editing a multi-retailer component.
 
@@ -99,5 +101,5 @@ This is an internal frontend refactor with no data migration or deployment seque
 ## Open Questions
 
 - The exact child-component boundaries for `DashboardPage.vue`, `ImportJobControls.vue`, `ReceiptViewer.vue`, and `TrendBarChart.vue` remain implementation findings. Do not force a split where inspection shows a coherent component with an already clear interface.
-- For retailer KPIs, the agreed direction is retailer-focused ownership; implementation should decide per shop whether a small component or a retailer-specific data module makes that ownership clearer, while sharing only genuinely common card rendering.
+- The current dashboard has no dm-specific KPI fields, so this refactor will not add a dm KPI component. Receipt-level `dm_payback_points` remains outside the dashboard KPI grid.
 - No in-force ADR currently requires supersession for this frontend-only structural refactor.
