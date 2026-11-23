@@ -2,6 +2,7 @@
 import { computed } from "vue";
 
 import { euro } from "../utils/format";
+import { t } from "../utils/copy";
 import type { ReceiptCoupon } from "../types/dashboard";
 
 const props = defineProps<{
@@ -14,7 +15,7 @@ const rows = computed(() => props.coupons ?? []);
 
 <template>
   <section v-if="rows.length" class="mt-4 border-t border-slate-200 pt-3">
-    <h3 class="mb-2 text-sm font-semibold text-slate-900">Deine Coupon-Ersparnis heute</h3>
+    <h3 class="mb-2 text-sm font-semibold text-slate-900">{{ t("coupon.savingsToday") }}</h3>
     <dl class="divide-y divide-slate-100 rounded-lg border border-slate-200">
       <div
         v-for="(coupon, index) in rows"

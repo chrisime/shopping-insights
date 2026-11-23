@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { OField, OInput, OSelect } from "@oruga-ui/oruga-next";
+import { t } from "../utils/copy";
 
 const search = defineModel<string>("search", { default: "" });
 const topView = defineModel<string>("topView", { default: "Menge" });
@@ -10,16 +11,18 @@ const topView = defineModel<string>("topView", { default: "Menge" });
     class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
     @submit.prevent
   >
-    <h2 class="text-lg font-semibold tracking-tight text-slate-900">Artikel Filter</h2>
+    <h2 class="text-lg font-semibold tracking-tight text-slate-900">
+      {{ t("filters.itemTitle") }}
+    </h2>
     <div class="grid gap-4 sm:grid-cols-2">
-      <OField label="Artikelsuche">
-        <OInput v-model="search" placeholder="Mind. 3 Zeichen" expanded />
+      <OField :label="t('filters.searchLabel')">
+        <OInput v-model="search" :placeholder="t('filters.searchPlaceholder')" expanded />
       </OField>
 
-      <OField label="Sortieren nach">
+      <OField :label="t('filters.sortBy')">
         <OSelect v-model="topView" expanded>
-          <option>Menge</option>
-          <option>Ausgaben</option>
+          <option value="Menge">{{ t("filters.quantity") }}</option>
+          <option value="Ausgaben">{{ t("filters.spending") }}</option>
         </OSelect>
       </OField>
     </div>

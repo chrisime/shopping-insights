@@ -9,12 +9,13 @@ import type {
   ImportStartRequest,
   ImportTechnicalError,
 } from "../types/imports";
+import { t } from "../utils/copy";
 
 const BROWSER_OPTIONS = [
-  { value: "firefox", label: "Firefox" },
-  { value: "librewolf", label: "LibreWolf" },
-  { value: "chrome", label: "Chrome" },
-  { value: "chromium", label: "Chromium" },
+  { value: "firefox", labelKey: "import.browser.firefox" },
+  { value: "librewolf", labelKey: "import.browser.librewolf" },
+  { value: "chrome", labelKey: "import.browser.chrome" },
+  { value: "chromium", labelKey: "import.browser.chromium" },
 ] as const;
 
 const props = defineProps<{
@@ -81,10 +82,10 @@ const progressPercent = computed(() =>
 );
 
 const progressStats = computed(() => [
-  { label: "Neu", value: props.progress.added },
-  { label: "Übersprungen", value: props.progress.skipped },
-  { label: "Fehler", value: props.progress.errors },
-  { label: "Artikel", value: props.progress.items },
+  { label: t("import.stat.added"), value: props.progress.added },
+  { label: t("import.stat.skipped"), value: props.progress.skipped },
+  { label: t("import.stat.errors"), value: props.progress.errors },
+  { label: t("import.stat.items"), value: props.progress.items },
 ]);
 
 function submitImport() {
@@ -113,37 +114,39 @@ function submitImport() {
   <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
     <form class="grid gap-4" @submit.prevent="submitImport">
       <div class="grid gap-4 sm:grid-cols-2">
-        <OField label="Importieren für">
+        <OField :label="t('import.forRetailer')">
           <OSelect
             :model-value="retailer"
             expanded
             @update:model-value="emit('update:retailer', $event as ImportRetailer)"
           >
-            <option value="lidl">Lidl</option>
-            <option value="rewe">REWE</option>
-            <option value="dm">dm</option>
-            <option value="rossmann">Rossmann</option>
+            <option value="lidl">{{ t("retailer.lidl") }}</option>
+            <option value="rewe">{{ t("retailer.rewe") }}</option>
+            <option value="dm">{{ t("retailer.dm") }}</option>
+            <option value="rossmann">{{ t("retailer.rossmann") }}</option>
           </OSelect>
         </OField>
 
         <div class="grid gap-4 sm:grid-cols-2">
-          <OField label="Authentifizierung">
+          <OField :label="t('import.authentication')">
             <OSelect v-model="authMode" expanded>
-              <option v-if="retailer === 'rossmann'" value="rossmann-login">Rossmann-Konto</option>
-              <option v-else value="browser">Browser-Profil</option>
-              <option value="cookies-file">Cookie-Datei</option>
+              <option v-if="retailer === 'rossmann'" value="rossmann-login">
+                {{ t("import.rossmannAccount") }}
+              </option>
+              <option v-else value="browser">{{ t("import.browserProfile") }}</option>
+              <option value="cookies-file">{{ t("import.cookieFile") }}</option>
             </OSelect>
           </OField>
 
-          <OField v-if="authMode === 'browser'" label="Browser">
+          <OField v-if="authMode === 'browser'" :label="t('import.browser')">
             <OSelect v-model="browser" expanded>
               <option v-for="option in BROWSER_OPTIONS" :key="option.value" :value="option.value">
-                {{ option.label }}
+                {{ t(option.labelKey) }}
               </option>
             </OSelect>
           </OField>
 
-          <OField v-if="authMode === 'cookies-file'" label="Cookie-Datei">
+          <OField v-if="authMode === 'cookies-file'" :label="t('import.cookieFile')">
             <input
               v-model="cookiesFile"
               class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -154,7 +157,7 @@ function submitImport() {
       </div>
 
       <div v-if="authMode === 'rossmann-login'" class="grid gap-4 sm:grid-cols-2">
-        <OField label="Rossmann-E-Mail" label-for="rossmann-import-email">
+        <OField :label="t('import.rossmannEmail')" label-for="rossmann-import-email">
           <input
             id="rossmann-import-email"
             v-model="rossmannEmail"
@@ -164,7 +167,7 @@ function submitImport() {
             class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
         </OField>
-        <OField label="Rossmann-Passwort" label-for="rossmann-import-password">
+        <OField :label="t('import.rossmannPassword')" label-for="rossmann-import-password">
           <input
             id="rossmann-import-password"
             v-model="rossmannPassword"
@@ -182,14 +185,14 @@ function submitImport() {
           class="text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4"
           @click="showCustomerId = !showCustomerId"
         >
-          {{ showCustomerId ? "customerId verbergen" : "customerId optional eingeben" }}
+          {{ showCustomerId ? t("import.customerId.hide") : t("import.customerId.show") }}
         </button>
-        <OField v-if="showCustomerId" label="REWE customerId">
+        <OField v-if="showCustomerId" :label="t('import.customerId.label')">
           <input
             v-model="customerId"
             class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
             type="text"
-            placeholder="optional"
+            :placeholder="t('common.optional')"
           />
         </OField>
       </div>
@@ -199,7 +202,7 @@ function submitImport() {
         class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="!canStart"
       >
-        {{ running ? "Import läuft..." : "Import" }}
+        {{ running ? t("import.running") : t("import.start") }}
       </button>
     </form>
 

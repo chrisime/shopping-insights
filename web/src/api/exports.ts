@@ -1,5 +1,5 @@
 import type { DashboardFilters } from "../types/dashboard";
-import { apiUrl } from "./http";
+import { getJson } from "./http";
 
 export function buildReceiptsExportFilename(filters: DashboardFilters = {}): string {
   const segments = ["shopping-analyzer-receipts"];
@@ -18,12 +18,7 @@ export function buildReceiptsExportFilename(filters: DashboardFilters = {}): str
 }
 
 export async function exportReceiptsJson(filters: DashboardFilters = {}): Promise<void> {
-  const response = await fetch(apiUrl("/exports/receipts", filters));
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const payload = await response.json();
+  const payload = await getJson<unknown>("/exports/receipts", filters);
   const blob = new Blob([JSON.stringify(payload, null, 2) + "\n"], {
     type: "application/json;charset=utf-8",
   });

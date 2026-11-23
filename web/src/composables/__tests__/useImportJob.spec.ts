@@ -188,15 +188,15 @@ describe("useImportJob", () => {
         items: 0,
         current_receipt: "-",
       },
-      error: { error_code: 2102, detail: "Nicht autorisiert (401)" },
+      error: { error_code: 4008, detail: "Nicht autorisiert (401)" },
       message: "Import fehlgeschlagen",
     });
 
     expect(job!.technicalError.value).toEqual({
-      error_code: 2102,
+      error_code: 4008,
       detail: "Nicht autorisiert (401)",
     });
-    expect(job!.error.value).toBe("Import fehlgeschlagen");
+    expect(job!.error.value).toBe("Das Lidl-Browser-Profil konnte keine Cookies liefern.");
 
     scope.stop();
   });
@@ -226,12 +226,12 @@ describe("useImportJob", () => {
         items: 0,
         current_receipt: "-",
       },
-      error: { error_code: 2102, detail: "Nicht autorisiert (401)" },
+      error: { error_code: 4008, detail: "Nicht autorisiert (401)" },
       message: "Import fehlgeschlagen",
     });
 
-    expect(job!.error.value).toBe("Import fehlgeschlagen");
-    expect(job!.technicalError.value?.error_code).toBe(2102);
+    expect(job!.error.value).toBe("Das Lidl-Browser-Profil konnte keine Cookies liefern.");
+    expect(job!.technicalError.value?.error_code).toBe(4008);
 
     scope.stop();
   });
@@ -240,7 +240,7 @@ describe("useImportJob", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 409,
-      json: async () => ({ detail: { error_code: 4091, detail: "Import bereits aktiv" } }),
+      json: async () => ({ error_code: 4003, detail: "Import already running" }),
     });
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("EventSource", MockEventSource as never);
@@ -251,8 +251,11 @@ describe("useImportJob", () => {
 
     await job!.startImport({ retailer: "lidl", browser: "firefox" });
 
-    expect(job!.error.value).toBe("Import bereits aktiv");
-    expect(job!.technicalError.value).toEqual({ error_code: 4091, detail: "Import bereits aktiv" });
+    expect(job!.error.value).toBe("Ein Import läuft bereits.");
+    expect(job!.technicalError.value).toEqual({
+      error_code: 4003,
+      detail: "Ein Import läuft bereits.",
+    });
     expect(job!.loading.value).toBe(false);
     expect(MockEventSource.instances).toHaveLength(0);
 

@@ -10,7 +10,9 @@ import {
 } from "vue";
 
 import { fetchDashboard } from "../api/dashboard";
+import { ApiRequestError } from "../api/http";
 import type { DashboardPayload } from "../types/dashboard";
+import { apiErrorText, networkErrorText, t } from "../utils/copy";
 
 export function useDashboard() {
   const retailer = ref("");
@@ -83,7 +85,12 @@ export function useDashboard() {
       }
     } catch (cause) {
       if (token === requestToken) {
-        error.value = cause instanceof Error ? cause.message : "Failed to load dashboard";
+        error.value =
+          cause instanceof ApiRequestError
+            ? cause.kind === "api"
+              ? apiErrorText(cause.errorCode)
+              : networkErrorText()
+            : t("errors.api.generic");
       }
     } finally {
       if (token === requestToken) {

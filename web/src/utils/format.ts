@@ -1,4 +1,5 @@
 import type { ReceiptAddress } from "../types/dashboard";
+import { t } from "./copy";
 
 const EURO_FORMATTER = new Intl.NumberFormat("de-DE", {
   style: "currency",
@@ -18,11 +19,11 @@ const PERCENT_FORMATTER = new Intl.NumberFormat("de-DE", {
 });
 
 export function text(value?: string): string {
-  return value == null ? "-" : value;
+  return value == null ? t("common.notAvailable") : value;
 }
 
 export function euro(value: number, currency = "EUR"): string {
-  if (!Number.isFinite(value)) return "-";
+  if (!Number.isFinite(value)) return t("common.notAvailable");
   const code = /^[A-Z]{3}$/.test(currency) ? currency : "EUR";
   try {
     return code === "EUR"
@@ -39,15 +40,15 @@ export function euro(value: number, currency = "EUR"): string {
 }
 
 export function compactEuro(value: number): string {
-  return Number.isFinite(value) ? COMPACT_EURO_FORMATTER.format(value) : "-";
+  return Number.isFinite(value) ? COMPACT_EURO_FORMATTER.format(value) : t("common.notAvailable");
 }
 
 export function percentage(value: number): string {
-  return Number.isFinite(value) ? PERCENT_FORMATTER.format(value / 100) : "-";
+  return Number.isFinite(value) ? PERCENT_FORMATTER.format(value / 100) : t("common.notAvailable");
 }
 
 export function quantity(value: number, unit: string): string {
-  if (!Number.isFinite(value)) return "-";
+  if (!Number.isFinite(value)) return t("common.notAvailable");
   const formatted =
     unit === "kg"
       ? new Intl.NumberFormat("de-DE", {
@@ -60,16 +61,15 @@ export function quantity(value: number, unit: string): string {
   return `${formatted} ${unit}`;
 }
 
-const RETAILER_LABELS: Record<string, string> = {
-  lidl: "Lidl",
-  rewe: "REWE",
-  dm: "dm",
-  rossmann: "Rossmann",
-};
-
 export function retailerLabel(value?: string): string {
-  if (!value) return "-";
-  return RETAILER_LABELS[value] ?? value;
+  if (!value) return t("common.notAvailable");
+  const labels: Record<string, string> = {
+    lidl: t("retailer.lidl"),
+    rewe: t("retailer.rewe"),
+    dm: t("retailer.dm"),
+    rossmann: t("retailer.rossmann"),
+  };
+  return labels[value] ?? value;
 }
 
 export function addressText(address?: ReceiptAddress): string {

@@ -88,7 +88,7 @@ describe("ReceiptListModal", () => {
     await wrapper.setProps({ visible: true });
     await settled();
 
-    expect(wrapper.text()).toContain("Kassenzettel konnten nicht geladen werden");
+    expect(wrapper.text()).toContain("Die Anfrage ist fehlgeschlagen.");
     expect(wrapper.text()).not.toContain("Keine Kassenzettel gefunden");
   });
 

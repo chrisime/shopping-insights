@@ -178,8 +178,8 @@ describe("TrendBarChart", () => {
     expect(wrapper.text()).toContain("1.234,50 €");
     expect(wrapper.text()).toContain("5 Belege");
     expect(wrapper.text()).toContain("246,90 €");
-    expect(wrapper.text()).toContain("lidl");
-    expect(wrapper.text()).toContain("rewe");
+    expect(wrapper.text()).toContain("Lidl");
+    expect(wrapper.text()).toContain("REWE");
   });
 
   it("hides tooltip on bar mouseleave after delay", async () => {

@@ -57,6 +57,26 @@ def test_receipt_detail_returns_full_record(monkeypatch):
     assert response.json() == {"data": receipts[0]}
 
 
+def test_missing_receipt_returns_structured_error_code(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from api.main import app
+    from api.services import receipt_service
+
+    class EmptyStore:
+        @staticmethod
+        def list_receipts(retailer):
+            return []
+
+    monkeypatch.setattr(receipt_service, "SqliteReceiptStore", EmptyStore)
+
+    response = TestClient(app).get("/receipts/missing")
+
+    assert response.status_code == 404
+    assert response.json()["error_code"] == 4002
+    assert response.json()["detail"]
+
+
 def test_receipt_items_returns_item_list(monkeypatch):
     from fastapi.testclient import TestClient
 

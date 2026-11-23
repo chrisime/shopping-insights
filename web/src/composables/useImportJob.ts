@@ -1,6 +1,8 @@
 import { computed, onScopeDispose, ref } from "vue";
 
 import { ImportStartError, openImportJobEvents, startImportJob } from "../api/imports";
+import { ApiRequestError } from "../api/http";
+import { apiErrorText, networkErrorText, t } from "../utils/copy";
 import type {
   ImportJobEventPayload,
   ImportProgressState,
@@ -40,9 +42,9 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
 
   function applyEventPayload(data: ImportJobEventPayload) {
     progress.value = { ...data.progress };
-    message.value = data.message;
     technicalError.value = data.error;
-    error.value = data.error ? (data.message ?? data.error.detail) : null;
+    message.value = data.status === "success" ? t("import.success") : null;
+    error.value = data.error ? apiErrorText(data.error.error_code) : null;
   }
 
   function readPayload(event: Event): ImportJobEventPayload | null {
@@ -67,7 +69,12 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
     try {
       await refreshDashboard();
     } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : "Failed to refresh dashboard";
+      error.value =
+        cause instanceof ApiRequestError
+          ? cause.kind === "api"
+            ? apiErrorText(cause.errorCode)
+            : networkErrorText()
+          : t("errors.api.generic");
     }
   }
 
@@ -91,12 +98,12 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
       try {
         const payload = JSON.parse(event.data) as Partial<ImportJobEventPayload>;
         technicalError.value = payload.error ?? {
-          error_code: 2103,
-          detail: payload.message ?? "Import stream failed",
+          error_code: 4004,
+          detail: payload.message ?? t("errors.api.generic"),
         };
-        error.value = payload.message ?? technicalError.value.detail;
+        error.value = apiErrorText(technicalError.value.error_code);
       } catch {
-        error.value = "Import stream failed";
+        error.value = t("errors.api.generic");
       }
       loading.value = false;
       closeEventSource();
@@ -108,6 +115,7 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
     closeEventSource();
     loading.value = true;
     error.value = null;
+    technicalError.value = null;
     progress.value = { ...EMPTY_PROGRESS };
     message.value = null;
 
@@ -126,10 +134,17 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
       }
 
       if (cause instanceof ImportStartError) {
-        technicalError.value = { error_code: cause.errorCode, detail: cause.message };
+        if (!cause.network) {
+          technicalError.value = { error_code: cause.errorCode, detail: cause.message };
+        }
         error.value = cause.message;
       } else {
-        error.value = cause instanceof Error ? cause.message : "Failed to start import";
+        error.value =
+          cause instanceof ApiRequestError
+            ? cause.kind === "api"
+              ? apiErrorText(cause.errorCode)
+              : networkErrorText()
+            : t("errors.api.generic");
       }
       loading.value = false;
       closeEventSource();

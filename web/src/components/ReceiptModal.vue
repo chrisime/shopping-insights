@@ -5,6 +5,7 @@ import ReceiptViewer from "./ReceiptViewer.vue";
 import { useReceiptBrowser } from "../composables/useReceiptBrowser";
 import { fetchReceiptsByItem } from "../api/dashboard";
 import { retailerLabel } from "../utils/format";
+import { t } from "../utils/copy";
 
 const props = defineProps<{
   articleName: string;
@@ -23,7 +24,8 @@ const { loading, receipts, currentIndex, current } = useReceiptBrowser(
 );
 
 const title = computed(
-  () => `${props.articleName} — ${retailerLabel(current.value?.retailer)} Kassenzettel`,
+  () =>
+    `${props.articleName} — ${retailerLabel(current.value?.retailer)} ${t("receipt.receiptsTitle")}`,
 );
 </script>
 

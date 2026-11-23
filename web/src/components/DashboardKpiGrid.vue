@@ -2,6 +2,7 @@
 import { computed } from "vue";
 
 import { euro, percentage } from "../utils/format";
+import { t } from "../utils/copy";
 import type { MetricsRow } from "../types/dashboard";
 
 const props = defineProps<{
@@ -15,63 +16,66 @@ interface KpiCard {
 
 const GENERAL_GROUPS: KpiCard[][] = [
   [
-    { title: "Ausgaben", fields: ["spendings", "spendings_without_discount"] },
-    { title: "Kassenbons", fields: ["receipt_count", "avg_receipt_amount"] },
+    { title: t("common.spending"), fields: ["spendings", "spendings_without_discount"] },
+    { title: t("common.receipts"), fields: ["receipt_count", "avg_receipt_amount"] },
   ],
   [
-    { title: "Pfandrückgabe", fields: ["saved_deposit"] },
-    { title: "Gesamter Preisvorteil", fields: ["total_savings", "total_savings_pct"] },
+    { title: t("kpi.depositReturnCard"), fields: ["saved_deposit"] },
+    { title: t("kpi.generalPriceBenefit"), fields: ["total_savings", "total_savings_pct"] },
   ],
 ];
 
 const REWE_CARDS: KpiCard[] = [
-  { title: "Rewe Rabatte", fields: ["rewe_discount_amount", "rewe_discount_pct"] },
-  { title: "Rewe Bonus gesammelt", fields: ["rewe_bonus_collected", "rewe_bonus_balance"] },
-  { title: "Rewe Bonus eingelöst", fields: ["rewe_bonus_redeemed", "rewe_bonus_open"] },
+  { title: t("kpi.reweDiscounts"), fields: ["rewe_discount_amount", "rewe_discount_pct"] },
+  { title: t("kpi.reweBonusCollected"), fields: ["rewe_bonus_collected", "rewe_bonus_balance"] },
+  { title: t("kpi.reweBonusRedeemed"), fields: ["rewe_bonus_redeemed", "rewe_bonus_open"] },
 ];
 
 const LIDL_CARDS: KpiCard[] = [
-  { title: "Lidl Plus", fields: ["lidlplus_discount_amount", "lidlplus_discount_pct"] },
-  { title: "Sticker Rabatte", fields: ["sticker_discount_amount", "sticker_discount_pct"] },
-  { title: "Preisvorteil", fields: ["lidl_discount_amount", "lidl_discount_pct"] },
+  { title: t("kpi.lidlPlus"), fields: ["lidlplus_discount_amount", "lidlplus_discount_pct"] },
+  { title: t("kpi.stickerDiscounts"), fields: ["sticker_discount_amount", "sticker_discount_pct"] },
+  { title: t("common.priceBenefit"), fields: ["lidl_discount_amount", "lidl_discount_pct"] },
 ];
 
 const ROSSMANN_CARDS: KpiCard[] = [
-  { title: "Rossmann 10% Coupon", fields: ["rossmann_basket_coupon_amount"] },
+  { title: t("kpi.rossmannBasketCoupon"), fields: ["rossmann_basket_coupon_amount"] },
   {
-    title: "Rossmann Produktcoupons",
+    title: t("kpi.rossmannProductCoupons"),
     fields: ["rossmann_product_coupon_amount", "rossmann_product_coupon_pct"],
   },
-  { title: "Rossmann andere Coupons", fields: ["rossmann_unclassified_coupon_amount"] },
-  { title: "Preisvorteil", fields: ["rossmann_discount_amount", "rossmann_discount_pct"] },
+  { title: t("kpi.rossmannOtherCoupons"), fields: ["rossmann_unclassified_coupon_amount"] },
+  {
+    title: t("common.priceBenefit"),
+    fields: ["rossmann_discount_amount", "rossmann_discount_pct"],
+  },
 ];
 
 const FIELD_LABELS: Record<string, string> = {
-  spendings: "Ausgaben gesamt",
-  spendings_without_discount: "Ausgaben ohne Rabatte",
-  receipt_count: "Kassenbons gesamt",
-  avg_receipt_amount: "Durchschnittl. Bon-Betrag",
-  saved_deposit: "Pfandrückgabe",
-  total_savings: "Gespart",
-  total_savings_pct: "Sparvorteil",
-  rewe_discount_amount: "Gespart",
-  rewe_discount_pct: "Sparquote",
-  rewe_bonus_collected: "Gesammelt",
-  rewe_bonus_balance: "Guthaben",
-  rewe_bonus_redeemed: "Eingelöst",
-  rewe_bonus_open: "Offen",
-  lidlplus_discount_amount: "Gespart",
-  lidlplus_discount_pct: "Sparquote",
-  sticker_discount_amount: "Gespart",
-  sticker_discount_pct: "Sparquote",
-  lidl_discount_amount: "Gespart",
-  lidl_discount_pct: "Sparquote",
-  rossmann_basket_coupon_amount: "Gespart",
-  rossmann_product_coupon_amount: "Gespart",
-  rossmann_product_coupon_pct: "Sparquote",
-  rossmann_unclassified_coupon_amount: "Gespart",
-  rossmann_discount_amount: "Gespart",
-  rossmann_discount_pct: "Sparquote",
+  spendings: t("kpi.totalSpending"),
+  spendings_without_discount: t("kpi.spendingWithoutDiscount"),
+  receipt_count: t("kpi.receiptsTotal"),
+  avg_receipt_amount: t("kpi.averageReceipt"),
+  saved_deposit: t("kpi.depositReturn"),
+  total_savings: t("kpi.saved"),
+  total_savings_pct: t("kpi.savingsBenefit"),
+  rewe_discount_amount: t("kpi.saved"),
+  rewe_discount_pct: t("kpi.savingsRate"),
+  rewe_bonus_collected: t("kpi.collected"),
+  rewe_bonus_balance: t("kpi.balance"),
+  rewe_bonus_redeemed: t("kpi.redeemed"),
+  rewe_bonus_open: t("kpi.open"),
+  lidlplus_discount_amount: t("kpi.saved"),
+  lidlplus_discount_pct: t("kpi.savingsRate"),
+  sticker_discount_amount: t("kpi.saved"),
+  sticker_discount_pct: t("kpi.savingsRate"),
+  lidl_discount_amount: t("kpi.saved"),
+  lidl_discount_pct: t("kpi.savingsRate"),
+  rossmann_basket_coupon_amount: t("kpi.saved"),
+  rossmann_product_coupon_amount: t("kpi.saved"),
+  rossmann_product_coupon_pct: t("kpi.savingsRate"),
+  rossmann_unclassified_coupon_amount: t("kpi.saved"),
+  rossmann_discount_amount: t("kpi.saved"),
+  rossmann_discount_pct: t("kpi.savingsRate"),
 };
 
 const GRID_CLASSES: Record<number, string> = {

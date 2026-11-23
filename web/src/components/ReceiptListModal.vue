@@ -5,6 +5,7 @@ import ReceiptViewer from "./ReceiptViewer.vue";
 import { useReceiptBrowser } from "../composables/useReceiptBrowser";
 import { fetchReceiptsByDateRange } from "../api/dashboard";
 import { periodLabel } from "../utils/period";
+import { t } from "../utils/copy";
 
 const props = defineProps<{
   startDate: string;
@@ -23,7 +24,9 @@ const { loading, error, receipts, currentIndex } = useReceiptBrowser(
   visible,
 );
 
-const title = computed(() => `${periodLabel(props.startDate, props.endDate)} — Kassenzettel`);
+const title = computed(
+  () => `${periodLabel(props.startDate, props.endDate)} — ${t("receipt.receiptsTitle")}`,
+);
 </script>
 
 <template>

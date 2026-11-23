@@ -105,7 +105,7 @@ def test_start_import_job_marks_false_return_as_error(monkeypatch):
     from workflows.workflow_errors import set_last_workflow_error, WorkflowErrorInfo
 
     def fake_run_lidl_initial(*, browser=None, cookies_file=None, country=None, output_dir=None, progress_listener=None):
-        set_last_workflow_error(WorkflowErrorInfo("lidl", 2101, "LIDL benötigt --cookies-file oder --browser."))
+        set_last_workflow_error(WorkflowErrorInfo("lidl", 4007, "LIDL benötigt --cookies-file oder --browser."))
         return False
 
     monkeypatch.setattr(trigger_service, "run_lidl_initial", fake_run_lidl_initial)
@@ -123,7 +123,7 @@ def test_start_import_job_marks_false_return_as_error(monkeypatch):
     assert state is not None
     assert state.status == "error"
     assert state.error is not None
-    assert state.error["error_code"] == 2101
+    assert state.error["error_code"] == 4007
     assert state.error["detail"] == "LIDL benötigt --cookies-file oder --browser."
 
 
@@ -132,7 +132,7 @@ def test_start_import_job_marks_none_return_as_error(monkeypatch):
     from workflows.workflow_errors import set_last_workflow_error, WorkflowErrorInfo
 
     def fake_run_rewe_initial(*, customer_id=None, browser=None, cookies_file=None, output_dir=None, progress_listener=None):
-        set_last_workflow_error(WorkflowErrorInfo("rewe", 2203, "REWE-Browserprofil konnte keine Cookies liefern."))
+        set_last_workflow_error(WorkflowErrorInfo("rewe", 4012, "REWE-Browserprofil konnte keine Cookies liefern."))
         return None
 
     monkeypatch.setattr(trigger_service, "run_rewe_initial", fake_run_rewe_initial)
@@ -150,7 +150,7 @@ def test_start_import_job_marks_none_return_as_error(monkeypatch):
     assert state is not None
     assert state.status == "error"
     assert state.error is not None
-    assert state.error["error_code"] == 2203
+    assert state.error["error_code"] == 4012
     assert state.error["detail"] == "REWE-Browserprofil konnte keine Cookies liefern."
 
 

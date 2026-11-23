@@ -28,14 +28,39 @@ describe("import api helpers", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 409,
-      json: async () => ({ detail: { error_code: 4091, detail: "Import bereits aktiv" } }),
+      json: async () => ({ error_code: 4003, detail: "Import already running" }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(startImportJob({ retailer: "rewe", browser: "firefox" })).rejects.toMatchObject({
       name: "ImportStartError",
-      errorCode: 4091,
-      message: "Import bereits aktiv",
+      errorCode: 4003,
+      message: "Ein Import läuft bereits.",
+    });
+  });
+
+  it("uses a generic German message when an API error has no numeric code", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: async () => ({ detail: "diagnostic only" }),
+      }),
+    );
+
+    await expect(startImportJob({ retailer: "rewe" })).rejects.toMatchObject({
+      errorCode: 4004,
+      message: "Die Anfrage ist fehlgeschlagen.",
+    });
+  });
+
+  it("uses the German network fallback when import start cannot reach the API", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    await expect(startImportJob({ retailer: "rewe" })).rejects.toMatchObject({
+      network: true,
+      message: "Der Dienst ist nicht erreichbar. Prüfe die Verbindung.",
     });
   });
 

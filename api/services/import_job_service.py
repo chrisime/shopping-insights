@@ -272,5 +272,5 @@ def _update_job(
 
 def _import_error_code_for_exception(exc: Exception) -> int:
     if isinstance(exc, RuntimeError) and str(exc).startswith("Import workflow returned False"):
-        return 2102
-    return 2103
+        return 5008
+    return 5009

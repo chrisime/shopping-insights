@@ -94,7 +94,7 @@ describe("useReceiptBrowser", () => {
 
     expect(browser.receipts.value).toEqual([]);
     expect(browser.loading.value).toBe(false);
-    expect(browser.error.value).toBe("Failed to load receipts");
+    expect(browser.error.value).toBe("Kassenzettel konnten nicht geladen werden.");
     expect(browser.current.value).toBeUndefined();
 
     load.mockResolvedValueOnce([]);

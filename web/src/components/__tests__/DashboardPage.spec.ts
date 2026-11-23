@@ -50,7 +50,7 @@ describe("DashboardPage", () => {
 
     const html = await renderToString(createSSRApp(DashboardPage).use(Oruga));
 
-    expect(html).toContain("Monatsübersicht");
+    expect(html).toContain("Shopping Analyzer Dashboard");
     expect(html).toContain("Allgemeine Informationen");
     expect(html).toContain("Ausgaben gesamt");
     expect(html).toContain("Ausgaben über Zeit");
@@ -122,7 +122,7 @@ describe("DashboardPage", () => {
           title: "Shopping Analyzer Dashboard",
           min_date: null,
           max_date: null,
-          error: { error_code: 101, detail: "missing_database" },
+          error: { error_code: 4005, detail: "missing_database" },
           sections: [],
         }),
       }),
@@ -130,7 +130,7 @@ describe("DashboardPage", () => {
 
     const html = await renderToString(createSSRApp(DashboardPage).use(Oruga));
 
-    expect(html).toContain("Dashboard data is unavailable");
+    expect(html).toContain("Dashboarddaten sind nicht verfügbar");
     expect(html).toContain("Shopping Analyzer Dashboard");
   });
 

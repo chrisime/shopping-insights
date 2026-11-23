@@ -1,14 +1,16 @@
 <script setup lang="ts">
+import { t } from "../utils/copy";
+
 export type SidebarTab = "import" | "ausgaben" | "einkauf" | "artikel";
 
 const activeTab = defineModel<SidebarTab>("activeTab", { required: true });
 const collapsed = defineModel<boolean>("collapsed", { required: true });
 
 const tabs: { key: SidebarTab; icon: string; label: string }[] = [
-  { key: "import", icon: "📥", label: "Import" },
-  { key: "ausgaben", icon: "💰", label: "Ausgaben" },
-  { key: "einkauf", icon: "📊", label: "Einkaufsverhalten" },
-  { key: "artikel", icon: "🛒", label: "Artikel" },
+  { key: "import", icon: "📥", label: t("tabs.import") },
+  { key: "ausgaben", icon: "💰", label: t("tabs.spending") },
+  { key: "einkauf", icon: "📊", label: t("tabs.shopping") },
+  { key: "artikel", icon: "🛒", label: t("tabs.items") },
 ];
 </script>
 
@@ -24,6 +26,7 @@ const tabs: { key: SidebarTab; icon: string; label: string }[] = [
       class="flex h-14 items-center justify-center border-b border-slate-200 text-lg text-slate-500 hover:text-slate-700"
       @click="collapsed = !collapsed"
     >
+      <span class="sr-only">{{ collapsed ? t("sidebar.expand") : t("sidebar.collapse") }}</span>
       {{ collapsed ? "☰" : "✕" }}
     </button>
 

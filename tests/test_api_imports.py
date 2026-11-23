@@ -25,7 +25,7 @@ def test_import_start_returns_conflict_when_job_running(monkeypatch):
     response = TestClient(app).post("/imports/start", json={"retailer": "rewe"})
 
     assert response.status_code == 409
-    assert response.json() == {"detail": {"error_code": 4091, "detail": "Import bereits aktiv"}}
+    assert response.json() == {"error_code": 4003, "detail": "Import bereits aktiv"}
 
 
 def test_import_events_streams_progress_and_success(monkeypatch):
@@ -119,7 +119,7 @@ def test_import_events_streams_structured_error(monkeypatch):
                             "items": 0,
                             "current_receipt": "-",
                         },
-                        "error": {"error_code": 2102, "detail": "Nicht autorisiert (401)"},
+                        "error": {"error_code": 4008, "detail": "Nicht autorisiert (401)"},
                         "message": "Import fehlgeschlagen",
                     },
                 }
@@ -131,7 +131,7 @@ def test_import_events_streams_structured_error(monkeypatch):
 
     assert response.status_code == 200
     assert "event: error" in response.text
-    assert '"error_code": 2102' in response.text
+    assert '"error_code": 4008' in response.text
     assert "Nicht autorisiert (401)" in response.text
 
 
@@ -148,7 +148,57 @@ def test_import_start_surfaces_structured_backend_error(monkeypatch):
     response = TestClient(app).post("/imports/start", json={"retailer": "lidl"})
 
     assert response.status_code == 409
-    assert response.json() == {"detail": {"error_code": 4091, "detail": "Import bereits aktiv"}}
+    assert response.json() == {"error_code": 4003, "detail": "Import bereits aktiv"}
+
+
+def test_invalid_rossmann_credentials_return_structured_error_code():
+    from api.main import app
+
+    response = TestClient(app).post(
+        "/imports/start",
+        json={"retailer": "rossmann", "rossmann_login": {"email": "", "password": ""}},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == 4001
+    assert response.json()["detail"]
+
+
+def test_missing_import_job_returns_structured_error_code(monkeypatch):
+    from api.main import app
+    from api.services import import_job_service
+
+    monkeypatch.setattr(import_job_service, "get_import_job", lambda job_id: None)
+
+    response = TestClient(app).get("/imports/missing/events")
+
+    assert response.status_code == 404
+    assert response.json()["error_code"] == 4002
+    assert response.json()["detail"]
+
+
+def test_request_validation_returns_structured_error_code():
+    from api.main import app
+
+    response = TestClient(app).post("/imports/start", json={})
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == 4001
+
+
+def test_unexpected_api_failure_returns_structured_error_code(monkeypatch):
+    from api.main import app
+    from api.services import export_service
+
+    def fail_export(**kwargs):
+        raise RuntimeError("private diagnostic")
+
+    monkeypatch.setattr(export_service, "export_receipts", fail_export)
+    response = TestClient(app, raise_server_exceptions=False).get("/exports/receipts")
+
+    assert response.status_code == 500
+    assert response.json()["error_code"] == 5001
+    assert "private diagnostic" not in response.text
 
 
 def test_rossmann_import_adds_new_receipt_with_items_only_once(monkeypatch, tmp_path):

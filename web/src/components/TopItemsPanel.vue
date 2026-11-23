@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { OField, OSelect } from "@oruga-ui/oruga-next";
 
 import { euro, quantity } from "../utils/format";
+import { t } from "../utils/copy";
 import type { TopItemRow } from "../types/dashboard";
 
 const props = defineProps<{
@@ -41,25 +42,25 @@ function next() {
             scope="col"
             class="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
           >
-            Artikel
+            {{ t("common.article") }}
           </th>
           <th
             scope="col"
             class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
           >
-            Gesamtmenge
+            {{ t("common.totalQuantity") }}
           </th>
           <th
             scope="col"
             class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
           >
-            Ausgaben
+            {{ t("common.spending") }}
           </th>
           <th
             scope="col"
             class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
           >
-            Einkäufe
+            {{ t("common.purchases") }}
           </th>
         </tr>
       </thead>
@@ -84,9 +85,11 @@ function next() {
       v-if="totalCount > 0"
       class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3"
     >
-      <p class="text-sm text-slate-500">{{ rangeStart }}–{{ rangeEnd }} von {{ totalCount }}</p>
+      <p class="text-sm text-slate-500">
+        {{ t("filters.paginationRange", { start: rangeStart, end: rangeEnd, total: totalCount }) }}
+      </p>
       <div class="flex items-center gap-3">
-        <OField label="Einträge pro Seite" class="mb-0">
+        <OField :label="t('filters.entriesPerPage')" class="mb-0">
           <OSelect
             :model-value="topLimit"
             expanded
@@ -104,7 +107,7 @@ function next() {
             class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             @click="prev"
           >
-            Zurück
+            {{ t("filters.previousPage") }}
           </button>
           <button
             type="button"
@@ -112,7 +115,7 @@ function next() {
             class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             @click="next"
           >
-            Weiter
+            {{ t("filters.nextPage") }}
           </button>
         </div>
       </div>

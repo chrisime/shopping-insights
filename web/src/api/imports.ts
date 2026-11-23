@@ -1,13 +1,14 @@
 import type { ImportStartRequest, ImportStartResponse } from "../types/imports";
 import { apiUrl } from "./http";
+import { apiErrorText, networkErrorText, t } from "../utils/copy";
 
-const CONCURRENT_IMPORT_MESSAGE = "Import bereits aktiv";
-const CONCURRENT_IMPORT_CODE = 4091;
+const UNKNOWN_API_CODE = 4004;
 
 export class ImportStartError extends Error {
   constructor(
     message: string,
     public errorCode: number,
+    public network = false,
   ) {
     super(message);
     this.name = "ImportStartError";
@@ -21,31 +22,33 @@ export async function startImportJob(payload: ImportStartRequest): Promise<Impor
     url.protocol !== "https:" &&
     !(url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
   ) {
-    throw new Error(
-      "Die Rossmann-Anmeldung benötigt eine lokale oder verschlüsselte API-Verbindung.",
-    );
+    throw new ImportStartError(t("import.secureConnectionRequired"), 4001);
   }
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-    ...(payload.rossmann_login && { redirect: "error", cache: "no-store" }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      ...(payload.rossmann_login && { redirect: "error", cache: "no-store" }),
+    });
+  } catch {
+    throw new ImportStartError(networkErrorText(), UNKNOWN_API_CODE, true);
+  }
 
   if (!response.ok) {
-    if (response.status === 409) {
-      const body = (await response.json()) as {
-        detail?: { error_code?: number; detail?: string };
-      };
-      throw new ImportStartError(
-        body.detail?.detail ?? CONCURRENT_IMPORT_MESSAGE,
-        body.detail?.error_code ?? CONCURRENT_IMPORT_CODE,
-      );
+    let errorCode: number | undefined;
+    try {
+      const body = (await response.json()) as { error_code?: unknown };
+      if (typeof body.error_code === "number") errorCode = body.error_code;
+    } catch {
+      // Use the generic API error fallback.
     }
-    throw new Error(`HTTP ${response.status}`);
+    const code = errorCode ?? UNKNOWN_API_CODE;
+    throw new ImportStartError(apiErrorText(code), code);
   }
 
   return (await response.json()) as ImportStartResponse;

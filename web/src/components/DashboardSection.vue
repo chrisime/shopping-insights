@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { t } from "../utils/copy";
+
 defineProps<{
   title: string;
   empty?: boolean;
@@ -11,7 +13,7 @@ defineProps<{
       <h2 class="text-lg font-semibold tracking-tight text-slate-900">{{ title }}</h2>
     </div>
 
-    <p v-if="empty" class="text-sm text-slate-500">Keine Daten für den gewählten Zeitraum.</p>
+    <p v-if="empty" class="text-sm text-slate-500">{{ t("dashboard.noData") }}</p>
 
     <div v-else class="min-w-0">
       <slot />

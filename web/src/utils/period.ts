@@ -1,18 +1,19 @@
 import type { MonthLabel, PeriodSelection } from "../types/chart";
+import { t } from "./copy";
 
 export const MONTH_NAMES = [
-  "Januar",
-  "Februar",
-  "März",
-  "April",
-  "Mai",
-  "Juni",
-  "Juli",
-  "August",
-  "September",
-  "Oktober",
-  "November",
-  "Dezember",
+  t("month.january"),
+  t("month.february"),
+  t("month.march"),
+  t("month.april"),
+  t("month.may"),
+  t("month.june"),
+  t("month.july"),
+  t("month.august"),
+  t("month.september"),
+  t("month.october"),
+  t("month.november"),
+  t("month.december"),
 ];
 
 /** Maps a chart period ("2024", "2024-01", "2024-01-15") to a selectable date range. */

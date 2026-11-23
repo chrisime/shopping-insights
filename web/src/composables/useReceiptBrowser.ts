@@ -1,6 +1,8 @@
 import { computed, ref, watch, type Ref } from "vue";
 
 import type { Receipt } from "../types/dashboard";
+import { ApiRequestError } from "../api/http";
+import { apiErrorText, networkErrorText, t } from "../utils/copy";
 
 /**
  * Loads receipts whenever the modal becomes visible and keeps track of the
@@ -25,10 +27,15 @@ export function useReceiptBrowser(load: () => Promise<Receipt[]>, visible: Ref<b
     try {
       const result = await load();
       if (request === ticket) receipts.value = result;
-    } catch {
+    } catch (cause) {
       if (request === ticket) {
         receipts.value = [];
-        error.value = "Failed to load receipts";
+        error.value =
+          cause instanceof ApiRequestError
+            ? cause.kind === "api"
+              ? apiErrorText(cause.errorCode)
+              : networkErrorText()
+            : t("receipt.loadFailed");
       }
     } finally {
       if (request === ticket) loading.value = false;

@@ -9,16 +9,16 @@ describe("ImportErrorDetails", () => {
   it("shows the debug button and reveals code on demand", async () => {
     const wrapper = mount(ImportErrorDetails, {
       props: {
-        errorCode: 2102,
+        errorCode: 4008,
       },
     });
 
-    expect(wrapper.text()).toContain("Debug-Infos anzeigen");
-    expect(wrapper.text()).not.toContain("Code 2102");
+    expect(wrapper.text()).toContain("Fehlercode anzeigen");
+    expect(wrapper.text()).not.toContain("Code 4008");
 
     await wrapper.get("button").trigger("click");
 
-    expect(wrapper.text()).toContain("Debug-Infos verbergen");
-    expect(wrapper.text()).toContain("Code 2102");
+    expect(wrapper.text()).toContain("Fehlercode verbergen");
+    expect(wrapper.text()).toContain("Fehlercode 4008");
   });
 });

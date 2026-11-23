@@ -3,6 +3,7 @@ import { computed } from "vue";
 
 import ReceiptCouponSavings from "./ReceiptCouponSavings.vue";
 import { addressText, euro, quantity, retailerLabel, text } from "../utils/format";
+import { t } from "../utils/copy";
 import type { Receipt } from "../types/dashboard";
 
 const props = defineProps<{
@@ -41,6 +42,7 @@ function isMatched(item: Receipt["items"][number]): boolean {
           <h2 class="text-lg font-semibold tracking-tight text-slate-900">{{ title }}</h2>
           <button
             type="button"
+            :aria-label="t('receipt.close')"
             class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
             @click="emit('close')"
           >
@@ -53,7 +55,7 @@ function isMatched(item: Receipt["items"][number]): boolean {
         </div>
 
         <div v-if="loading" class="flex items-center justify-center py-16 text-sm text-slate-500">
-          Lade Kassenzettel...
+          {{ t("receipt.loading") }}
         </div>
 
         <div
@@ -61,14 +63,14 @@ function isMatched(item: Receipt["items"][number]): boolean {
           role="alert"
           class="flex items-center justify-center py-16 text-sm text-red-700"
         >
-          Kassenzettel konnten nicht geladen werden.
+          {{ error }}
         </div>
 
         <div
           v-else-if="!current"
           class="flex items-center justify-center py-16 text-sm text-slate-500"
         >
-          Keine Kassenzettel gefunden.
+          {{ t("receipt.empty") }}
         </div>
 
         <template v-else>
@@ -82,10 +84,10 @@ function isMatched(item: Receipt["items"][number]): boolean {
               class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               @click="emit('update:currentIndex', currentIndex - 1)"
             >
-              Zurück
+              {{ t("common.previous") }}
             </button>
             <span class="text-sm text-slate-500">
-              {{ currentIndex + 1 }} von {{ receipts.length }}
+              {{ t("receipt.pagination", { current: currentIndex + 1, total: receipts.length }) }}
             </span>
             <button
               type="button"
@@ -93,7 +95,7 @@ function isMatched(item: Receipt["items"][number]): boolean {
               class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               @click="emit('update:currentIndex', currentIndex + 1)"
             >
-              Weiter
+              {{ t("common.next") }}
             </button>
           </div>
 
@@ -101,31 +103,35 @@ function isMatched(item: Receipt["items"][number]): boolean {
             <div class="mb-4 grid grid-cols-4 gap-3 text-sm">
               <div>
                 <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
-                  Händler
+                  {{ t("common.retailer") }}
                 </p>
                 <p class="mt-0.5 font-bold uppercase text-slate-900">
                   {{ retailerLabel(current.retailer) }}
                 </p>
               </div>
               <div>
-                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Markt</p>
+                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
+                  {{ t("receipt.market") }}
+                </p>
                 <p class="mt-0.5 font-medium text-slate-900">{{ text(current.store) }}</p>
               </div>
               <div>
                 <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
-                  Adresse
+                  {{ t("receipt.address") }}
                 </p>
                 <p class="mt-0.5 text-xs text-slate-500">{{ addressText(current.address) }}</p>
               </div>
               <div class="text-right">
-                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Datum</p>
+                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
+                  {{ t("receipt.date") }}
+                </p>
                 <p class="mt-0.5 font-medium text-slate-900">{{ text(current.purchase_date) }}</p>
               </div>
             </div>
 
             <div class="border-t border-slate-200 pt-3">
               <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                Artikel
+                {{ t("receipt.items") }}
               </h3>
               <div class="divide-y divide-slate-100">
                 <div
@@ -159,9 +165,9 @@ function isMatched(item: Receipt["items"][number]): boolean {
             />
 
             <div class="mt-4 border-t border-slate-200 pt-3 text-right">
-              <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
-                >Gesamt</span
-              >
+              <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">{{
+                t("receipt.total")
+              }}</span>
               <p class="text-xl font-semibold text-slate-900">{{ euro(current.total_price) }}</p>
             </div>
           </div>

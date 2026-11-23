@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from typing import Final
 
 
-MISSING_DATABASE_ERROR_CODE: Final[int] = 101
-NO_RECEIPTS_ERROR_CODE: Final[int] = 102
+MISSING_DATABASE_ERROR_CODE: Final[int] = 4005
+NO_RECEIPTS_ERROR_CODE: Final[int] = 4006
 
 MISSING_DATABASE_ERROR_DETAIL: Final[str] = "missing_database"
 NO_RECEIPTS_ERROR_DETAIL: Final[str] = "no_receipts"

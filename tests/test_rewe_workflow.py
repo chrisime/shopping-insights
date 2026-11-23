@@ -98,7 +98,7 @@ class ReweWorkflowTests(unittest.TestCase):
         self.assertFalse(result)
         err = get_last_workflow_error()
         self.assertIsNotNone(err)
-        self.assertEqual(err.error_code, 2207)
+        self.assertEqual(err.error_code, 4016)
         self.assertIn("ungültig oder abgelaufen", err.detail)
         download_zip.assert_not_called()
 
@@ -110,7 +110,7 @@ class ReweWorkflowTests(unittest.TestCase):
         self.assertFalse(result)
         err = get_last_workflow_error()
         self.assertIsNotNone(err)
-        self.assertEqual(err.error_code, 2203)
+        self.assertEqual(err.error_code, 4012)
         self.assertIn("Browserprofil", err.detail)
 
     def test_run_rewe_initial_maps_browser_auth_errors_to_specific_code(self):
@@ -126,7 +126,7 @@ class ReweWorkflowTests(unittest.TestCase):
         self.assertFalse(result)
         err = get_last_workflow_error()
         self.assertIsNotNone(err)
-        self.assertEqual(err.error_code, 2205)
+        self.assertEqual(err.error_code, 4014)
         self.assertEqual(err.detail, "Browserprofil gesperrt")
 
     def test_run_rewe_initial_uses_centralized_detail_mapping_for_missing_browser_auth(self):
@@ -137,7 +137,7 @@ class ReweWorkflowTests(unittest.TestCase):
         self.assertFalse(result)
         err = get_last_workflow_error()
         self.assertIsNotNone(err)
-        self.assertEqual(err.error_code, 2203)
+        self.assertEqual(err.error_code, 4012)
         self.assertEqual(err.detail, "REWE-Browserprofil konnte keine Cookies liefern.")
 
     def test_run_rewe_initial_returns_false_when_browser_zip_download_fails(self):
@@ -157,7 +157,7 @@ class ReweWorkflowTests(unittest.TestCase):
         self.assertFalse(result)
         err = get_last_workflow_error()
         self.assertIsNotNone(err)
-        self.assertEqual(err.error_code, 2209)
+        self.assertEqual(err.error_code, 5003)
         self.assertIn("ohne customerId fehlgeschlagen", err.detail)
 
     def test_run_rewe_update_imports_all_local_receipts_from_downloaded_pdfs(self):

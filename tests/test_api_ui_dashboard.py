@@ -257,7 +257,7 @@ def test_build_dashboard_state_returns_empty_payload_when_database_tables_are_mi
         "sections": [],
         "min_date": None,
         "max_date": None,
-        "error": {"error_code": 101, "detail": "missing_database"},
+        "error": {"error_code": 4005, "detail": "missing_database"},
     }
 
 
@@ -303,5 +303,5 @@ def test_build_dashboard_state_returns_no_receipts_error_for_empty_database():
     )
     page = build_dashboard_page_model(state).to_dict()
 
-    assert page["error"] == {"error_code": 102, "detail": "no_receipts"}
+    assert page["error"] == {"error_code": 4006, "detail": "no_receipts"}
     assert page["sections"] == []

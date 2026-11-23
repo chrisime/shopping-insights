@@ -17,6 +17,8 @@ import ReceiptListModal from "./ReceiptListModal.vue";
 import { useDashboard } from "../composables/useDashboard";
 import { useImportJob } from "../composables/useImportJob";
 import { exportReceiptsJson } from "../api/exports";
+import { ApiRequestError } from "../api/http";
+import { apiErrorText, networkErrorText, t } from "../utils/copy";
 import type { PeriodSelection } from "../types/chart";
 import type { ImportRetailer } from "../types/imports";
 
@@ -46,15 +48,29 @@ const {
 
 const importRetailer = ref<ImportRetailer>("lidl");
 const exporting = ref(false);
+const exportError = ref<string | null>(null);
 const sidebarCollapsed = ref(false);
 const activeTab = ref<SidebarTab>("ausgaben");
 const selectedArticle = ref<string | null>(null);
 const selectedPeriod = ref<PeriodSelection | null>(null);
 
 const bannerMessage = computed(() =>
-  payload.value?.error ? dashboardErrorMessage(payload.value.error.detail) : error.value,
+  payload.value?.error
+    ? apiErrorText(payload.value.error.error_code)
+    : (exportError.value ?? error.value),
 );
 
+function sectionTitle(title: string) {
+  const keys: Record<string, Parameters<typeof t>[0]> = {
+    "Allgemeine Informationen": "sections.general",
+    Rabatte: "sections.discounts",
+    "Ausgaben über Zeit": "sections.spendingOverTime",
+    "Einkaufsverhalten nach Wochentag": "sections.shoppingByWeekday",
+    "Top-Artikel": "sections.topItems",
+  };
+  const key = keys[title];
+  return key ? t(key) : t("sections.unknown");
+}
 const spendingSections = computed(
   () =>
     payload.value?.sections.filter(
@@ -68,21 +84,22 @@ const topItemSections = computed(
   () => payload.value?.sections.filter((section) => section.kind === "top_items") ?? [],
 );
 
-function dashboardErrorMessage(detail: string) {
-  if (detail === "no_receipts") {
-    return "No receipts yet. Import or fetch receipts to see dashboard data.";
-  }
-  return "Dashboard data is unavailable. Import receipts to initialize the dashboard.";
-}
-
 async function handleExport() {
   exporting.value = true;
+  exportError.value = null;
   try {
     await exportReceiptsJson({
       retailer: retailer.value || undefined,
       start_date: startDate.value || undefined,
       end_date: endDate.value || undefined,
     });
+  } catch (cause) {
+    exportError.value =
+      cause instanceof ApiRequestError
+        ? cause.kind === "api"
+          ? apiErrorText(cause.errorCode)
+          : networkErrorText()
+        : t("errors.export");
   } finally {
     exporting.value = false;
   }
@@ -97,13 +114,13 @@ async function handleExport() {
       <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="space-y-2">
           <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-            Shopping Analyzer
+            {{ t("app.name") }}
           </p>
           <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-            {{ payload?.title ?? "Shopping Analyzer Dashboard" }}
+            {{ t("app.title") }}
           </h1>
           <p class="max-w-2xl text-sm text-slate-600 sm:text-base">
-            Read-only dashboard with filter-driven refresh.
+            {{ t("app.tagline") }}
           </p>
         </div>
 
@@ -113,7 +130,7 @@ async function handleExport() {
           :disabled="loading || exporting || !payload || !!payload.error"
           @click="handleExport"
         >
-          {{ exporting ? "Exportiere JSON..." : "JSON exportieren" }}
+          {{ exporting ? t("dashboard.exporting") : t("dashboard.export") }}
         </button>
       </header>
 
@@ -122,17 +139,17 @@ async function handleExport() {
         class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-3"
         @submit.prevent
       >
-        <OField label="Händler">
+        <OField :label="t('filters.retailer')">
           <OSelect v-model="retailer" expanded>
-            <option value="">Alle</option>
-            <option value="lidl">Lidl</option>
-            <option value="rewe">REWE</option>
-            <option value="dm">dm</option>
-            <option value="rossmann">Rossmann</option>
+            <option value="">{{ t("common.all") }}</option>
+            <option value="lidl">{{ t("retailer.lidl") }}</option>
+            <option value="rewe">{{ t("retailer.rewe") }}</option>
+            <option value="dm">{{ t("retailer.dm") }}</option>
+            <option value="rossmann">{{ t("retailer.rossmann") }}</option>
           </OSelect>
         </OField>
 
-        <OField label="Startdatum">
+        <OField :label="t('filters.startDate')">
           <OInput
             v-model="startDate"
             :min="payload?.min_date ?? undefined"
@@ -142,7 +159,7 @@ async function handleExport() {
           />
         </OField>
 
-        <OField label="Enddatum">
+        <OField :label="t('filters.endDate')">
           <OInput
             v-model="endDate"
             :min="payload?.min_date ?? undefined"
@@ -178,17 +195,25 @@ async function handleExport() {
           <DashboardSection
             v-for="section in spendingSections"
             :key="`${section.kind}-${section.title}`"
-            :title="section.title"
+            :title="sectionTitle(section.title)"
             :empty="section.items.length === 0"
           >
             <DashboardKpiGrid v-if="section.kind === 'metrics'" :data="section.items[0] ?? {}" />
             <template v-else-if="section.kind === 'time_series'">
               <div class="mb-8">
-                <label class="mb-3 block text-sm font-medium text-slate-700">Granularität</label>
+                <label class="mb-3 block text-sm font-medium text-slate-700">{{
+                  t("filters.granularity")
+                }}</label>
                 <div class="flex gap-4">
-                  <ORadio v-model="timeGranularity" native-value="Täglich">Täglich</ORadio>
-                  <ORadio v-model="timeGranularity" native-value="Monatlich">Monatlich</ORadio>
-                  <ORadio v-model="timeGranularity" native-value="Jährlich">Jährlich</ORadio>
+                  <ORadio v-model="timeGranularity" native-value="Täglich">{{
+                    t("filters.daily")
+                  }}</ORadio>
+                  <ORadio v-model="timeGranularity" native-value="Monatlich">{{
+                    t("filters.monthly")
+                  }}</ORadio>
+                  <ORadio v-model="timeGranularity" native-value="Jährlich">{{
+                    t("filters.yearly")
+                  }}</ORadio>
                 </div>
               </div>
               <div class="mb-8">
@@ -206,7 +231,7 @@ async function handleExport() {
           <DashboardSection
             v-for="section in weekdaySections"
             :key="`${section.kind}-${section.title}`"
-            :title="section.title"
+            :title="sectionTitle(section.title)"
             :empty="section.items.length === 0"
           >
             <WeekdayPanel :items="section.items" />
@@ -218,7 +243,7 @@ async function handleExport() {
           <DashboardSection
             v-for="section in topItemSections"
             :key="`${section.kind}-${section.title}`"
-            :title="section.title"
+            :title="sectionTitle(section.title)"
             :empty="section.items.length === 0"
           >
             <TopItemsPanel

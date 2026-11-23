@@ -14,44 +14,44 @@ class WorkflowErrorInfo:
 
 
 LIDL_INITIAL_ERROR_DETAILS: dict[str, WorkflowErrorInfo] = {
-    "missing_auth": WorkflowErrorInfo("lidl", 2101, "LIDL benötigt --cookies-file oder --browser."),
-    "browser_no_cookies": WorkflowErrorInfo("lidl", 2102, "LIDL-Browserprofil konnte keine Cookies liefern."),
-    "session_check_failed": WorkflowErrorInfo("lidl", 2103, "LIDL-Session konnte nicht geprüft werden."),
+    "missing_auth": WorkflowErrorInfo("lidl", 4007, "LIDL benötigt --cookies-file oder --browser."),
+    "browser_no_cookies": WorkflowErrorInfo("lidl", 4008, "LIDL-Browserprofil konnte keine Cookies liefern."),
+    "session_check_failed": WorkflowErrorInfo("lidl", 4009, "LIDL-Session konnte nicht geprüft werden."),
 }
 
 REWE_INITIAL_ERROR_DETAILS: dict[int, WorkflowErrorInfo] = {
-    2201: WorkflowErrorInfo("rewe", 2201, "REWE benötigt --cookies-file oder --browser."),
-    2202: WorkflowErrorInfo("rewe", 2202, "REWE-Cookies aus der Datei konnten nicht geladen werden."),
-    2203: WorkflowErrorInfo("rewe", 2203, "REWE-Browserprofil konnte keine Cookies liefern."),
-    2204: WorkflowErrorInfo("rewe", 2204, "REWE customerId konnte aus der Datei nicht gelesen werden."),
-    2205: WorkflowErrorInfo("rewe", 2205, "Browserprofil gesperrt"),
-    2206: WorkflowErrorInfo("rewe", 2206, "REWE-Session aus der Datei ist ungültig oder abgelaufen."),
-    2207: WorkflowErrorInfo("rewe", 2207, "REWE-Browser-Session ist ungültig oder abgelaufen."),
-    2208: WorkflowErrorInfo("rewe", 2208, "REWE ZIP-Abruf mit customerId fehlgeschlagen."),
-    2209: WorkflowErrorInfo("rewe", 2209, "REWE ZIP-Abruf ohne customerId fehlgeschlagen."),
+    2201: WorkflowErrorInfo("rewe", 4010, "REWE benötigt --cookies-file oder --browser."),
+    2202: WorkflowErrorInfo("rewe", 4011, "REWE-Cookies aus der Datei konnten nicht geladen werden."),
+    2203: WorkflowErrorInfo("rewe", 4012, "REWE-Browserprofil konnte keine Cookies liefern."),
+    2204: WorkflowErrorInfo("rewe", 4013, "REWE customerId konnte aus der Datei nicht gelesen werden."),
+    2205: WorkflowErrorInfo("rewe", 4014, "Browserprofil gesperrt"),
+    2206: WorkflowErrorInfo("rewe", 4015, "REWE-Session aus der Datei ist ungültig oder abgelaufen."),
+    2207: WorkflowErrorInfo("rewe", 4016, "REWE-Browser-Session ist ungültig oder abgelaufen."),
+    2208: WorkflowErrorInfo("rewe", 5002, "REWE ZIP-Abruf mit customerId fehlgeschlagen."),
+    2209: WorkflowErrorInfo("rewe", 5003, "REWE ZIP-Abruf ohne customerId fehlgeschlagen."),
 }
 
 ROSSMANN_INITIAL_ERROR_DETAILS: dict[int, WorkflowErrorInfo] = {
-    2401: WorkflowErrorInfo("rossmann", 2401, "Rossmann benötigt --cookies-file oder --browser."),
-    2402: WorkflowErrorInfo("rossmann", 2402, "Rossmann-Cookies aus der Datei konnten nicht geladen werden."),
-    2403: WorkflowErrorInfo("rossmann", 2403, "Rossmann-Browserprofil konnte keine Cookies liefern."),
-    2404: WorkflowErrorInfo("rossmann", 2404, "Rossmann-Session ist ungültig (kein anybill-Token mintbar)."),
-    2405: WorkflowErrorInfo("rossmann", 2405, "Rossmann-accountId/accountHash konnten nicht ermittelt werden."),
-    2406: WorkflowErrorInfo("rossmann", 2406, "anybill-Abruf der Belegliste fehlgeschlagen."),
-    2407: WorkflowErrorInfo("rossmann", 2407, "Rossmann-Anmeldung fehlgeschlagen. Prüfe E-Mail und Passwort."),
-    2408: WorkflowErrorInfo("rossmann", 2408, "Rossmann konnte nicht alle neuen Belege laden. Starte den Import erneut."),
+    2401: WorkflowErrorInfo("rossmann", 4017, "Rossmann benötigt --cookies-file oder --browser."),
+    2402: WorkflowErrorInfo("rossmann", 4018, "Rossmann-Cookies aus der Datei konnten nicht geladen werden."),
+    2403: WorkflowErrorInfo("rossmann", 4019, "Rossmann-Browserprofil konnte keine Cookies liefern."),
+    2404: WorkflowErrorInfo("rossmann", 4020, "Rossmann-Session ist ungültig (kein anybill-Token mintbar)."),
+    2405: WorkflowErrorInfo("rossmann", 4021, "Rossmann-accountId/accountHash konnten nicht ermittelt werden."),
+    2406: WorkflowErrorInfo("rossmann", 5004, "anybill-Abruf der Belegliste fehlgeschlagen."),
+    2407: WorkflowErrorInfo("rossmann", 4022, "Rossmann-Anmeldung fehlgeschlagen. Prüfe E-Mail und Passwort."),
+    2408: WorkflowErrorInfo("rossmann", 5005, "Rossmann konnte nicht alle neuen Belege laden. Starte den Import erneut."),
 }
 
 DM_INITIAL_ERROR_DETAILS: dict[int, WorkflowErrorInfo] = {
-    2301: WorkflowErrorInfo("dm", 2301, "dm benötigt --cookies-file oder --browser."),
-    2302: WorkflowErrorInfo("dm", 2302, "dm-Cookies aus der Datei konnten nicht geladen werden."),
-    2303: WorkflowErrorInfo("dm", 2303, "dm-Browserprofil konnte keine Cookies liefern."),
-    2304: WorkflowErrorInfo("dm", 2304, "dm-Session ist ungültig oder abgelaufen (kein Access-Token)."),
-    2305: WorkflowErrorInfo("dm", 2305, "dm-Access-Token konnte nicht ausgestellt werden."),
-    2306: WorkflowErrorInfo("dm", 2306, "dm-Kaufhistorie konnte nicht abgerufen werden."),
+    2301: WorkflowErrorInfo("dm", 4023, "dm benötigt --cookies-file oder --browser."),
+    2302: WorkflowErrorInfo("dm", 4024, "dm-Cookies aus der Datei konnten nicht geladen werden."),
+    2303: WorkflowErrorInfo("dm", 4025, "dm-Browserprofil konnte keine Cookies liefern."),
+    2304: WorkflowErrorInfo("dm", 4026, "dm-Session ist ungültig oder abgelaufen (kein Access-Token)."),
+    2305: WorkflowErrorInfo("dm", 5006, "dm-Access-Token konnte nicht ausgestellt werden."),
+    2306: WorkflowErrorInfo("dm", 5007, "dm-Kaufhistorie konnte nicht abgerufen werden."),
 }
 
-CONCURRENT_IMPORT_ERROR = WorkflowErrorInfo("shared", 4091, "Import bereits aktiv")
+CONCURRENT_IMPORT_ERROR = WorkflowErrorInfo("shared", 4003, "Import bereits aktiv")
 
 _state = local()
 

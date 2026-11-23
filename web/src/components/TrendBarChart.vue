@@ -2,9 +2,10 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import * as d3 from "d3";
 
-import { compactEuro, euro } from "../utils/format";
+import { compactEuro, euro, retailerLabel } from "../utils/format";
 import { CHART_HEIGHT, Y_AXIS_WIDTH, chartWidth, xTickLabel, yAxisTicks } from "../utils/chart";
 import { computePeriod } from "../utils/period";
+import { t } from "../utils/copy";
 import type { MonthLabel, PeriodSelection } from "../types/chart";
 import type { TimeSeriesRow } from "../types/dashboard";
 
@@ -226,10 +227,10 @@ function showTooltip(tooltip: Group, row: TimeSeriesRow, barX: number, barTop: n
 
   tooltip.attr("transform", `translate(${barX}, ${barTop})`);
   tooltip.select(".tooltip-period").text(computePeriod(row.period, props.granularity).label);
-  tooltip.select(".tooltip-total").text(`${euro(row.total_spent)}  Gesamt`);
-  tooltip.select(".tooltip-count").text(`${count} Belege`);
-  tooltip.select(".tooltip-avg").text(`${euro(average)}  Ø/Beleg`);
-  tooltip.select(".tooltip-retailers").text(retailers.join(", "));
+  tooltip.select(".tooltip-total").text(t("chart.total", { amount: euro(row.total_spent) }));
+  tooltip.select(".tooltip-count").text(t("chart.receipts", { count }));
+  tooltip.select(".tooltip-avg").text(t("chart.averagePerReceipt", { amount: euro(average) }));
+  tooltip.select(".tooltip-retailers").text(retailers.map(retailerLabel).join(", "));
   tooltip.select(".tooltip-bg").attr("height", retailers.length > 0 ? 110 : 90);
   tooltip.style("display", "block");
 }

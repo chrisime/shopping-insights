@@ -4,6 +4,7 @@ import { computed } from "vue";
 import TrendBarChart from "./TrendBarChart.vue";
 import { euro } from "../utils/format";
 import { buildMonthLabels } from "../utils/period";
+import { t } from "../utils/copy";
 import type { PeriodSelection } from "../types/chart";
 import type { TimeSeriesRow } from "../types/dashboard";
 
@@ -16,14 +17,12 @@ const emit = defineEmits<{
   (e: "select-period", payload: PeriodSelection): void;
 }>();
 
-const GROUP_LABELS: Record<string, string> = {
-  Täglich: "Tage",
-  Monatlich: "Monate",
-  Jährlich: "Jahre",
-};
-
 const granularity = computed(() => props.timeGranularity || "Monatlich");
-const groupLabel = computed(() => GROUP_LABELS[granularity.value] ?? "Jahre");
+const groupLabel = computed(() => {
+  if (granularity.value === "Täglich") return t("dashboard.granularityDays");
+  if (granularity.value === "Monatlich") return t("dashboard.granularityMonths");
+  return t("dashboard.granularityYears");
+});
 const monthLabels = computed(() =>
   granularity.value === "Täglich" ? buildMonthLabels(props.items) : [],
 );
@@ -35,9 +34,9 @@ const summaryCards = computed(() => {
   const total = values.reduce((sum, value) => sum + value, 0);
 
   return [
-    { label: "Ø Ausgaben pro Zeitraum", value: total / values.length },
-    { label: "Maximum", value: Math.max(...values) },
-    { label: "Minimum", value: Math.min(...values) },
+    { label: t("dashboard.averagePerPeriod"), value: total / values.length },
+    { label: t("dashboard.maximum"), value: Math.max(...values) },
+    { label: t("dashboard.minimum"), value: Math.min(...values) },
   ];
 });
 </script>

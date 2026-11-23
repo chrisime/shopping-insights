@@ -7,6 +7,7 @@ import json
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
+from api.errors import ApiErrorCode
 from api.schemas.imports import ImportStartRequest, ImportStartResponse
 from api.services import import_job_service
 from workflows.workflow_errors import CONCURRENT_IMPORT_ERROR
@@ -23,7 +24,13 @@ def start_import(payload: ImportStartRequest) -> ImportStartResponse:
         or not login.email.strip()
         or not login.password.get_secret_value()
     ):
-        raise HTTPException(status_code=422, detail="Rossmann-Anmeldung benötigt E-Mail und Passwort.")
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error_code": int(ApiErrorCode.INVALID_REQUEST),
+                "detail": "Rossmann login requires an email and password",
+            },
+        )
 
     try:
         if login is not None:

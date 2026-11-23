@@ -116,7 +116,7 @@ describe("ImportJobControls", () => {
         },
         message: "Import fehlgeschlagen",
         error: "Import fehlgeschlagen: Nicht autorisiert (401)",
-        technicalError: { error_code: 2102, detail: "Nicht autorisiert (401)" },
+        technicalError: { error_code: 4008, detail: "Nicht autorisiert (401)" },
       },
       global: {
         stubs: {
@@ -126,12 +126,12 @@ describe("ImportJobControls", () => {
       },
     });
 
-    expect(wrapper.text()).toContain("Debug-Infos anzeigen");
-    expect(wrapper.text()).not.toContain("Code 2102");
+    expect(wrapper.text()).toContain("Fehlercode anzeigen");
+    expect(wrapper.text()).not.toContain("Code 4008");
 
     await wrapper.findAll("button")[1].trigger("click");
 
-    expect(wrapper.text()).toContain("Code 2102");
+    expect(wrapper.text()).toContain("Fehlercode 4008");
   });
 
   it("emits start-import when the form is submitted", async () => {
