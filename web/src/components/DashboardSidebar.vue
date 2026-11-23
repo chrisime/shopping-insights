@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from "vue";
-
 export type SidebarTab = "import" | "ausgaben" | "einkauf" | "artikel";
 
 const props = defineProps<{

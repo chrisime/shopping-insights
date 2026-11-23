@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-const props = defineProps<{ coupons: unknown; currency: unknown }>();
-const rows = computed(() => (Array.isArray(props.coupons) ? props.coupons : []));
+import type { ReceiptCoupon } from "../types/dashboard";
+
+const props = defineProps<{
+  coupons?: ReceiptCoupon[];
+  currency?: string;
+}>();
+
+const rows = computed(() => props.coupons ?? []);
 const formatter = computed(
   () =>
     new Intl.NumberFormat("de-DE", {

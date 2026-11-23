@@ -1,49 +1,41 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
+import type { MetricsRow } from "../types/dashboard";
+
 const props = defineProps<{
-  data: Record<string, number>;
+  data: MetricsRow;
 }>();
 
-interface KpiCardDef {
+interface KpiCard {
   title: string;
   fields: string[];
 }
 
-interface KpiCardGroup {
-  cards: KpiCardDef[];
-}
-
-const cardGroups: KpiCardGroup[] = [
-  {
-    cards: [
-      { title: "Ausgaben", fields: ["spendings", "spendings_without_discount"] },
-      { title: "Kassenbons", fields: ["receipt_count", "avg_receipt_amount"] },
-    ],
-  },
-  {
-    cards: [
-      { title: "Pfandrückgabe", fields: ["saved_deposit"] },
-      { title: "Gesamter Preisvorteil", fields: ["total_savings", "total_savings_pct"] },
-    ],
-  },
+const GENERAL_GROUPS: KpiCard[][] = [
+  [
+    { title: "Ausgaben", fields: ["spendings", "spendings_without_discount"] },
+    { title: "Kassenbons", fields: ["receipt_count", "avg_receipt_amount"] },
+  ],
+  [
+    { title: "Pfandrückgabe", fields: ["saved_deposit"] },
+    { title: "Gesamter Preisvorteil", fields: ["total_savings", "total_savings_pct"] },
+  ],
 ];
 
-const reweGroup: KpiCardGroup = {
-  cards: [
-    { title: "Rewe Rabatte", fields: ["rewe_discount_amount", "rewe_discount_pct"] },
-    { title: "Rewe Bonus gesammelt", fields: ["rewe_bonus_collected", "rewe_bonus_balance"] },
-    { title: "Rewe Bonus eingelöst", fields: ["rewe_bonus_redeemed", "rewe_bonus_open"] },
-  ],
-};
+const REWE_CARDS: KpiCard[] = [
+  { title: "Rewe Rabatte", fields: ["rewe_discount_amount", "rewe_discount_pct"] },
+  { title: "Rewe Bonus gesammelt", fields: ["rewe_bonus_collected", "rewe_bonus_balance"] },
+  { title: "Rewe Bonus eingelöst", fields: ["rewe_bonus_redeemed", "rewe_bonus_open"] },
+];
 
-const lidlGroup: KpiCardGroup = {
-  cards: [
-    { title: "Lidl Plus", fields: ["lidlplus_discount_amount", "lidlplus_discount_pct"] },
-    { title: "Sticker Rabatte", fields: ["sticker_discount_amount", "sticker_discount_pct"] },
-    { title: "Preisvorteil", fields: ["lidl_discount_amount", "lidl_discount_pct"] },
-  ],
-};
+const LIDL_CARDS: KpiCard[] = [
+  { title: "Lidl Plus", fields: ["lidlplus_discount_amount", "lidlplus_discount_pct"] },
+  { title: "Sticker Rabatte", fields: ["sticker_discount_amount", "sticker_discount_pct"] },
+  { title: "Preisvorteil", fields: ["lidl_discount_amount", "lidl_discount_pct"] },
+];
 
-const rossmannCards: KpiCardDef[] = [
+const ROSSMANN_CARDS: KpiCard[] = [
   { title: "Rossmann 10% Coupon", fields: ["rossmann_basket_coupon_amount"] },
   {
     title: "Rossmann Produktcoupons",
@@ -53,8 +45,42 @@ const rossmannCards: KpiCardDef[] = [
   { title: "Preisvorteil", fields: ["rossmann_discount_amount", "rossmann_discount_pct"] },
 ];
 
-function hasAllFields(group: KpiCardGroup): boolean {
-  return group.cards.every((card) => card.fields.every((f) => props.data[f] !== undefined));
+const FIELD_LABELS: Record<string, string> = {
+  spendings: "Ausgaben gesamt",
+  spendings_without_discount: "Ausgaben ohne Rabatte",
+  receipt_count: "Kassenbons gesamt",
+  avg_receipt_amount: "Durchschnittl. Bon-Betrag",
+  saved_deposit: "Pfandrückgabe",
+  total_savings: "Gespart",
+  total_savings_pct: "Sparvorteil",
+  rewe_discount_amount: "Gespart",
+  rewe_discount_pct: "Sparquote",
+  rewe_bonus_collected: "Gesammelt",
+  rewe_bonus_balance: "Guthaben",
+  rewe_bonus_redeemed: "Eingelöst",
+  rewe_bonus_open: "Offen",
+  lidlplus_discount_amount: "Gespart",
+  lidlplus_discount_pct: "Sparquote",
+  sticker_discount_amount: "Gespart",
+  sticker_discount_pct: "Sparquote",
+  lidl_discount_amount: "Gespart",
+  lidl_discount_pct: "Sparquote",
+  rossmann_basket_coupon_amount: "Gespart",
+  rossmann_product_coupon_amount: "Gespart",
+  rossmann_product_coupon_pct: "Sparquote",
+  rossmann_unclassified_coupon_amount: "Gespart",
+  rossmann_discount_amount: "Gespart",
+  rossmann_discount_pct: "Sparquote",
+};
+
+const GRID_CLASSES: Record<number, string> = {
+  2: "lg:grid-cols-2",
+  3: "lg:grid-cols-3",
+  4: "lg:grid-cols-2 xl:grid-cols-4",
+};
+
+function hasAllFields(cards: KpiCard[]): boolean {
+  return cards.every((card) => card.fields.every((field) => props.data[field] !== undefined));
 }
 
 function formatValue(key: string, value: number): string {
@@ -67,71 +93,35 @@ function formatValue(key: string, value: number): string {
   return `€${value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function fieldLabel(key: string): string {
-  const labels: Record<string, string> = {
-    spendings: "Ausgaben gesamt",
-    spendings_without_discount: "Ausgaben ohne Rabatte",
-    receipt_count: "Kassenbons gesamt",
-    avg_receipt_amount: "Durchschnittl. Bon-Betrag",
-    saved_deposit: "Pfandrückgabe",
-    total_savings: "Gespart",
-    total_savings_pct: "Sparvorteil",
-    rewe_discount_amount: "Gespart",
-    rewe_discount_pct: "Sparquote",
-    rewe_bonus_collected: "Gesammelt",
-    rewe_bonus_balance: "Guthaben",
-    rewe_bonus_redeemed: "Eingelöst",
-    rewe_bonus_open: "Offen",
-    lidlplus_discount_amount: "Gespart",
-    lidlplus_discount_pct: "Sparquote",
-    sticker_discount_amount: "Gespart",
-    sticker_discount_pct: "Sparquote",
-    lidl_discount_amount: "Gespart",
-    lidl_discount_pct: "Sparquote",
-    rossmann_basket_coupon_amount: "Gespart",
-    rossmann_product_coupon_amount: "Gespart",
-    rossmann_product_coupon_pct: "Sparquote",
-    rossmann_unclassified_coupon_amount: "Gespart",
-    rossmann_discount_amount: "Gespart",
-    rossmann_discount_pct: "Sparquote",
-  };
-  return labels[key] ?? key;
-}
+const visibleGroups = computed<KpiCard[][]>(() => {
+  const groups: KpiCard[][] = [];
 
-function visibleGroups(): KpiCardGroup[] {
-  const groups: KpiCardGroup[] = [];
-  if (props.data.spendings !== undefined) groups.push(...cardGroups);
-  if (hasAllFields(reweGroup)) groups.push(reweGroup);
-  if (hasAllFields(lidlGroup)) groups.push(lidlGroup);
-  const visibleRossmannCards = rossmannCards.filter(
+  if (props.data.spendings !== undefined) groups.push(...GENERAL_GROUPS);
+  if (hasAllFields(REWE_CARDS)) groups.push(REWE_CARDS);
+  if (hasAllFields(LIDL_CARDS)) groups.push(LIDL_CARDS);
+
+  const rossmannCards = ROSSMANN_CARDS.filter(
     ({ fields }) =>
       fields.every((field) => props.data[field] !== undefined) &&
       (fields[0] !== "rossmann_unclassified_coupon_amount" || props.data[fields[0]] > 0),
   );
-  if (visibleRossmannCards.length) groups.push({ cards: visibleRossmannCards });
+  if (rossmannCards.length) groups.push(rossmannCards);
+
   return groups;
-}
+});
 </script>
 
 <template>
   <div class="grid gap-4">
     <div
-      v-for="(group, gi) in visibleGroups()"
-      :key="gi"
+      v-for="group in visibleGroups"
+      :key="group[0].title"
       class="grid gap-3"
-      :class="
-        group.cards.length === 4
-          ? 'lg:grid-cols-2 xl:grid-cols-4'
-          : group.cards.length === 3
-            ? 'lg:grid-cols-3'
-            : group.cards.length === 2
-              ? 'lg:grid-cols-2'
-              : ''
-      "
+      :class="GRID_CLASSES[group.length] ?? ''"
     >
       <article
-        v-for="(card, ci) in group.cards"
-        :key="ci"
+        v-for="card in group"
+        :key="card.title"
         class="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm ring-1 ring-slate-100/70"
       >
         <div class="border-b border-slate-200/70 pb-2">
@@ -140,13 +130,13 @@ function visibleGroups(): KpiCardGroup[] {
 
         <div class="grid gap-3 sm:grid-cols-2">
           <div
-            v-for="(field, fi) in card.fields"
+            v-for="(field, index) in card.fields"
             :key="field"
             class="grid gap-1"
-            :class="fi % 2 === 1 ? 'justify-items-end text-right' : ''"
+            :class="index % 2 === 1 ? 'justify-items-end text-right' : ''"
           >
             <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">{{
-              fieldLabel(field)
+              FIELD_LABELS[field] ?? field
             }}</span>
             <strong class="text-2xl font-semibold tracking-tight text-slate-900">{{
               formatValue(field, data[field])

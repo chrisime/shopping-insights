@@ -3,7 +3,12 @@ import { OField, OSelect } from "@oruga-ui/oruga-next";
 import { computed, ref, watch } from "vue";
 
 import ImportErrorDetails from "./ImportErrorDetails.vue";
-import type { ImportProgressState, ImportRetailer, ImportStartRequest } from "../types/imports";
+import type {
+  ImportProgressState,
+  ImportRetailer,
+  ImportStartRequest,
+  ImportTechnicalError,
+} from "../types/imports";
 
 const BROWSER_OPTIONS = [
   { value: "firefox", label: "Firefox" },
@@ -18,7 +23,7 @@ const props = defineProps<{
   progress: ImportProgressState;
   message: string | null;
   error: string | null;
-  technicalError?: { error_code: number; detail: string } | null;
+  technicalError?: ImportTechnicalError | null;
 }>();
 
 const emit = defineEmits<{
@@ -68,6 +73,19 @@ const canStart = computed(
     (authMode.value !== "rossmann-login" ||
       Boolean(rossmannEmail.value.trim() && rossmannPassword.value)),
 );
+
+const progressPercent = computed(() =>
+  props.progress.total > 0
+    ? Math.min(100, Math.round((props.progress.current / props.progress.total) * 100))
+    : 0,
+);
+
+const progressStats = computed(() => [
+  { label: "Neu", value: props.progress.added },
+  { label: "Übersprungen", value: props.progress.skipped },
+  { label: "Fehler", value: props.progress.errors },
+  { label: "Artikel", value: props.progress.items },
+]);
 
 function submitImport() {
   if (!canStart.value) return;
@@ -189,47 +207,21 @@ function submitImport() {
       <div class="h-2 overflow-hidden rounded-full bg-slate-100">
         <div
           class="h-full rounded-full bg-emerald-500 transition-all"
-          :style="{
-            width: `${progress.total > 0 ? Math.min(100, Math.round((progress.current / progress.total) * 100)) : 0}%`,
-          }"
+          :style="{ width: `${progressPercent}%` }"
         />
       </div>
 
       <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <article
+          v-for="stat in progressStats"
+          :key="stat.label"
           class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70"
         >
-          <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Neu</span>
+          <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">{{
+            stat.label
+          }}</span>
           <strong class="text-xl font-semibold tracking-tight text-slate-900">{{
-            progress.added
-          }}</strong>
-        </article>
-        <article
-          class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70"
-        >
-          <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
-            >Übersprungen</span
-          >
-          <strong class="text-xl font-semibold tracking-tight text-slate-900">{{
-            progress.skipped
-          }}</strong>
-        </article>
-        <article
-          class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70"
-        >
-          <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Fehler</span>
-          <strong class="text-xl font-semibold tracking-tight text-slate-900">{{
-            progress.errors
-          }}</strong>
-        </article>
-        <article
-          class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70"
-        >
-          <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
-            >Artikel</span
-          >
-          <strong class="text-xl font-semibold tracking-tight text-slate-900">{{
-            progress.items
+            stat.value
           }}</strong>
         </article>
       </div>

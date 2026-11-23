@@ -1,5 +1,10 @@
 export type ImportRetailer = "lidl" | "rewe" | "dm" | "rossmann";
 
+export interface ImportTechnicalError {
+  error_code: number;
+  detail: string;
+}
+
 export interface ImportProgressState {
   current: number;
   total: number;
@@ -28,6 +33,6 @@ export interface ImportJobEventPayload {
   retailer: ImportRetailer;
   status: "running" | "success" | "error";
   progress: ImportProgressState;
-  error: { error_code: number; detail: string } | null;
+  error: ImportTechnicalError | null;
   message: string | null;
 }

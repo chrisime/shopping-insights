@@ -77,8 +77,8 @@ describe("dashboard panels", () => {
     const weekday = mount(WeekdayPanel, {
       props: {
         items: [
-          { weekday_name: "Montag", trip_count: 1, avg_spent: 10, total_spent: 10 },
-          { weekday_name: "Dienstag", trip_count: 2, avg_spent: 5, total_spent: 10 },
+          { weekday: 0, weekday_name: "Montag", trip_count: 1, avg_spent: 10, total_spent: 10 },
+          { weekday: 1, weekday_name: "Dienstag", trip_count: 2, avg_spent: 5, total_spent: 10 },
         ],
       },
     });
@@ -114,10 +114,10 @@ describe("dashboard panels", () => {
 
     const skeleton = mount(DashboardSkeleton);
     expect(skeleton.text()).toBe("");
-    expect(skeleton.findAll(".dashboard-skeleton__block")).toHaveLength(4);
-    expect(skeleton.find(".dashboard-skeleton__block--wide").classes()).toEqual(
-      expect.arrayContaining(["h-32", "animate-pulse"]),
-    );
+    const blocks = skeleton.element.children;
+    expect(blocks).toHaveLength(4);
+    expect(blocks[0]?.classList.contains("h-32")).toBe(true);
+    expect(blocks[0]?.classList.contains("animate-pulse")).toBe(true);
   });
 
   it("handles year boundary for daily granularity (Dec 2024 → Jan 2025)", () => {
@@ -144,7 +144,6 @@ describe("dashboard panels", () => {
   it("renders absolute time-series summary stats and top-item quantities", () => {
     const trend = mount(TrendChartPanel, {
       props: {
-        spendingView: "Absolut",
         items: [
           { period: "2024-01", total_spent: 10, receipt_count: 1 },
           { period: "2024-02", total_spent: 5, receipt_count: 2 },

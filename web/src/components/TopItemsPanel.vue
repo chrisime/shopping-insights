@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { OField, OSelect } from "@oruga-ui/oruga-next";
 
+import { euro, quantity } from "../utils/format";
+import type { TopItemRow } from "../types/dashboard";
+
 const props = defineProps<{
-  items: Array<Record<string, unknown>>;
+  items: TopItemRow[];
   page: number;
   pageSize: number;
   totalCount: number;
@@ -15,13 +19,9 @@ const emit = defineEmits<{
   (e: "select-article", name: string): void;
 }>();
 
-function handleRowClick(name: string) {
-  emit("select-article", name);
-}
-
-import { computed } from "vue";
-
 const totalPages = computed(() => Math.max(1, Math.ceil(props.totalCount / props.pageSize)));
+const rangeStart = computed(() => (props.page - 1) * props.pageSize + 1);
+const rangeEnd = computed(() => Math.min(props.page * props.pageSize, props.totalCount));
 
 function prev() {
   if (props.page > 1) emit("update:page", props.page - 1);
@@ -29,24 +29,6 @@ function prev() {
 
 function next() {
   if (props.page < totalPages.value) emit("update:page", props.page + 1);
-}
-
-function text(value: unknown) {
-  return value == null ? "-" : String(value);
-}
-
-function currency(value: unknown) {
-  const numeric = typeof value === "number" ? value : Number(value ?? 0);
-  return Number.isFinite(numeric) ? `€${numeric.toFixed(2)}` : "-";
-}
-
-function quantity(value: unknown, unit: unknown) {
-  const numeric = typeof value === "number" ? value : Number(value ?? 0);
-  if (!Number.isFinite(numeric) || unit == null) {
-    return "-";
-  }
-
-  return `${unit === "kg" ? numeric.toFixed(3) : Math.trunc(numeric)} ${text(unit)}`;
 }
 </script>
 
@@ -84,20 +66,16 @@ function quantity(value: unknown, unit: unknown) {
       <tbody class="divide-y divide-slate-100 bg-white">
         <tr
           v-for="item in items"
-          :key="text(item.name)"
+          :key="item.name"
           class="cursor-pointer transition hover:bg-slate-50"
-          @click="handleRowClick(text(item.name))"
+          @click="emit('select-article', item.name)"
         >
-          <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ text(item.name) }}</td>
+          <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ item.name }}</td>
           <td class="px-4 py-3 text-right text-sm text-slate-700">
             {{ quantity(item.total_quantity, item.unit) }}
           </td>
-          <td class="px-4 py-3 text-right text-sm text-slate-700">
-            {{ currency(item.total_spent) }}
-          </td>
-          <td class="px-4 py-3 text-right text-sm text-slate-700">
-            {{ text(item.purchase_count) }}
-          </td>
+          <td class="px-4 py-3 text-right text-sm text-slate-700">{{ euro(item.total_spent) }}</td>
+          <td class="px-4 py-3 text-right text-sm text-slate-700">{{ item.purchase_count }}</td>
         </tr>
       </tbody>
     </table>
@@ -106,16 +84,13 @@ function quantity(value: unknown, unit: unknown) {
       v-if="totalCount > 0"
       class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3"
     >
-      <p class="text-sm text-slate-500">
-        {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, totalCount) }} von
-        {{ totalCount }}
-      </p>
+      <p class="text-sm text-slate-500">{{ rangeStart }}–{{ rangeEnd }} von {{ totalCount }}</p>
       <div class="flex items-center gap-3">
         <OField label="Einträge pro Seite" class="mb-0">
           <OSelect
             :model-value="topLimit"
-            @update:model-value="emit('update:topLimit', $event)"
             expanded
+            @update:model-value="emit('update:topLimit', $event)"
           >
             <option :value="10">10</option>
             <option :value="20">20</option>
