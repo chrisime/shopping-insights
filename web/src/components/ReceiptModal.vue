@@ -84,7 +84,9 @@ function addressText(addr: unknown): string {
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       @click.self="emit('close')"
     >
-      <div class="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <div
+        class="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl"
+      >
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h2 class="text-lg font-semibold tracking-tight text-slate-900">
@@ -96,7 +98,9 @@ function addressText(addr: unknown): string {
             @click="emit('close')"
           >
             <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              <path
+                d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"
+              />
             </svg>
           </button>
         </div>
@@ -107,14 +111,20 @@ function addressText(addr: unknown): string {
         </div>
 
         <!-- No receipts -->
-        <div v-else-if="receipts.length === 0" class="flex items-center justify-center py-16 text-sm text-slate-500">
+        <div
+          v-else-if="receipts.length === 0"
+          class="flex items-center justify-center py-16 text-sm text-slate-500"
+        >
           Keine Kassenzettel gefunden.
         </div>
 
         <!-- Receipt content -->
         <template v-else>
           <!-- Navigation -->
-          <div v-if="receipts.length > 1" class="flex items-center justify-between border-b border-slate-100 px-5 py-2.5">
+          <div
+            v-if="receipts.length > 1"
+            class="flex items-center justify-between border-b border-slate-100 px-5 py-2.5"
+          >
             <button
               type="button"
               :disabled="currentIndex <= 0"
@@ -140,15 +150,21 @@ function addressText(addr: unknown): string {
           <div class="overflow-y-auto px-5 py-4">
             <div class="mb-4 grid grid-cols-4 gap-3 text-sm">
               <div>
-                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Händler</p>
-                <p class="mt-0.5 font-bold uppercase text-slate-900">{{ retailerLabel(current.retailer) }}</p>
+                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
+                  Händler
+                </p>
+                <p class="mt-0.5 font-bold uppercase text-slate-900">
+                  {{ retailerLabel(current.retailer) }}
+                </p>
               </div>
               <div>
                 <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Markt</p>
                 <p class="mt-0.5 font-medium text-slate-900">{{ text(current.store) }}</p>
               </div>
               <div>
-                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Adresse</p>
+                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
+                  Adresse
+                </p>
                 <p class="mt-0.5 text-xs text-slate-500">{{ addressText(current.address) }}</p>
               </div>
               <div class="text-right">
@@ -158,32 +174,47 @@ function addressText(addr: unknown): string {
             </div>
 
             <div class="border-t border-slate-200 pt-3">
-              <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Artikel</h3>
+              <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Artikel
+              </h3>
               <div class="divide-y divide-slate-100">
                 <div
-                  v-for="(item, ii) in (current.items as Array<Record<string, unknown>> || [])"
+                  v-for="(item, ii) in (current.items as Array<Record<string, unknown>>) || []"
                   :key="ii"
                   class="flex items-center justify-between gap-3 px-3 py-2 text-sm"
-                  :class="isMatched(item) ? '-mx-3 rounded-xl bg-amber-50 px-3 ring-1 ring-amber-300' : ''"
+                  :class="
+                    isMatched(item) ? '-mx-3 rounded-xl bg-amber-50 px-3 ring-1 ring-amber-300' : ''
+                  "
                 >
                   <div class="flex items-center gap-2">
                     <span v-if="isMatched(item)" class="h-2 w-2 rounded-full bg-amber-400" />
-                    <span :class="isMatched(item) ? 'font-semibold text-amber-900' : 'text-slate-700'">
+                    <span
+                      :class="isMatched(item) ? 'font-semibold text-amber-900' : 'text-slate-700'"
+                    >
                       {{ text(item.name) }}
                     </span>
                   </div>
                   <span class="shrink-0 text-slate-600">
-                    {{ Number(item.quantity)?.toLocaleString("de-DE") }} {{ text(item.unit) }} × {{ currency(item.price) }}
+                    {{ Number(item.quantity)?.toLocaleString("de-DE") }} {{ text(item.unit) }} ×
+                    {{ currency(item.price) }}
                   </span>
                 </div>
               </div>
             </div>
 
-            <ReceiptCouponSavings v-if="current.retailer === 'rossmann'" :coupons="current.rossmann_coupons" :currency="current.currency" />
+            <ReceiptCouponSavings
+              v-if="current.retailer === 'rossmann'"
+              :coupons="current.rossmann_coupons"
+              :currency="current.currency"
+            />
 
             <div class="mt-4 border-t border-slate-200 pt-3 text-right">
-              <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Gesamt</span>
-              <p class="text-xl font-semibold text-slate-900">{{ currency(current.total_price) }}</p>
+              <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
+                >Gesamt</span
+              >
+              <p class="text-xl font-semibold text-slate-900">
+                {{ currency(current.total_price) }}
+              </p>
             </div>
           </div>
         </template>

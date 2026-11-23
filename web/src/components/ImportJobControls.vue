@@ -62,8 +62,11 @@ watch(authMode, () => {
   rossmannPassword.value = "";
 });
 
-const canStart = computed(() =>
-  !props.running && (authMode.value !== "rossmann-login" || Boolean(rossmannEmail.value.trim() && rossmannPassword.value)),
+const canStart = computed(
+  () =>
+    !props.running &&
+    (authMode.value !== "rossmann-login" ||
+      Boolean(rossmannEmail.value.trim() && rossmannPassword.value)),
 );
 
 function submitImport() {
@@ -71,7 +74,10 @@ function submitImport() {
 
   const payload: ImportStartRequest = { retailer: props.retailer };
   if (authMode.value === "rossmann-login") {
-    payload.rossmann_login = { email: rossmannEmail.value.trim(), password: rossmannPassword.value };
+    payload.rossmann_login = {
+      email: rossmannEmail.value.trim(),
+      password: rossmannPassword.value,
+    };
     rossmannPassword.value = "";
   } else if (authMode.value === "browser") {
     payload.browser = browser.value;
@@ -90,7 +96,11 @@ function submitImport() {
     <form class="grid gap-4" @submit.prevent="submitImport">
       <div class="grid gap-4 sm:grid-cols-2">
         <OField label="Importieren für">
-          <OSelect :model-value="retailer" expanded @update:model-value="emit('update:retailer', $event as ImportRetailer)">
+          <OSelect
+            :model-value="retailer"
+            expanded
+            @update:model-value="emit('update:retailer', $event as ImportRetailer)"
+          >
             <option value="lidl">Lidl</option>
             <option value="rewe">REWE</option>
             <option value="dm">dm</option>
@@ -109,33 +119,60 @@ function submitImport() {
 
           <OField v-if="authMode === 'browser'" label="Browser">
             <OSelect v-model="browser" expanded>
-              <option v-for="option in BROWSER_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <option v-for="option in BROWSER_OPTIONS" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
             </OSelect>
           </OField>
 
           <OField v-if="authMode === 'cookies-file'" label="Cookie-Datei">
-            <input v-model="cookiesFile" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" type="text" />
+            <input
+              v-model="cookiesFile"
+              class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              type="text"
+            />
           </OField>
         </div>
       </div>
 
       <div v-if="authMode === 'rossmann-login'" class="grid gap-4 sm:grid-cols-2">
         <OField label="Rossmann-E-Mail" label-for="rossmann-import-email">
-          <input id="rossmann-import-email" v-model="rossmannEmail" autocomplete="username" type="email" required
-            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+          <input
+            id="rossmann-import-email"
+            v-model="rossmannEmail"
+            autocomplete="username"
+            type="email"
+            required
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+          />
         </OField>
         <OField label="Rossmann-Passwort" label-for="rossmann-import-password">
-          <input id="rossmann-import-password" v-model="rossmannPassword" autocomplete="current-password" type="password" required
-            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+          <input
+            id="rossmann-import-password"
+            v-model="rossmannPassword"
+            autocomplete="current-password"
+            type="password"
+            required
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+          />
         </OField>
       </div>
 
       <div v-if="retailer === 'rewe'" class="space-y-2">
-        <button type="button" class="text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4" @click="showCustomerId = !showCustomerId">
+        <button
+          type="button"
+          class="text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4"
+          @click="showCustomerId = !showCustomerId"
+        >
           {{ showCustomerId ? "customerId verbergen" : "customerId optional eingeben" }}
         </button>
         <OField v-if="showCustomerId" label="REWE customerId">
-          <input v-model="customerId" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" type="text" placeholder="optional" />
+          <input
+            v-model="customerId"
+            class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            type="text"
+            placeholder="optional"
+          />
         </OField>
       </div>
 
@@ -152,26 +189,48 @@ function submitImport() {
       <div class="h-2 overflow-hidden rounded-full bg-slate-100">
         <div
           class="h-full rounded-full bg-emerald-500 transition-all"
-          :style="{ width: `${progress.total > 0 ? Math.min(100, Math.round((progress.current / progress.total) * 100)) : 0}%` }"
+          :style="{
+            width: `${progress.total > 0 ? Math.min(100, Math.round((progress.current / progress.total) * 100)) : 0}%`,
+          }"
         />
       </div>
 
       <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <article class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70">
+        <article
+          class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70"
+        >
           <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Neu</span>
-          <strong class="text-xl font-semibold tracking-tight text-slate-900">{{ progress.added }}</strong>
+          <strong class="text-xl font-semibold tracking-tight text-slate-900">{{
+            progress.added
+          }}</strong>
         </article>
-        <article class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70">
-          <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Übersprungen</span>
-          <strong class="text-xl font-semibold tracking-tight text-slate-900">{{ progress.skipped }}</strong>
+        <article
+          class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70"
+        >
+          <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
+            >Übersprungen</span
+          >
+          <strong class="text-xl font-semibold tracking-tight text-slate-900">{{
+            progress.skipped
+          }}</strong>
         </article>
-        <article class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70">
+        <article
+          class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70"
+        >
           <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Fehler</span>
-          <strong class="text-xl font-semibold tracking-tight text-slate-900">{{ progress.errors }}</strong>
+          <strong class="text-xl font-semibold tracking-tight text-slate-900">{{
+            progress.errors
+          }}</strong>
         </article>
-        <article class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70">
-          <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Artikel</span>
-          <strong class="text-xl font-semibold tracking-tight text-slate-900">{{ progress.items }}</strong>
+        <article
+          class="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 shadow-sm ring-1 ring-slate-100/70"
+        >
+          <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
+            >Artikel</span
+          >
+          <strong class="text-xl font-semibold tracking-tight text-slate-900">{{
+            progress.items
+          }}</strong>
         </article>
       </div>
       <p class="text-sm font-medium text-slate-700">

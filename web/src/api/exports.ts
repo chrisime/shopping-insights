@@ -34,7 +34,9 @@ export async function exportReceiptsJson(filters: DashboardFilters = {}): Promis
   }
 
   const payload = await response.json();
-  const blob = new Blob([JSON.stringify(payload, null, 2) + "\n"], { type: "application/json;charset=utf-8" });
+  const blob = new Blob([JSON.stringify(payload, null, 2) + "\n"], {
+    type: "application/json;charset=utf-8",
+  });
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = objectUrl;

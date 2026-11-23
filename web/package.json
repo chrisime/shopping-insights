@@ -2,11 +2,10 @@
   "name": "shopping-insights-web",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.10.0+sha512.0b7f8b98060031904c017e3a41eb187a16d40eeb829b95c4f8cb03681761fc4ab53dd219115b9b447f4dce1a05a214764461e7d3703392a9f32f9511ce8c86c8",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "test": "vitest"
+    "dev": "vp dev",
+    "build": "vp build",
+    "test": "vp test"
   },
   "dependencies": {
     "@oruga-ui/oruga-next": "^0.14.6",
@@ -23,8 +22,11 @@
     "@vue/test-utils": "^2.6.0",
     "jsdom": "^31.0.1",
     "tailwindcss": "^4.3.5",
-    "typescript": "^7.0.2",
-    "vite": "^8.3.8",
-    "vitest": "^5.1.1"
-  }
+    "typescript": "^6.0.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:",
+    "vue-tsc": "^3.3.14"
+  },
+  "packageManager": "pnpm@11.10.0+sha512.0b7f8b98060031904c017e3a41eb187a16d40eeb829b95c4f8cb03681761fc4ab53dd219115b9b447f4dce1a05a214764461e7d3703392a9f32f9511ce8c86c8"
 }

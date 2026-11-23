@@ -45,9 +45,7 @@ function buildMonthGroups(): GroupNode[] {
 }
 
 function buildDayGroups(): GroupNode[] {
-  return props.items.length > 0
-    ? [{ label: "Tage", key: "days", items: [...props.items] }]
-    : [];
+  return props.items.length > 0 ? [{ label: "Tage", key: "days", items: [...props.items] }] : [];
 }
 
 const groups = computed(() => {
@@ -60,8 +58,18 @@ const groups = computed(() => {
 const chartGranularity = computed(() => props.timeGranularity || "Monatlich");
 
 const fullMonthNames = [
-  "Januar", "Februar", "März", "April", "Mai", "Juni",
-  "Juli", "August", "September", "Oktober", "November", "Dezember",
+  "Januar",
+  "Februar",
+  "März",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember",
 ];
 
 const monthLabels = computed<MonthLabel[]>(() => {
@@ -96,22 +104,32 @@ const monthLabels = computed<MonthLabel[]>(() => {
   <div class="grid gap-4">
     <div v-if="summary" class="grid gap-3 sm:grid-cols-3">
       <article class="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 shadow-sm">
-        <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Ø Ausgaben pro Zeitraum</p>
-        <strong class="mt-1 block text-xl font-semibold text-slate-900">{{ euro(summary.average) }}</strong>
+        <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
+          Ø Ausgaben pro Zeitraum
+        </p>
+        <strong class="mt-1 block text-xl font-semibold text-slate-900">{{
+          euro(summary.average)
+        }}</strong>
       </article>
       <article class="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 shadow-sm">
         <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Maximum</p>
-        <strong class="mt-1 block text-xl font-semibold text-slate-900">{{ euro(summary.maximum) }}</strong>
+        <strong class="mt-1 block text-xl font-semibold text-slate-900">{{
+          euro(summary.maximum)
+        }}</strong>
       </article>
       <article class="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 shadow-sm">
         <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Minimum</p>
-        <strong class="mt-1 block text-xl font-semibold text-slate-900">{{ euro(summary.minimum) }}</strong>
+        <strong class="mt-1 block text-xl font-semibold text-slate-900">{{
+          euro(summary.minimum)
+        }}</strong>
       </article>
     </div>
 
     <div class="grid gap-6">
       <div v-for="group in groups" :key="group.key" class="grid gap-2">
-        <h3 v-if="group.items.length > 0" class="text-sm font-semibold text-slate-800">{{ group.label }}</h3>
+        <h3 v-if="group.items.length > 0" class="text-sm font-semibold text-slate-800">
+          {{ group.label }}
+        </h3>
         <TrendBarChart
           v-if="group.items.length > 0"
           :items="group.items"

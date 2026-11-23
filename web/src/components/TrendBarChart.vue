@@ -6,13 +6,26 @@ import { amount, text } from "../utils/format";
 import type { MonthLabel } from "../types/chart";
 
 const monthNames = [
-  "Januar", "Februar", "März", "April", "Mai", "Juni",
-  "Juli", "August", "September", "Oktober", "November", "Dezember",
+  "Januar",
+  "Februar",
+  "März",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Dezember",
 ];
 
 let tooltipHideTimer: ReturnType<typeof setTimeout> | null = null;
 
-function computePeriod(period: string, granularity: string): { startDate: string; endDate: string; label: string } {
+function computePeriod(
+  period: string,
+  granularity: string,
+): { startDate: string; endDate: string; label: string } {
   if (granularity === "Täglich") {
     const parts = period.split("-");
     if (parts.length >= 3) {
@@ -94,29 +107,35 @@ function drawChart() {
   const monthLabels = props.monthLabels;
   const ticks = yAxisTicks.value;
 
-  const yScale = d3.scaleLinear()
+  const yScale = d3
+    .scaleLinear()
     .domain([0, ticks.length > 1 ? ticks[ticks.length - 1] : ticks[0] || 10])
     .range([CHART_HEIGHT - MARGIN.bottom, MARGIN.top]);
 
-  const xScale = d3.scaleBand()
+  const xScale = d3
+    .scaleBand()
     .domain(d3.range(items.length).map(String))
     .range([0, totalWidth.value])
     .padding(0.2);
 
-  const yAxisSvg = d3.select(yAxisRef.value)
+  const yAxisSvg = d3
+    .select(yAxisRef.value)
     .append("svg")
     .attr("width", Y_AXIS_WIDTH)
     .attr("height", CHART_HEIGHT)
     .style("display", "block");
 
-  yAxisSvg.append("g")
+  const yAxis = d3
+    .axisLeft(yScale)
+    .tickValues(ticks)
+    .tickFormat((d) => `€${Number(d).toFixed(0)}`)
+    .tickSize(0);
+
+  yAxisSvg
+    .append("g")
     .attr("transform", `translate(${Y_AXIS_WIDTH - 8}, 0)`)
-    .call(d3.axisLeft(yScale)
-      .tickValues(ticks)
-      .tickFormat((d: number) => `€${d.toFixed(0)}`)
-      .tickSize(0),
-    )
     .call((g) => {
+      yAxis(g);
       g.selectAll(".tick text")
         .attr("text-anchor", "end")
         .attr("font-family", "sans-serif")
@@ -125,30 +144,33 @@ function drawChart() {
       g.select(".domain").remove();
     });
 
-  const mainSvg = d3.select(chartRef.value)
+  const mainSvg = d3
+    .select(chartRef.value)
     .append("svg")
     .attr("width", totalWidth.value)
     .attr("height", CHART_HEIGHT)
     .style("display", "block");
 
-  mainSvg.append("g")
-    .call(d3.axisLeft(yScale)
-      .tickValues(ticks)
-      .tickSize(-totalWidth.value)
-      .tickFormat(""),
-    )
-    .call((g) => {
-      g.selectAll(".tick line")
-        .attr("stroke", "#e2e8f0");
-      g.select(".domain").remove();
-    });
+  const gridAxis = d3
+    .axisLeft(yScale)
+    .tickValues(ticks)
+    .tickSize(-totalWidth.value)
+    .tickFormat(() => "");
+
+  mainSvg.append("g").call((g) => {
+    gridAxis(g);
+    g.selectAll(".tick line").attr("stroke", "#e2e8f0");
+    g.select(".domain").remove();
+  });
 
   if (monthLabels && monthLabels.length > 1) {
     for (let i = 1; i < monthLabels.length; i++) {
       const prevEnd = monthLabels[i - 1].end;
       const currStart = monthLabels[i].start;
-      const sepX = (xScale(String(prevEnd))! + xScale.bandwidth()! + xScale(String(currStart))!) / 2;
-      mainSvg.append("line")
+      const sepX =
+        (xScale(String(prevEnd))! + xScale.bandwidth()! + xScale(String(currStart))!) / 2;
+      mainSvg
+        .append("line")
         .attr("x1", sepX)
         .attr("y1", MARGIN.top - 4)
         .attr("x2", sepX)
@@ -162,7 +184,8 @@ function drawChart() {
     monthLabels.forEach((ml) => {
       const midIndex = (ml.start + ml.end) / 2;
       const midX = xScale(String(Math.floor(midIndex)))! + xScale.bandwidth()! / 2;
-      mainSvg.append("text")
+      mainSvg
+        .append("text")
         .attr("x", midX)
         .attr("y", MARGIN.top - 6)
         .attr("text-anchor", "middle")
@@ -174,7 +197,8 @@ function drawChart() {
     });
   }
 
-  mainSvg.selectAll("rect.bar")
+  mainSvg
+    .selectAll("rect.bar")
     .data(items)
     .enter()
     .append("rect")
@@ -229,9 +253,10 @@ function drawChart() {
       tooltipHideTimer = setTimeout(() => {
         tooltipG.style("display", "none");
       }, 200);
-    })
+    });
 
-  mainSvg.selectAll("text.datalabel")
+  mainSvg
+    .selectAll("text.datalabel")
     .data(items)
     .enter()
     .append("text")
@@ -252,7 +277,8 @@ function drawChart() {
       return count > 0 ? String(count) : "";
     });
 
-  mainSvg.selectAll("text.euroLabel")
+  mainSvg
+    .selectAll("text.euroLabel")
     .data(items)
     .enter()
     .append("text")
@@ -269,12 +295,14 @@ function drawChart() {
 
   const tooltipW = 180;
 
-  const tooltipG = mainSvg.append("g")
+  const tooltipG = mainSvg
+    .append("g")
     .attr("class", "tooltip-group")
     .style("display", "none")
     .style("pointer-events", "none");
 
-  tooltipG.append("rect")
+  tooltipG
+    .append("rect")
     .attr("class", "tooltip-bg")
     .attr("x", -tooltipW / 2)
     .attr("y", 0)
@@ -287,7 +315,8 @@ function drawChart() {
     .attr("stroke-width", 1)
     .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.12))");
 
-  tooltipG.append("line")
+  tooltipG
+    .append("line")
     .attr("class", "tooltip-sep")
     .attr("x1", -tooltipW / 2 + 8)
     .attr("x2", tooltipW / 2 - 8)
@@ -305,7 +334,8 @@ function drawChart() {
   };
 
   Object.entries(textStyle).forEach(([cls, s]) => {
-    tooltipG.append("text")
+    tooltipG
+      .append("text")
       .attr("class", `tooltip-${cls}`)
       .attr("text-anchor", "middle")
       .attr("x", 0)
@@ -316,10 +346,11 @@ function drawChart() {
       .attr("fill", s.fill);
   });
 
-  mainSvg.append("g")
+  mainSvg
+    .append("g")
     .attr("transform", `translate(0, ${CHART_HEIGHT - MARGIN.bottom})`)
-    .call(d3.axisBottom(xScale)
-      .tickFormat((_d: unknown, i: number) => {
+    .call(
+      d3.axisBottom(xScale).tickFormat((_d: unknown, i: number) => {
         const raw = text(items[i].period);
         if (monthLabels && monthLabels.length > 0) return raw.slice(8, 10);
         if (props.granularity === "Monatlich") {
@@ -353,11 +384,18 @@ watch(
 </script>
 
 <template>
-  <div style="overflow: hidden;">
-    <div style="height: 500px; position: relative;">
-      <div ref="yAxisRef" class="bg-white" style="position: absolute; left: 0; top: 0; width: 64px; height: 500px; z-index: 10;"></div>
-      <div :class="isScrollable ? 'overflow-x-auto' : ''" style="height: 500px; margin-left: 64px; overflow-y: hidden;">
-        <div ref="chartRef" style="height: 500px; display: inline-block;"></div>
+  <div style="overflow: hidden">
+    <div style="height: 500px; position: relative">
+      <div
+        ref="yAxisRef"
+        class="bg-white"
+        style="position: absolute; left: 0; top: 0; width: 64px; height: 500px; z-index: 10"
+      ></div>
+      <div
+        :class="isScrollable ? 'overflow-x-auto' : ''"
+        style="height: 500px; margin-left: 64px; overflow-y: hidden"
+      >
+        <div ref="chartRef" style="height: 500px; display: inline-block"></div>
       </div>
     </div>
   </div>

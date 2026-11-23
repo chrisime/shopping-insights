@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import DashboardSkeleton from "../DashboardSkeleton.vue";
 import TopItemsPanel from "../TopItemsPanel.vue";
@@ -44,7 +44,12 @@ describe("dashboard panels", () => {
     expect(daily.findAll("svg").length).toBeGreaterThanOrEqual(2);
 
     const trend = mount(TrendChartPanel, {
-      props: { items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }, { period: "2024-02", total_spent: 5, receipt_count: 2 }] },
+      props: {
+        items: [
+          { period: "2024-01", total_spent: 10, receipt_count: 1 },
+          { period: "2024-02", total_spent: 5, receipt_count: 2 },
+        ],
+      },
     });
     expect(trend.text()).toContain("Jan 2024");
     expect(trend.text()).toContain("Feb 2024");
@@ -82,7 +87,15 @@ describe("dashboard panels", () => {
     expect(weekday.findAll(".bg-indigo-500")).toHaveLength(4);
 
     const topItems = mount(TopItemsPanel, {
-      props: { items: [{ name: "Apfel", total_quantity: 2, total_spent: 4, purchase_count: 1, unit: "pc" }], page: 1, pageSize: 20, totalCount: 1, topLimit: 20 },
+      props: {
+        items: [
+          { name: "Apfel", total_quantity: 2, total_spent: 4, purchase_count: 1, unit: "pc" },
+        ],
+        page: 1,
+        pageSize: 20,
+        totalCount: 1,
+        topLimit: 20,
+      },
     });
     expect(topItems.find("table").exists()).toBe(true);
     expect(topItems.text()).toContain("Artikel");
@@ -141,7 +154,21 @@ describe("dashboard panels", () => {
     expect(trend.text()).toContain("€5.00");
 
     const topItems = mount(TopItemsPanel, {
-      props: { items: [{ name: "Tomaten", total_quantity: 0.696, total_spent: 3.99, purchase_count: 1, unit: "kg" }], page: 1, pageSize: 20, totalCount: 1, topLimit: 20 },
+      props: {
+        items: [
+          {
+            name: "Tomaten",
+            total_quantity: 0.696,
+            total_spent: 3.99,
+            purchase_count: 1,
+            unit: "kg",
+          },
+        ],
+        page: 1,
+        pageSize: 20,
+        totalCount: 1,
+        topLimit: 20,
+      },
     });
 
     expect(topItems.text()).toContain("Tomaten");

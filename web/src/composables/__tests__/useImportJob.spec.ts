@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { effectScope, nextTick } from "vue";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { useImportJob } from "../useImportJob";
 
@@ -44,7 +44,9 @@ afterEach(() => {
 
 describe("useImportJob", () => {
   it("updates progress from SSE events and refreshes on success", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
     const refreshDashboard = vi.fn().mockResolvedValue(undefined);
 
     vi.stubGlobal("fetch", fetchMock);
@@ -103,7 +105,9 @@ describe("useImportJob", () => {
   });
 
   it("closes the previous event source when starting a new import", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("EventSource", MockEventSource as never);
 
@@ -121,7 +125,9 @@ describe("useImportJob", () => {
   });
 
   it("closes the active event source when the scope is disposed", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("EventSource", MockEventSource as never);
 
@@ -137,7 +143,9 @@ describe("useImportJob", () => {
   });
 
   it("ignores transport error events and keeps the stream open", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("EventSource", MockEventSource as never);
 
@@ -156,7 +164,9 @@ describe("useImportJob", () => {
   });
 
   it("surfaces structured backend error details", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("EventSource", MockEventSource as never);
 
@@ -182,14 +192,19 @@ describe("useImportJob", () => {
       message: "Import fehlgeschlagen",
     });
 
-    expect(job!.technicalError.value).toEqual({ error_code: 2102, detail: "Nicht autorisiert (401)" });
+    expect(job!.technicalError.value).toEqual({
+      error_code: 2102,
+      detail: "Nicht autorisiert (401)",
+    });
     expect(job!.error.value).toBe("Import fehlgeschlagen");
 
     scope.stop();
   });
 
   it("surfaces structured error details in the visible error string", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("EventSource", MockEventSource as never);
 

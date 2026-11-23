@@ -28,7 +28,7 @@ function prev() {
 }
 
 function next() {
-  if (props.page < totalPages) emit("update:page", props.page + 1);
+  if (props.page < totalPages.value) emit("update:page", props.page + 1);
 }
 
 function text(value: unknown) {
@@ -55,29 +55,68 @@ function quantity(value: unknown, unit: unknown) {
     <table class="min-w-full divide-y divide-slate-200">
       <thead class="bg-slate-50">
         <tr>
-          <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Artikel</th>
-          <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Gesamtmenge</th>
-          <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Ausgaben</th>
-          <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Einkäufe</th>
+          <th
+            scope="col"
+            class="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
+          >
+            Artikel
+          </th>
+          <th
+            scope="col"
+            class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
+          >
+            Gesamtmenge
+          </th>
+          <th
+            scope="col"
+            class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
+          >
+            Ausgaben
+          </th>
+          <th
+            scope="col"
+            class="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.22em] text-slate-500"
+          >
+            Einkäufe
+          </th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100 bg-white">
-        <tr v-for="item in items" :key="text(item.name)" class="cursor-pointer transition hover:bg-slate-50" @click="handleRowClick(text(item.name))">
+        <tr
+          v-for="item in items"
+          :key="text(item.name)"
+          class="cursor-pointer transition hover:bg-slate-50"
+          @click="handleRowClick(text(item.name))"
+        >
           <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ text(item.name) }}</td>
-          <td class="px-4 py-3 text-right text-sm text-slate-700">{{ quantity(item.total_quantity, item.unit) }}</td>
-          <td class="px-4 py-3 text-right text-sm text-slate-700">{{ currency(item.total_spent) }}</td>
-          <td class="px-4 py-3 text-right text-sm text-slate-700">{{ text(item.purchase_count) }}</td>
+          <td class="px-4 py-3 text-right text-sm text-slate-700">
+            {{ quantity(item.total_quantity, item.unit) }}
+          </td>
+          <td class="px-4 py-3 text-right text-sm text-slate-700">
+            {{ currency(item.total_spent) }}
+          </td>
+          <td class="px-4 py-3 text-right text-sm text-slate-700">
+            {{ text(item.purchase_count) }}
+          </td>
         </tr>
       </tbody>
     </table>
 
-    <div v-if="totalCount > 0" class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
+    <div
+      v-if="totalCount > 0"
+      class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3"
+    >
       <p class="text-sm text-slate-500">
-        {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, totalCount) }} von {{ totalCount }}
+        {{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, totalCount) }} von
+        {{ totalCount }}
       </p>
       <div class="flex items-center gap-3">
         <OField label="Einträge pro Seite" class="mb-0">
-          <OSelect :model-value="topLimit" @update:model-value="emit('update:topLimit', $event)" expanded>
+          <OSelect
+            :model-value="topLimit"
+            @update:model-value="emit('update:topLimit', $event)"
+            expanded
+          >
             <option :value="10">10</option>
             <option :value="20">20</option>
             <option :value="50">50</option>

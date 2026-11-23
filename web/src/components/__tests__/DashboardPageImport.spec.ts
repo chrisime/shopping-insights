@@ -2,7 +2,7 @@
 
 import { ref } from "vue";
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import DashboardPage from "../DashboardPage.vue";
 import * as dashboardComposable from "../../composables/useDashboard";
@@ -12,7 +12,15 @@ describe("DashboardPage import", () => {
   it("renders the import control and starts an import when clicked", async () => {
     const startImport = vi.fn().mockResolvedValue(undefined);
     const state = {
-      progress: ref({ current: 0, total: 0, added: 0, skipped: 0, errors: 0, items: 0, current_receipt: "-" }),
+      progress: ref({
+        current: 0,
+        total: 0,
+        added: 0,
+        skipped: 0,
+        errors: 0,
+        items: 0,
+        current_receipt: "-",
+      }),
       loading: ref(false),
       running: ref(false),
       message: ref(null as string | null),
@@ -32,7 +40,12 @@ describe("DashboardPage import", () => {
       topLimit: ref(20),
       search: ref(""),
       page: ref(1),
-      payload: ref({ title: "Shopping Analyzer Dashboard", sections: [], min_date: null, max_date: null }),
+      payload: ref({
+        title: "Shopping Analyzer Dashboard",
+        sections: [],
+        min_date: null,
+        max_date: null,
+      }),
       loading: ref(false),
       error: ref(null),
       filters: ref({}),
@@ -43,10 +56,11 @@ describe("DashboardPage import", () => {
     const wrapper = mount(DashboardPage, {
       global: {
         stubs: {
-        DashboardFilterBar: true,
-        ImportJobControls: {
-          template: '<button class="import-control" @click="$emit(\'start-import\', { retailer: \'lidl\', browser: \'firefox\' })">Import</button>',
-        },
+          DashboardFilterBar: true,
+          ImportJobControls: {
+            template:
+              "<button class=\"import-control\" @click=\"$emit('start-import', { retailer: 'lidl', browser: 'firefox' })\">Import</button>",
+          },
           DashboardSection: true,
           DashboardSkeleton: true,
           DashboardKpiGrid: true,

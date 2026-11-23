@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import ImportJobControls from "../ImportJobControls.vue";
 
@@ -11,7 +11,15 @@ describe("ImportJobControls", () => {
       props: {
         retailer: "lidl",
         running: false,
-        progress: { current: 1, total: 3, added: 1, skipped: 0, errors: 0, items: 4, current_receipt: "r1" },
+        progress: {
+          current: 1,
+          total: 3,
+          added: 1,
+          skipped: 0,
+          errors: 0,
+          items: 4,
+          current_receipt: "r1",
+        },
         message: null,
         error: null,
         technicalError: null,
@@ -37,7 +45,15 @@ describe("ImportJobControls", () => {
       props: {
         retailer: "lidl",
         running: false,
-        progress: { current: 0, total: 0, added: 0, skipped: 0, errors: 0, items: 0, current_receipt: "-" },
+        progress: {
+          current: 0,
+          total: 0,
+          added: 0,
+          skipped: 0,
+          errors: 0,
+          items: 0,
+          current_receipt: "-",
+        },
         message: null,
         error: null,
         technicalError: null,
@@ -57,7 +73,15 @@ describe("ImportJobControls", () => {
       props: {
         retailer: "rewe",
         running: false,
-        progress: { current: 0, total: 0, added: 0, skipped: 0, errors: 0, items: 0, current_receipt: "-" },
+        progress: {
+          current: 0,
+          total: 0,
+          added: 0,
+          skipped: 0,
+          errors: 0,
+          items: 0,
+          current_receipt: "-",
+        },
         message: null,
         error: null,
         technicalError: null,
@@ -73,7 +97,7 @@ describe("ImportJobControls", () => {
     expect(reweWrapper.text()).toContain("Browser-Profil");
     expect(reweWrapper.text()).toContain("Firefox");
     await reweWrapper.get("button").trigger("click");
-    expect(reweWrapper.findAll("input[type=\"text\"]").length).toBe(1);
+    expect(reweWrapper.findAll('input[type="text"]').length).toBe(1);
   });
 
   it("renders technical error details", async () => {
@@ -81,7 +105,15 @@ describe("ImportJobControls", () => {
       props: {
         retailer: "lidl",
         running: false,
-        progress: { current: 0, total: 0, added: 0, skipped: 0, errors: 1, items: 0, current_receipt: "-" },
+        progress: {
+          current: 0,
+          total: 0,
+          added: 0,
+          skipped: 0,
+          errors: 1,
+          items: 0,
+          current_receipt: "-",
+        },
         message: "Import fehlgeschlagen",
         error: "Import fehlgeschlagen: Nicht autorisiert (401)",
         technicalError: { error_code: 2102, detail: "Nicht autorisiert (401)" },
@@ -107,7 +139,15 @@ describe("ImportJobControls", () => {
       props: {
         retailer: "lidl",
         running: false,
-        progress: { current: 0, total: 0, added: 0, skipped: 0, errors: 0, items: 0, current_receipt: "-" },
+        progress: {
+          current: 0,
+          total: 0,
+          added: 0,
+          skipped: 0,
+          errors: 0,
+          items: 0,
+          current_receipt: "-",
+        },
         message: null,
         error: null,
         technicalError: null,
@@ -122,7 +162,10 @@ describe("ImportJobControls", () => {
 
     await wrapper.get("form").trigger("submit");
 
-    expect(wrapper.emitted("start-import")?.[0][0]).toEqual({ retailer: "lidl", browser: "firefox" });
+    expect(wrapper.emitted("start-import")?.[0][0]).toEqual({
+      retailer: "lidl",
+      browser: "firefox",
+    });
   });
 
   it("offers dm as an import retailer", async () => {
@@ -130,7 +173,15 @@ describe("ImportJobControls", () => {
       props: {
         retailer: "dm",
         running: false,
-        progress: { current: 0, total: 0, added: 0, skipped: 0, errors: 0, items: 0, current_receipt: "-" },
+        progress: {
+          current: 0,
+          total: 0,
+          added: 0,
+          skipped: 0,
+          errors: 0,
+          items: 0,
+          current_receipt: "-",
+        },
         message: null,
         error: null,
         technicalError: null,
@@ -152,7 +203,15 @@ describe("ImportJobControls", () => {
       props: {
         retailer: "dm",
         running: false,
-        progress: { current: 0, total: 0, added: 0, skipped: 0, errors: 0, items: 0, current_receipt: "-" },
+        progress: {
+          current: 0,
+          total: 0,
+          added: 0,
+          skipped: 0,
+          errors: 0,
+          items: 0,
+          current_receipt: "-",
+        },
         message: null,
         error: null,
         technicalError: null,
@@ -175,7 +234,15 @@ describe("ImportJobControls", () => {
       props: {
         retailer: "rossmann",
         running: false,
-        progress: { current: 0, total: 0, added: 0, skipped: 0, errors: 0, items: 0, current_receipt: "-" },
+        progress: {
+          current: 0,
+          total: 0,
+          added: 0,
+          skipped: 0,
+          errors: 0,
+          items: 0,
+          current_receipt: "-",
+        },
         message: null,
         error: null,
       },

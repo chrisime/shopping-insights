@@ -1,7 +1,11 @@
 import { computed, onScopeDispose, ref } from "vue";
 
 import { ImportStartError, openImportJobEvents, startImportJob } from "../api/imports";
-import type { ImportJobEventPayload, ImportProgressState, ImportRetailer, ImportStartRequest } from "../types/imports";
+import type {
+  ImportJobEventPayload,
+  ImportProgressState,
+  ImportStartRequest,
+} from "../types/imports";
 
 const EMPTY_PROGRESS: ImportProgressState = {
   current: 0,
@@ -35,7 +39,7 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
     progress.value = { ...data.progress };
     message.value = data.message;
     technicalError.value = data.error;
-    error.value = data.error ? data.message ?? data.error.detail : null;
+    error.value = data.error ? (data.message ?? data.error.detail) : null;
   }
 
   function parseEventPayload(event: MessageEvent<string>) {
@@ -77,7 +81,10 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
 
       try {
         const payload = JSON.parse(event.data) as Partial<ImportJobEventPayload>;
-        technicalError.value = payload.error ?? { error_code: 2103, detail: payload.message ?? "Import stream failed" };
+        technicalError.value = payload.error ?? {
+          error_code: 2103,
+          detail: payload.message ?? "Import stream failed",
+        };
         error.value = payload.message ?? technicalError.value.detail;
       } catch {
         error.value = "Import stream failed";
@@ -87,7 +94,7 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
     };
 
     stream.addEventListener("progress", handleProgress as EventListener);
-    stream.addEventListener("success", handleSuccess as EventListener);
+    stream.addEventListener("success", handleSuccess as unknown as EventListener);
     stream.addEventListener("error", handleError as EventListener);
   }
 

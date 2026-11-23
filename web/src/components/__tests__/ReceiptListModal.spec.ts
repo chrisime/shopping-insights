@@ -1,13 +1,20 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vite-plus/test";
 
 import ReceiptListModal from "../ReceiptListModal.vue";
 
 const TELEPORT_STUB = { template: "<div><slot /></div>" };
 
-function mountModal(props: Record<string, unknown>) {
+type ModalProps = {
+  startDate: string;
+  endDate: string;
+  visible: boolean;
+  retailer?: string;
+};
+
+function mountModal(props: ModalProps) {
   return mount(ReceiptListModal, {
     props,
     global: { stubs: { Teleport: TELEPORT_STUB } },
@@ -19,10 +26,7 @@ afterEach(() => {
 });
 
 function stubFetch(data: unknown) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok: true, json: async () => data }),
-  );
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => data }));
 }
 
 async function settled() {
@@ -39,9 +43,9 @@ describe("ReceiptListModal", () => {
         purchase_date: "2024-01-15",
         store: "Lidl München",
         address: { street: "Bahnhofstr.", street_no: "1", zip: "80335", city: "München" },
-        total_price: 42.50,
+        total_price: 42.5,
         items: [{ name: "Apfel", quantity: 3, unit: "stk", price: 1.99 }],
-        payment_methods: [{ method: "EC-Karte", amount: 42.50 }],
+        payment_methods: [{ method: "EC-Karte", amount: 42.5 }],
       },
     ]);
 
@@ -88,10 +92,16 @@ describe("ReceiptListModal", () => {
   });
 
   it("computes monthly label from date range", async () => {
-    stubFetch([{
-      id: "r1", retailer: "lidl", purchase_date: "2024-01-15",
-      total_price: 10.0, items: [], payment_methods: [],
-    }]);
+    stubFetch([
+      {
+        id: "r1",
+        retailer: "lidl",
+        purchase_date: "2024-01-15",
+        total_price: 10.0,
+        items: [],
+        payment_methods: [],
+      },
+    ]);
 
     const wrapper = mountModal({ startDate: "2024-01-01", endDate: "2024-01-31", visible: false });
     await wrapper.setProps({ visible: true });
@@ -101,10 +111,16 @@ describe("ReceiptListModal", () => {
   });
 
   it("computes daily label from date range", async () => {
-    stubFetch([{
-      id: "r1", retailer: "lidl", purchase_date: "2024-01-15",
-      total_price: 10.0, items: [], payment_methods: [],
-    }]);
+    stubFetch([
+      {
+        id: "r1",
+        retailer: "lidl",
+        purchase_date: "2024-01-15",
+        total_price: 10.0,
+        items: [],
+        payment_methods: [],
+      },
+    ]);
 
     const wrapper = mountModal({ startDate: "2024-01-15", endDate: "2024-01-15", visible: false });
     await wrapper.setProps({ visible: true });
@@ -114,10 +130,16 @@ describe("ReceiptListModal", () => {
   });
 
   it("computes yearly label from date range", async () => {
-    stubFetch([{
-      id: "r1", retailer: "lidl", purchase_date: "2024-06-15",
-      total_price: 10.0, items: [], payment_methods: [],
-    }]);
+    stubFetch([
+      {
+        id: "r1",
+        retailer: "lidl",
+        purchase_date: "2024-06-15",
+        total_price: 10.0,
+        items: [],
+        payment_methods: [],
+      },
+    ]);
 
     const wrapper = mountModal({ startDate: "2024-01-01", endDate: "2024-12-31", visible: false });
     await wrapper.setProps({ visible: true });

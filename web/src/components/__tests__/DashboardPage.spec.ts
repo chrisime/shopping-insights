@@ -1,6 +1,6 @@
 import { createSSRApp, nextTick, effectScope } from "vue";
 import { renderToString } from "@vue/server-renderer";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 vi.mock("../ImportJobControls.vue", () => ({ default: { template: "<div />" } }));
 
@@ -65,10 +65,7 @@ describe("DashboardPage", () => {
         sections: [],
       }),
     });
-    vi.stubGlobal(
-      "fetch",
-      fetchMock,
-    );
+    vi.stubGlobal("fetch", fetchMock);
 
     const scope = effectScope();
     const dashboard = scope.run(() => useDashboard());
@@ -88,7 +85,12 @@ describe("DashboardPage", () => {
     let latestDate = "2024-01-31";
     const fetchMock = vi.fn().mockImplementation(async () => ({
       ok: true,
-      json: async () => ({ title: "Dashboard", min_date: "2024-01-01", max_date: latestDate, sections: [] }),
+      json: async () => ({
+        title: "Dashboard",
+        min_date: "2024-01-01",
+        max_date: latestDate,
+        sections: [],
+      }),
     }));
     vi.stubGlobal("fetch", fetchMock);
     const scope = effectScope();

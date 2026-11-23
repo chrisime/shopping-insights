@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import DashboardKpiGrid from "../DashboardKpiGrid.vue";
 
@@ -141,7 +141,9 @@ describe("DashboardKpiGrid", () => {
     });
     const wrapper = mount(DashboardKpiGrid, { props: { data } });
     expect(wrapper.text()).toContain("Rossmann 10% Coupon");
-    const productCard = wrapper.findAll("article").find((card) => card.text().includes("Rossmann Produktcoupons"));
+    const productCard = wrapper
+      .findAll("article")
+      .find((card) => card.text().includes("Rossmann Produktcoupons"));
     expect(productCard?.text()).toContain("10,0%");
     expect(wrapper.text()).not.toContain("Rossmann andere Coupons");
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import TrendBarChart from "../TrendBarChart.vue";
 
@@ -77,16 +77,14 @@ describe("TrendBarChart", () => {
   it("shows full labels when monthLabels is not provided", () => {
     const wrapper = mount(TrendBarChart, {
       props: {
-        items: [
-          { period: "2024-01-15", total_spent: 10, receipt_count: 1 },
-        ],
+        items: [{ period: "2024-01-15", total_spent: 10, receipt_count: 1 }],
         granularity: "Täglich",
       },
     });
     expect(wrapper.text()).toContain("2024-01-15");
   });
 
-  it("emits select-period with monthly boundaries", () => {
+  it("emits select-period with monthly boundaries", async () => {
     const wrapper = mount(TrendBarChart, {
       props: {
         granularity: "Monatlich",
@@ -95,7 +93,7 @@ describe("TrendBarChart", () => {
     });
 
     const rect = wrapper.find("rect.bar");
-    rect.trigger("click");
+    await rect.trigger("click");
 
     expect(wrapper.emitted("select-period")).toHaveLength(1);
     expect(wrapper.emitted("select-period")![0]).toEqual([
@@ -103,7 +101,7 @@ describe("TrendBarChart", () => {
     ]);
   });
 
-  it("emits select-period with daily boundaries", () => {
+  it("emits select-period with daily boundaries", async () => {
     const wrapper = mount(TrendBarChart, {
       props: {
         granularity: "Täglich",
@@ -112,14 +110,14 @@ describe("TrendBarChart", () => {
     });
 
     const rect = wrapper.find("rect.bar");
-    rect.trigger("click");
+    await rect.trigger("click");
 
     expect(wrapper.emitted("select-period")![0]).toEqual([
       { startDate: "2024-01-15", endDate: "2024-01-15", label: "15. Januar 2024" },
     ]);
   });
 
-  it("emits select-period with yearly boundaries", () => {
+  it("emits select-period with yearly boundaries", async () => {
     const wrapper = mount(TrendBarChart, {
       props: {
         granularity: "Jährlich",
@@ -128,14 +126,14 @@ describe("TrendBarChart", () => {
     });
 
     const rect = wrapper.find("rect.bar");
-    rect.trigger("click");
+    await rect.trigger("click");
 
     expect(wrapper.emitted("select-period")![0]).toEqual([
       { startDate: "2024-01-01", endDate: "2024-12-31", label: "2024" },
     ]);
   });
 
-  it("shows tooltip on bar mouseenter", () => {
+  it("shows tooltip on bar mouseenter", async () => {
     const wrapper = mount(TrendBarChart, {
       props: {
         granularity: "Monatlich",
@@ -151,14 +149,14 @@ describe("TrendBarChart", () => {
     });
 
     const rect = wrapper.find("rect.bar");
-    rect.trigger("mouseenter");
+    await rect.trigger("mouseenter");
 
     const tooltipGroup = wrapper.find(".tooltip-group");
     expect(tooltipGroup.exists()).toBe(true);
     expect(tooltipGroup.attributes("style")).not.toContain("display: none");
   });
 
-  it("tooltip contains period, total, count, avg, and retailers", () => {
+  it("tooltip contains period, total, count, avg, and retailers", async () => {
     const wrapper = mount(TrendBarChart, {
       props: {
         granularity: "Monatlich",
@@ -174,7 +172,7 @@ describe("TrendBarChart", () => {
     });
 
     const rect = wrapper.find("rect.bar");
-    rect.trigger("mouseenter");
+    await rect.trigger("mouseenter");
 
     expect(wrapper.text()).toContain("Januar 2024");
     expect(wrapper.text()).toContain("€100.00");
@@ -201,8 +199,8 @@ describe("TrendBarChart", () => {
     });
 
     const rect = wrapper.find("rect.bar");
-    rect.trigger("mouseenter");
-    rect.trigger("mouseleave");
+    await rect.trigger("mouseenter");
+    await rect.trigger("mouseleave");
 
     // Immediately after leave, tooltip should still be visible (200ms delay)
     const tooltipGroup = wrapper.find(".tooltip-group");
@@ -233,11 +231,11 @@ describe("TrendBarChart", () => {
     });
 
     const rect = wrapper.find("rect.bar");
-    rect.trigger("mouseenter");
-    rect.trigger("mouseleave");
+    await rect.trigger("mouseenter");
+    await rect.trigger("mouseleave");
 
     // Re-enter before delay expires
-    rect.trigger("mouseenter");
+    await rect.trigger("mouseenter");
     vi.advanceTimersByTime(201);
     await wrapper.vm.$nextTick();
 
@@ -246,7 +244,7 @@ describe("TrendBarChart", () => {
     expect(tooltipGroup.attributes("style")).not.toContain("display: none");
 
     // Now leave for real
-    rect.trigger("mouseleave");
+    await rect.trigger("mouseleave");
     vi.advanceTimersByTime(201);
     await wrapper.vm.$nextTick();
 

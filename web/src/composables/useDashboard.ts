@@ -41,8 +41,10 @@ export function useDashboard() {
 
   async function refresh(afterImport = false) {
     const token = ++requestToken;
-    const followDateRange = afterImport && automaticDateRange?.[0] === startDate.value
-      && automaticDateRange[1] === endDate.value;
+    const followDateRange =
+      afterImport &&
+      automaticDateRange?.[0] === startDate.value &&
+      automaticDateRange[1] === endDate.value;
     loading.value = true;
     error.value = null;
 
@@ -72,13 +74,16 @@ export function useDashboard() {
     }
   }
 
-  watch([retailer, startDate, endDate, timeGranularity, spendingView, topView, topLimit, page], () => {
-    if (skipNextAutoRefresh.value) {
-      skipNextAutoRefresh.value = false;
-      return;
-    }
-    void refresh();
-  });
+  watch(
+    [retailer, startDate, endDate, timeGranularity, spendingView, topView, topLimit, page],
+    () => {
+      if (skipNextAutoRefresh.value) {
+        skipNextAutoRefresh.value = false;
+        return;
+      }
+      void refresh();
+    },
+  );
 
   watch(search, (val) => {
     if (val.length >= 3 || val.length === 0) {

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { openImportJobEvents, startImportJob } from "./imports";
 
@@ -8,20 +8,19 @@ afterEach(() => {
 
 describe("import api helpers", () => {
   it("starts an import job for the selected retailer", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ job_id: "job-1", retailer: "lidl" }) });
     vi.stubGlobal("fetch", fetchMock);
 
     await startImportJob({ retailer: "lidl", browser: "firefox" });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.any(URL),
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ retailer: "lidl", browser: "firefox" }),
-      },
-    );
+    expect(fetchMock).toHaveBeenCalledWith(expect.any(URL), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ retailer: "lidl", browser: "firefox" }),
+    });
     expect(String(fetchMock.mock.calls[0][0])).toContain("/imports/start");
   });
 

@@ -15,10 +15,23 @@ Wenn das FastAPI-Backend nicht auf `http://localhost:8000` läuft, setze:
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
+## Qualitätssicherung
+
+Vite+ (`vp`) ist der Frontend-Toolchain; die pnpm-Scripts rufen `vp` auf.
+
+```bash
+pnpm exec vp check          # Format, Lint und Typecheck (tsgo/tsrs)
+pnpm exec vp run typecheck  # Typecheck der Vue-SFCs (vue-tsc)
+```
+
+TypeScript ist für `vue-tsc` auf 6.0.x gepinnt; `vp check` nutzt unabhängig davon das gebündelte tsrs.
+
 ## Tests
 
 ```bash
 pnpm test
+# einmalig ausführen:
+pnpm exec vp test run
 ```
 
 ## Build

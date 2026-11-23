@@ -107,11 +107,15 @@ async function handleExport() {
     <main class="flex min-w-0 flex-1 flex-col gap-5 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
       <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="space-y-2">
-          <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Shopping Analyzer</p>
+          <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+            Shopping Analyzer
+          </p>
           <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">
             {{ payload?.title ?? "Shopping Analyzer Dashboard" }}
           </h1>
-          <p class="max-w-2xl text-sm text-slate-600 sm:text-base">Read-only dashboard with filter-driven refresh.</p>
+          <p class="max-w-2xl text-sm text-slate-600 sm:text-base">
+            Read-only dashboard with filter-driven refresh.
+          </p>
         </div>
 
         <button
@@ -124,7 +128,11 @@ async function handleExport() {
         </button>
       </header>
 
-      <form v-if="activeTab !== 'import'" class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-3" @submit.prevent>
+      <form
+        v-if="activeTab !== 'import'"
+        class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-3"
+        @submit.prevent
+      >
         <OField label="Händler">
           <OSelect v-model="retailer" expanded>
             <option value="">Alle</option>
@@ -136,15 +144,30 @@ async function handleExport() {
         </OField>
 
         <OField label="Startdatum">
-          <OInput v-model="startDate" :min="(payload?.min_date ?? undefined) as any" :max="(payload?.max_date ?? undefined) as any" type="date" expanded />
+          <OInput
+            v-model="startDate"
+            :min="(payload?.min_date ?? undefined) as any"
+            :max="(payload?.max_date ?? undefined) as any"
+            type="date"
+            expanded
+          />
         </OField>
 
         <OField label="Enddatum">
-          <OInput v-model="endDate" :min="(payload?.min_date ?? undefined) as any" :max="(payload?.max_date ?? undefined) as any" type="date" expanded />
+          <OInput
+            v-model="endDate"
+            :min="(payload?.min_date ?? undefined) as any"
+            :max="(payload?.max_date ?? undefined) as any"
+            type="date"
+            expanded
+          />
         </OField>
       </form>
 
-      <p v-if="bannerMessage" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+      <p
+        v-if="bannerMessage"
+        class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+      >
         {{ bannerMessage }}
       </p>
 
@@ -165,7 +188,9 @@ async function handleExport() {
 
         <template v-else-if="activeTab === 'ausgaben'">
           <DashboardSection
-            v-for="section in payload.sections.filter(s => s.kind === 'metrics' || s.kind === 'time_series')"
+            v-for="section in payload.sections.filter(
+              (s) => s.kind === 'metrics' || s.kind === 'time_series',
+            )"
             :key="`${section.kind}-${section.title}`"
             :title="section.title"
             :empty="section.items.length === 0"
@@ -194,7 +219,7 @@ async function handleExport() {
 
         <template v-else-if="activeTab === 'einkauf'">
           <DashboardSection
-            v-for="section in payload.sections.filter(s => s.kind === 'weekday')"
+            v-for="section in payload.sections.filter((s) => s.kind === 'weekday')"
             :key="`${section.kind}-${section.title}`"
             :title="section.title"
             :empty="section.items.length === 0"
@@ -204,13 +229,9 @@ async function handleExport() {
         </template>
 
         <template v-else-if="activeTab === 'artikel'">
-          <DashboardFilterBar
-            v-model:search="search"
-            v-model:top-view="topView"
-            class="mb-4"
-          />
+          <DashboardFilterBar v-model:search="search" v-model:top-view="topView" class="mb-4" />
           <DashboardSection
-            v-for="section in payload.sections.filter(s => s.kind === 'top_items')"
+            v-for="section in payload.sections.filter((s) => s.kind === 'top_items')"
             :key="`${section.kind}-${section.title}`"
             :title="section.title"
             :empty="section.items.length === 0"

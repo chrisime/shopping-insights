@@ -6,7 +6,10 @@ const topView = defineModel<string>("topView", { default: "Menge" });
 </script>
 
 <template>
-  <form class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" @submit.prevent>
+  <form
+    class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+    @submit.prevent
+  >
     <h2 class="text-lg font-semibold tracking-tight text-slate-900">Artikel Filter</h2>
     <div class="grid gap-4 sm:grid-cols-2">
       <OField label="Artikelsuche">

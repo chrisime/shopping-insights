@@ -3,6 +3,7 @@ export function amount(value: unknown): number {
 }
 
 export function text(value: unknown): string {
+  // oxlint-disable-next-line typescript/no-base-to-string -- display fallback for unknown values
   return value == null ? "-" : String(value);
 }
 

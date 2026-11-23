@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { buildReceiptsExportFilename, exportReceiptsJson } from "./exports";
 
@@ -17,7 +17,13 @@ describe("exportReceiptsJson", () => {
     });
     const click = vi.fn();
     const remove = vi.fn();
-    const anchor = { href: "", download: "", rel: "", click, remove } as unknown as HTMLAnchorElement;
+    const anchor = {
+      href: "",
+      download: "",
+      rel: "",
+      click,
+      remove,
+    } as unknown as HTMLAnchorElement;
     const createObjectURL = vi.fn(() => "blob:receipt-export");
     const revokeObjectURL = vi.fn();
 
@@ -26,7 +32,11 @@ describe("exportReceiptsJson", () => {
     vi.spyOn(document, "createElement").mockReturnValue(anchor);
     vi.spyOn(document.body, "appendChild").mockImplementation(() => anchor);
 
-    await exportReceiptsJson({ retailer: "lidl", start_date: "2024-01-01", end_date: "2024-01-31" });
+    await exportReceiptsJson({
+      retailer: "lidl",
+      start_date: "2024-01-01",
+      end_date: "2024-01-31",
+    });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0][0])).toContain("/exports/receipts");
@@ -38,6 +48,8 @@ describe("exportReceiptsJson", () => {
 
   it("builds stable filenames without filters", () => {
     expect(buildReceiptsExportFilename()).toBe("shopping-analyzer-receipts.json");
-    expect(buildReceiptsExportFilename({ retailer: "rewe" })).toBe("shopping-analyzer-receipts-rewe.json");
+    expect(buildReceiptsExportFilename({ retailer: "rewe" })).toBe(
+      "shopping-analyzer-receipts-rewe.json",
+    );
   });
 });

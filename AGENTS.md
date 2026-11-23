@@ -9,6 +9,7 @@
 ## Constraints & Preferences
 - Vue is the only dashboard frontend.
 - Use `pnpm` in `web/`.
+- The frontend toolchain is Vite+ (`vp`): prefer `pnpm exec vp ...` or the pnpm scripts (`pnpm dev`, `pnpm test`, `pnpm build`).
 - Use the project venv for backend commands.
 - Lidl requests must retry with exponential backoff on 429/5xx.
 - Shared auth-method resolution (`--browser` / `--cookies-file`) should stay common between Lidl and REWE.
@@ -24,7 +25,8 @@
 - Bar click → ReceiptListModal via `GET /receipts/by-date` API.
 - Monthly x-axis shows "Jan 2024" format.
 - Time-series DTO includes `retailers` field (GROUP_CONCAT in SQL).
-- Backend: 429 tests passing. Frontend: 65 tests (17 files) passing, build succeeds.
+- Backend: 429 tests passing. Frontend: 72 tests (16 files) passing; `vp check`, `vp run typecheck`, and `vp build` succeed.
+- Frontend toolchain migrated to Vite+ 1.7.0 (`vp`); lint/format run through Oxlint/Oxfmt, TS typecheck through tsrs, Vue SFCs through a `vue-tsc` task.
 
 ## Backend
 - Start the API with `./start_backend.sh`.
@@ -53,8 +55,10 @@
 
 ## Recent Verification
 - `python3 -m pytest -q` → 429 passed.
-- `corepack pnpm test -- --run` → 65 passed (17 files).
-- `corepack pnpm build` → builds cleanly.
+- `corepack pnpm exec vp test run` → 72 passed (16 files).
+- `corepack pnpm exec vp check` → format, lint, and tsgo typecheck clean.
+- `corepack pnpm exec vp run typecheck` → vue-tsc clean.
+- `corepack pnpm exec vp build` → builds cleanly.
 - `./start_backend.sh` then `curl http://localhost:8000/ui` confirms API responds.
 
 ## Key Decisions
@@ -65,6 +69,8 @@
 - Migrated from vue-chartjs to D3 for trend chart (SVG over canvas for tooltip/hover control).
 - Tooltip hides with 200ms delay on mouseleave to prevent flicker.
 - Tooltip SVG group rendered AFTER bars in paint order for correct z-index.
+- Use Vite+ as the single frontend toolchain (`vp dev/build/test/check`); keep `vite`/`vitest` catalog entries in `web/pnpm-workspace.yaml`.
+- TypeScript stays on 6.0.x because `vue-tsc` 3.x requires the upstream `typescript/lib/tsc` entry, which TypeScript 7 (native) no longer exports; `vp check` uses tsrs independently.
 
 ## Relevant Files
 - `api/main.py`
@@ -98,6 +104,9 @@
 - `web/src/api/dashboard.ts` — `fetchReceiptsByDateRange()`
 - `web/src/types/dashboard.ts`
 - `web/package.json` — depends on `d3` + `@types/d3`
+- `web/vite.config.ts` — Vite+ config (lint/fmt/typecheck, `typecheck` task)
+- `web/pnpm-workspace.yaml` — Vite+ catalog for `vite`, `vitest`, `vite-plus`
+- `web/src/env.d.ts` — `*.vue` module shim for tsgo
 - `requirements.txt`
 - `start_backend.sh`
 - `web/src/components/__tests__/TrendBarChart.spec.ts` — bar chart + tooltip tests
