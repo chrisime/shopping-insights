@@ -17,11 +17,11 @@ The Vue dashboard has grown through successive feature work, and its component b
 
 ### New Capabilities
 
-- None. This change is a structural refactor and does not introduce user-visible behavior.
+- None.
 
 ### Modified Capabilities
 
-- None. Existing dashboard behavior and API contracts are intended to remain unchanged.
+- `module-responsibilities`: Add explicit frontend component, composable, utility, and retailer-KPI responsibility expectations while preserving existing dashboard behavior and API contracts.
 
 ## Impact
 
