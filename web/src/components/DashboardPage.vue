@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-
 import { OField, OInput, ORadio, OSelect } from "@oruga-ui/oruga-next";
 
 import DashboardSidebar from "./DashboardSidebar.vue";
@@ -16,8 +15,9 @@ import WeekdayPanel from "./WeekdayPanel.vue";
 import ReceiptModal from "./ReceiptModal.vue";
 import ReceiptListModal from "./ReceiptListModal.vue";
 import { useDashboard } from "../composables/useDashboard";
-import { exportReceiptsJson } from "../api/exports";
 import { useImportJob } from "../composables/useImportJob";
+import { exportReceiptsJson } from "../api/exports";
+import type { PeriodSelection } from "../types/chart";
 import type { ImportRetailer } from "../types/imports";
 
 const {
@@ -25,7 +25,6 @@ const {
   startDate,
   endDate,
   timeGranularity,
-  spendingView,
   topView,
   topLimit,
   search,
@@ -36,49 +35,44 @@ const {
   refresh,
 } = useDashboard();
 
-const importRetailer = ref<ImportRetailer>("lidl");
-const importJob = useImportJob(() => refresh(true));
+const {
+  running: importRunning,
+  progress: importProgress,
+  message: importMessage,
+  error: importError,
+  technicalError: importTechnicalError,
+  startImport,
+} = useImportJob(() => refresh(true));
 
+const importRetailer = ref<ImportRetailer>("lidl");
 const exporting = ref(false);
 const sidebarCollapsed = ref(false);
 const activeTab = ref<SidebarTab>("ausgaben");
 const selectedArticle = ref<string | null>(null);
-const selectedPeriod = ref<{ startDate: string; endDate: string; label: string } | null>(null);
+const selectedPeriod = ref<PeriodSelection | null>(null);
 
-const bannerMessage = computed(() => {
-  if (payload.value?.error) {
-    return dashboardErrorMessage(payload.value.error.detail);
-  }
+const bannerMessage = computed(() =>
+  payload.value?.error ? dashboardErrorMessage(payload.value.error.detail) : error.value,
+);
 
-  return error.value;
-});
+const spendingSections = computed(
+  () =>
+    payload.value?.sections.filter(
+      (section) => section.kind === "metrics" || section.kind === "time_series",
+    ) ?? [],
+);
+const weekdaySections = computed(
+  () => payload.value?.sections.filter((section) => section.kind === "weekday") ?? [],
+);
+const topItemSections = computed(
+  () => payload.value?.sections.filter((section) => section.kind === "top_items") ?? [],
+);
 
 function dashboardErrorMessage(detail: string) {
   if (detail === "no_receipts") {
     return "No receipts yet. Import or fetch receipts to see dashboard data.";
   }
-
   return "Dashboard data is unavailable. Import receipts to initialize the dashboard.";
-}
-
-function metricData(items: Array<Record<string, unknown>>): Record<string, number> {
-  return items.length ? (items[0] as Record<string, number>) : {};
-}
-
-function onSelectArticle(name: string) {
-  selectedArticle.value = name;
-}
-
-function onCloseReceiptModal() {
-  selectedArticle.value = null;
-}
-
-function onSelectPeriod(payload: { startDate: string; endDate: string; label: string }) {
-  selectedPeriod.value = payload;
-}
-
-function onClosePeriodModal() {
-  selectedPeriod.value = null;
 }
 
 async function handleExport() {
@@ -97,12 +91,7 @@ async function handleExport() {
 
 <template>
   <div class="flex min-h-screen bg-slate-50">
-    <DashboardSidebar
-      :active-tab="activeTab"
-      :collapsed="sidebarCollapsed"
-      @update:active-tab="activeTab = $event"
-      @update:collapsed="sidebarCollapsed = $event"
-    />
+    <DashboardSidebar v-model:activeTab="activeTab" v-model:collapsed="sidebarCollapsed" />
 
     <main class="flex min-w-0 flex-1 flex-col gap-5 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
       <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -146,8 +135,8 @@ async function handleExport() {
         <OField label="Startdatum">
           <OInput
             v-model="startDate"
-            :min="(payload?.min_date ?? undefined) as any"
-            :max="(payload?.max_date ?? undefined) as any"
+            :min="payload?.min_date ?? undefined"
+            :max="payload?.max_date ?? undefined"
             type="date"
             expanded
           />
@@ -156,8 +145,8 @@ async function handleExport() {
         <OField label="Enddatum">
           <OInput
             v-model="endDate"
-            :min="(payload?.min_date ?? undefined) as any"
-            :max="(payload?.max_date ?? undefined) as any"
+            :min="payload?.min_date ?? undefined"
+            :max="payload?.max_date ?? undefined"
             type="date"
             expanded
           />
@@ -174,28 +163,25 @@ async function handleExport() {
       <DashboardSkeleton v-if="loading && !payload" />
 
       <template v-else-if="payload">
-        <template v-if="activeTab === 'import'">
-          <ImportJobControls
-            v-model:retailer="importRetailer"
-            :running="importJob.running.value"
-            :progress="importJob.progress.value"
-            :message="importJob.message.value"
-            :error="importJob.error.value"
-            :technical-error="importJob.technicalError.value"
-            @start-import="importJob.startImport($event)"
-          />
-        </template>
+        <ImportJobControls
+          v-if="activeTab === 'import'"
+          v-model:retailer="importRetailer"
+          :running="importRunning"
+          :progress="importProgress"
+          :message="importMessage"
+          :error="importError"
+          :technical-error="importTechnicalError"
+          @start-import="startImport($event)"
+        />
 
         <template v-else-if="activeTab === 'ausgaben'">
           <DashboardSection
-            v-for="section in payload.sections.filter(
-              (s) => s.kind === 'metrics' || s.kind === 'time_series',
-            )"
+            v-for="section in spendingSections"
             :key="`${section.kind}-${section.title}`"
             :title="section.title"
             :empty="section.items.length === 0"
           >
-            <DashboardKpiGrid v-if="section.kind === 'metrics'" :data="metricData(section.items)" />
+            <DashboardKpiGrid v-if="section.kind === 'metrics'" :data="section.items[0] ?? {}" />
             <template v-else-if="section.kind === 'time_series'">
               <div class="mb-8">
                 <label class="mb-3 block text-sm font-medium text-slate-700">Granularität</label>
@@ -208,9 +194,8 @@ async function handleExport() {
               <div class="mb-8">
                 <TrendChartPanel
                   :items="section.items"
-                  :spending-view="spendingView"
                   :time-granularity="timeGranularity"
-                  @select-period="onSelectPeriod"
+                  @select-period="selectedPeriod = $event"
                 />
               </div>
             </template>
@@ -219,7 +204,7 @@ async function handleExport() {
 
         <template v-else-if="activeTab === 'einkauf'">
           <DashboardSection
-            v-for="section in payload.sections.filter((s) => s.kind === 'weekday')"
+            v-for="section in weekdaySections"
             :key="`${section.kind}-${section.title}`"
             :title="section.title"
             :empty="section.items.length === 0"
@@ -231,7 +216,7 @@ async function handleExport() {
         <template v-else-if="activeTab === 'artikel'">
           <DashboardFilterBar v-model:search="search" v-model:top-view="topView" class="mb-4" />
           <DashboardSection
-            v-for="section in payload.sections.filter((s) => s.kind === 'top_items')"
+            v-for="section in topItemSections"
             :key="`${section.kind}-${section.title}`"
             :title="section.title"
             :empty="section.items.length === 0"
@@ -239,12 +224,12 @@ async function handleExport() {
             <TopItemsPanel
               :items="section.items"
               :page="page"
-              :page-size="(section.items[0] as any)?.page_size ?? 20"
-              :total-count="(section.items[0] as any)?.total_count ?? 0"
+              :page-size="section.items[0]?.page_size ?? 20"
+              :total-count="section.items[0]?.total_count ?? 0"
               :top-limit="topLimit"
               @update:page="page = $event"
               @update:top-limit="topLimit = $event"
-              @select-article="onSelectArticle"
+              @select-article="selectedArticle = $event"
             />
           </DashboardSection>
         </template>
@@ -256,7 +241,7 @@ async function handleExport() {
     :article-name="selectedArticle ?? ''"
     :retailer="retailer"
     :visible="!!selectedArticle"
-    @close="onCloseReceiptModal"
+    @close="selectedArticle = null"
   />
 
   <ReceiptListModal
@@ -264,6 +249,6 @@ async function handleExport() {
     :end-date="selectedPeriod?.endDate ?? ''"
     :retailer="retailer"
     :visible="!!selectedPeriod"
-    @close="onClosePeriodModal"
+    @close="selectedPeriod = null"
   />
 </template>

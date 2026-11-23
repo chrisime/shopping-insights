@@ -19,7 +19,6 @@ describe("DashboardPage export", () => {
     const startDate = ref("2024-01-01");
     const endDate = ref("2024-01-31");
     const timeGranularity = ref("Täglich");
-    const spendingView = ref("Absolut");
     const topView = ref("Menge");
     const topLimit = ref(20);
     const search = ref("");
@@ -38,7 +37,6 @@ describe("DashboardPage export", () => {
       startDate,
       endDate,
       timeGranularity,
-      spendingView,
       topView,
       topLimit,
       search,
@@ -51,7 +49,6 @@ describe("DashboardPage export", () => {
         start_date: startDate.value || undefined,
         end_date: endDate.value || undefined,
         time_granularity: timeGranularity.value,
-        spending_view: spendingView.value,
         top_view: topView.value,
         top_limit: topLimit.value,
       })),

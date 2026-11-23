@@ -36,7 +36,6 @@ describe("DashboardPage import", () => {
       startDate: ref(""),
       endDate: ref(""),
       timeGranularity: ref("Täglich"),
-      spendingView: ref("Absolut"),
       topView: ref("Menge"),
       topLimit: ref(20),
       search: ref(""),

@@ -8,7 +8,6 @@ export function useDashboard() {
   const startDate = ref("");
   const endDate = ref("");
   const timeGranularity = ref("Täglich");
-  const spendingView = ref("Absolut");
   const topView = ref("Menge");
   const topLimit = ref(20);
   const search = ref("");
@@ -27,7 +26,6 @@ export function useDashboard() {
     start_date: startDate.value || undefined,
     end_date: endDate.value || undefined,
     time_granularity: timeGranularity.value,
-    spending_view: spendingView.value,
     top_view: topView.value,
     top_limit: topLimit.value,
     search: search.value.length >= 3 ? search.value : undefined,
@@ -74,16 +72,13 @@ export function useDashboard() {
     }
   }
 
-  watch(
-    [retailer, startDate, endDate, timeGranularity, spendingView, topView, topLimit, page],
-    () => {
-      if (skipNextAutoRefresh.value) {
-        skipNextAutoRefresh.value = false;
-        return;
-      }
-      void refresh();
-    },
-  );
+  watch([retailer, startDate, endDate, timeGranularity, topView, topLimit, page], () => {
+    if (skipNextAutoRefresh.value) {
+      skipNextAutoRefresh.value = false;
+      return;
+    }
+    void refresh();
+  });
 
   watch(search, (val) => {
     if (val.length >= 3 || val.length === 0) {
@@ -133,7 +128,6 @@ export function useDashboard() {
     startDate,
     endDate,
     timeGranularity,
-    spendingView,
     topView,
     topLimit,
     search,

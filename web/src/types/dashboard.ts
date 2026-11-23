@@ -3,7 +3,6 @@ export type DashboardFilters = {
   start_date?: string;
   end_date?: string;
   time_granularity?: string;
-  spending_view?: string;
   top_view?: string;
   top_limit?: number;
   search?: string;

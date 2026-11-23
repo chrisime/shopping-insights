@@ -5,6 +5,7 @@ import type {
   ImportJobEventPayload,
   ImportProgressState,
   ImportStartRequest,
+  ImportTechnicalError,
 } from "../types/imports";
 
 const EMPTY_PROGRESS: ImportProgressState = {
@@ -21,9 +22,10 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
   const progress = ref<ImportProgressState>({ ...EMPTY_PROGRESS });
   const loading = ref(false);
   const error = ref<string | null>(null);
-  const technicalError = ref<{ error_code: number; detail: string } | null>(null);
+  const technicalError = ref<ImportTechnicalError | null>(null);
   const message = ref<string | null>(null);
 
+  const streaming = ref(false);
   let eventSource: EventSource | null = null;
   let activeToken = 0;
   let disposed = false;
@@ -33,6 +35,7 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
       eventSource.close();
       eventSource = null;
     }
+    streaming.value = false;
   }
 
   function applyEventPayload(data: ImportJobEventPayload) {
@@ -113,6 +116,7 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
       }
 
       eventSource = openImportJobEvents(response.job_id);
+      streaming.value = true;
       attachStreamHandlers(eventSource, token);
     } catch (cause) {
       if (disposed || token !== activeToken) {
@@ -130,7 +134,7 @@ export function useImportJob(refreshDashboard: () => Promise<void> | void) {
     }
   }
 
-  const running = computed(() => loading.value || eventSource !== null);
+  const running = computed(() => loading.value || streaming.value);
 
   onScopeDispose(() => {
     disposed = true;

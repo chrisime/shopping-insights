@@ -1,23 +1,16 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { addressText, amount, euro, quantity, retailerLabel, text } from "../format";
+import { addressText, euro, quantity, retailerLabel, text } from "../format";
 
 describe("format helpers", () => {
-  it("normalizes numeric input", () => {
-    expect(amount("4.5")).toBe(4.5);
-    expect(amount(null)).toBe(0);
-    expect(amount(3)).toBe(3);
-  });
-
   it("renders missing values as a dash", () => {
-    expect(text(null)).toBe("-");
     expect(text(undefined)).toBe("-");
     expect(text("Apfel")).toBe("Apfel");
   });
 
   it("formats euro amounts with two decimals", () => {
     expect(euro(4)).toBe("€4.00");
-    expect(euro("2.5")).toBe("€2.50");
+    expect(euro(2.5)).toBe("€2.50");
     expect(euro(Number.NaN)).toBe("-");
   });
 

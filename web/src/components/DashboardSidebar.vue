@@ -1,15 +1,8 @@
 <script setup lang="ts">
 export type SidebarTab = "import" | "ausgaben" | "einkauf" | "artikel";
 
-const props = defineProps<{
-  activeTab: SidebarTab;
-  collapsed: boolean;
-}>();
-
-const emit = defineEmits<{
-  (e: "update:active-tab", value: SidebarTab): void;
-  (e: "update:collapsed", value: boolean): void;
-}>();
+const activeTab = defineModel<SidebarTab>("activeTab", { required: true });
+const collapsed = defineModel<boolean>("collapsed", { required: true });
 
 const tabs: { key: SidebarTab; icon: string; label: string }[] = [
   { key: "import", icon: "📥", label: "Import" },
@@ -17,14 +10,6 @@ const tabs: { key: SidebarTab; icon: string; label: string }[] = [
   { key: "einkauf", icon: "📊", label: "Einkaufsverhalten" },
   { key: "artikel", icon: "🛒", label: "Artikel" },
 ];
-
-function select(key: SidebarTab) {
-  emit("update:active-tab", key);
-}
-
-function toggle() {
-  emit("update:collapsed", !props.collapsed);
-}
 </script>
 
 <template>
@@ -37,7 +22,7 @@ function toggle() {
     <button
       type="button"
       class="flex h-14 items-center justify-center border-b border-slate-200 text-lg text-slate-500 hover:text-slate-700"
-      @click="toggle"
+      @click="collapsed = !collapsed"
     >
       {{ collapsed ? "☰" : "✕" }}
     </button>
@@ -53,7 +38,7 @@ function toggle() {
             ? 'bg-indigo-50 text-indigo-700'
             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
         ]"
-        @click="select(tab.key)"
+        @click="activeTab = tab.key"
       >
         <span class="text-lg">{{ tab.icon }}</span>
         <span v-if="!collapsed" class="truncate">{{ tab.label }}</span>

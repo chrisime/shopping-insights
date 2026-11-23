@@ -1,17 +1,11 @@
 import type { ReceiptAddress } from "../types/dashboard";
 
-export function amount(value: unknown): number {
-  return typeof value === "number" ? value : Number(value ?? 0);
+export function text(value?: string): string {
+  return value == null ? "-" : value;
 }
 
-export function text(value: unknown): string {
-  // oxlint-disable-next-line typescript/no-base-to-string -- display fallback for unknown values
-  return value == null ? "-" : String(value);
-}
-
-export function euro(value: unknown): string {
-  const numeric = amount(value);
-  return Number.isFinite(numeric) ? `€${numeric.toFixed(2)}` : "-";
+export function euro(value: number): string {
+  return Number.isFinite(value) ? `€${value.toFixed(2)}` : "-";
 }
 
 export function quantity(value: number, unit: string): string {
