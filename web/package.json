@@ -9,22 +9,22 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@oruga-ui/oruga-next": "^0.14.2",
+    "@oruga-ui/oruga-next": "^0.14.6",
     "@oruga-ui/theme-oruga": "^0.10.0",
-    "d3": "^7.9.0",
-    "vue": "^3.5.42"
+    "d3": "^7.9.2",
+    "vue": "^3.5.46"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.5",
     "@types/d3": "^7.4.3",
-    "@types/node": "^22.20.1",
-    "@vitejs/plugin-vue": "^6.0.8",
-    "@vue/server-renderer": "^3.5.42",
-    "@vue/test-utils": "^2.5.0",
-    "jsdom": "^29.1.1",
-    "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.3",
-    "vite": "^8.2.2",
-    "vitest": "^4.1.11"
+    "@types/node": "^26.6.6",
+    "@vitejs/plugin-vue": "^6.0.11",
+    "@vue/server-renderer": "^3.5.46",
+    "@vue/test-utils": "^2.6.0",
+    "jsdom": "^31.0.1",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
   }
 }
