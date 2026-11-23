@@ -18,7 +18,7 @@ const emit = defineEmits<{
 }>();
 
 const visible = computed(() => props.visible);
-const { loading, receipts, currentIndex } = useReceiptBrowser(
+const { loading, error, receipts, currentIndex } = useReceiptBrowser(
   () => fetchReceiptsByDateRange(props.startDate, props.endDate, props.retailer),
   visible,
 );
@@ -32,6 +32,7 @@ const title = computed(() => `${periodLabel(props.startDate, props.endDate)} —
     :title="title"
     :visible="visible"
     :loading="loading"
+    :error="error"
     :receipts="receipts"
     @close="emit('close')"
   />

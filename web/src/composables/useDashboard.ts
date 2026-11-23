@@ -41,12 +41,23 @@ export function useDashboard() {
     page: page.value > 1 ? page.value : undefined,
   }));
 
+  function clearSearchTimer() {
+    if (searchTimer) {
+      clearTimeout(searchTimer);
+      searchTimer = null;
+    }
+  }
+
   function scheduleRefresh(delay = 400) {
-    if (searchTimer) clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => void refresh(), delay);
+    clearSearchTimer();
+    searchTimer = setTimeout(() => {
+      searchTimer = null;
+      void refresh();
+    }, delay);
   }
 
   async function refresh(afterImport = false) {
+    clearSearchTimer();
     const token = ++requestToken;
     const followDateRange =
       afterImport &&
@@ -81,20 +92,54 @@ export function useDashboard() {
     }
   }
 
-  watch([retailer, startDate, endDate, timeGranularity, topView, topLimit, page], () => {
-    if (skipNextAutoRefresh.value) {
-      skipNextAutoRefresh.value = false;
-      return;
+  function filterStateChanged(next: typeof filters.value, previous: typeof filters.value): boolean {
+    return Object.keys(next).some(
+      (key) => next[key as keyof typeof next] !== previous[key as keyof typeof previous],
+    );
+  }
+
+  function onlySearchChanged(next: typeof filters.value, previous: typeof filters.value): boolean {
+    const stableFilters = [
+      "retailer",
+      "start_date",
+      "end_date",
+      "time_granularity",
+      "top_view",
+      "top_limit",
+    ];
+    return (
+      next.search !== previous.search &&
+      (next.page === previous.page || next.page === undefined) &&
+      stableFilters.every(
+        (key) => next[key as keyof typeof next] === previous[key as keyof typeof previous],
+      )
+    );
+  }
+
+  watch(search, (value) => {
+    if ((value.length >= 3 || value.length === 0) && page.value !== 1) {
+      page.value = 1;
     }
-    void refresh();
   });
 
-  watch(search, (val) => {
-    if (val.length >= 3 || val.length === 0) {
-      if (page.value !== 1) page.value = 1;
-      scheduleRefresh();
-    }
-  });
+  watch(
+    filters,
+    (next, previous) => {
+      if (skipNextAutoRefresh.value) {
+        skipNextAutoRefresh.value = false;
+        return;
+      }
+      if (!filterStateChanged(next, previous)) return;
+
+      if (onlySearchChanged(next, previous)) {
+        scheduleRefresh();
+      } else {
+        clearSearchTimer();
+        void refresh();
+      }
+    },
+    { flush: "post" },
+  );
 
   watch(
     retailer,
@@ -103,10 +148,8 @@ export function useDashboard() {
         return;
       }
 
-      skipNextAutoRefresh.value = true;
       page.value = 1;
       search.value = "";
-      void refresh();
     },
     { flush: "sync" },
   );

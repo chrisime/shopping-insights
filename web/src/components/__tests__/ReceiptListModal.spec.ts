@@ -78,6 +78,18 @@ describe("ReceiptListModal", () => {
     await settled();
 
     expect(wrapper.text()).toContain("Keine Kassenzettel gefunden");
+    expect(wrapper.text()).not.toContain("Kassenzettel konnten nicht geladen werden");
+  });
+
+  it("shows an error state when receipt loading fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+
+    const wrapper = mountModal({ startDate: "2024-01-01", endDate: "2024-01-31", visible: false });
+    await wrapper.setProps({ visible: true });
+    await settled();
+
+    expect(wrapper.text()).toContain("Kassenzettel konnten nicht geladen werden");
+    expect(wrapper.text()).not.toContain("Keine Kassenzettel gefunden");
   });
 
   it("emits close when background overlay is clicked", async () => {

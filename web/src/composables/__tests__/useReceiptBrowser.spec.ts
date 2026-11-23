@@ -85,7 +85,7 @@ describe("useReceiptBrowser", () => {
     stop();
   });
 
-  it("falls back to an empty list when loading fails", async () => {
+  it("exposes a distinct error when loading fails and clears it on a new lookup", async () => {
     const load = vi.fn().mockRejectedValue(new Error("HTTP 500"));
     const { visible, browser, stop } = setup(load);
 
@@ -94,7 +94,16 @@ describe("useReceiptBrowser", () => {
 
     expect(browser.receipts.value).toEqual([]);
     expect(browser.loading.value).toBe(false);
+    expect(browser.error.value).toBe("Failed to load receipts");
     expect(browser.current.value).toBeUndefined();
+
+    load.mockResolvedValueOnce([]);
+    visible.value = false;
+    await flushPromises();
+    visible.value = true;
+    await flushPromises();
+
+    expect(browser.error.value).toBeNull();
     stop();
   });
 });

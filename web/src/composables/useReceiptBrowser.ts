@@ -8,6 +8,7 @@ import type { Receipt } from "../types/dashboard";
  */
 export function useReceiptBrowser(load: () => Promise<Receipt[]>, visible: Ref<boolean>) {
   const loading = ref(false);
+  const error = ref<string | null>(null);
   const receipts = ref<Receipt[]>([]);
   const currentIndex = ref(0);
   let ticket = 0;
@@ -17,6 +18,7 @@ export function useReceiptBrowser(load: () => Promise<Receipt[]>, visible: Ref<b
 
     const request = ++ticket;
     loading.value = true;
+    error.value = null;
     receipts.value = [];
     currentIndex.value = 0;
 
@@ -24,7 +26,10 @@ export function useReceiptBrowser(load: () => Promise<Receipt[]>, visible: Ref<b
       const result = await load();
       if (request === ticket) receipts.value = result;
     } catch {
-      if (request === ticket) receipts.value = [];
+      if (request === ticket) {
+        receipts.value = [];
+        error.value = "Failed to load receipts";
+      }
     } finally {
       if (request === ticket) loading.value = false;
     }
@@ -40,5 +45,5 @@ export function useReceiptBrowser(load: () => Promise<Receipt[]>, visible: Ref<b
     if (currentIndex.value < receipts.value.length - 1) currentIndex.value += 1;
   }
 
-  return { loading, receipts, currentIndex, current, prev, next };
+  return { loading, error, receipts, currentIndex, current, prev, next };
 }

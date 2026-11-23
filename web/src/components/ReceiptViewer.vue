@@ -9,6 +9,7 @@ const props = defineProps<{
   title: string;
   visible: boolean;
   loading: boolean;
+  error?: string | null;
   receipts: Receipt[];
   currentIndex: number;
   highlightMatched?: boolean;
@@ -53,6 +54,14 @@ function isMatched(item: Receipt["items"][number]): boolean {
 
         <div v-if="loading" class="flex items-center justify-center py-16 text-sm text-slate-500">
           Lade Kassenzettel...
+        </div>
+
+        <div
+          v-else-if="error"
+          role="alert"
+          class="flex items-center justify-center py-16 text-sm text-red-700"
+        >
+          Kassenzettel konnten nicht geladen werden.
         </div>
 
         <div
