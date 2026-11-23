@@ -52,7 +52,6 @@ function collectSupersededRules(deltaPaths) {
         }
         byRule.set(name, changeId);
       }
-      pendingOp = null;
     }
   }
   return superseded;

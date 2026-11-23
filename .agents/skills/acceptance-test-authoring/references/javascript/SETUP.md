@@ -1,6 +1,6 @@
 # JavaScript Stack - cucumber-js
 
-For `stack: javascript` in `openspec/config.yaml`. Read the skill's `SKILL.md` first: it holds the spec format, invariants, and effective-spec procedure this pack implements.
+For `stack: javascript` in `openspec/config.yaml`. Read the skill's `SKILL.md` first for the spec format and runner invariants, plus [../EXTRACTION.md](../EXTRACTION.md) and [../COMPOSITION.md](../COMPOSITION.md) — the two normative contracts this pack implements.
 
 ## Files To Copy
 

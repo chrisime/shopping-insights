@@ -59,7 +59,6 @@ def collect_superseded_rules(delta_paths):
                         % (other_change, change_id, name, capability)
                     )
                 by_rule[name] = change_id
-            pending_op = None
     return superseded
 
 
