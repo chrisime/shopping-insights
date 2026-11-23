@@ -1,4 +1,5 @@
 import type { ImportStartRequest, ImportStartResponse } from "../types/imports";
+import { apiUrl } from "./http";
 
 const CONCURRENT_IMPORT_MESSAGE = "Import bereits aktiv";
 const CONCURRENT_IMPORT_CODE = 4091;
@@ -13,11 +14,8 @@ export class ImportStartError extends Error {
   }
 }
 
-const DEFAULT_API_BASE_URL = "http://localhost:8000";
-
 export async function startImportJob(payload: ImportStartRequest): Promise<ImportStartResponse> {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
-  const url = new URL("/imports/start", baseUrl);
+  const url = apiUrl("/imports/start");
   if (
     payload.rossmann_login &&
     url.protocol !== "https:" &&
@@ -39,12 +37,12 @@ export async function startImportJob(payload: ImportStartRequest): Promise<Impor
 
   if (!response.ok) {
     if (response.status === 409) {
-      const payload = (await response.json()) as {
+      const body = (await response.json()) as {
         detail?: { error_code?: number; detail?: string };
       };
       throw new ImportStartError(
-        payload.detail?.detail ?? CONCURRENT_IMPORT_MESSAGE,
-        payload.detail?.error_code ?? CONCURRENT_IMPORT_CODE,
+        body.detail?.detail ?? CONCURRENT_IMPORT_MESSAGE,
+        body.detail?.error_code ?? CONCURRENT_IMPORT_CODE,
       );
     }
     throw new Error(`HTTP ${response.status}`);
@@ -54,7 +52,5 @@ export async function startImportJob(payload: ImportStartRequest): Promise<Impor
 }
 
 export function openImportJobEvents(jobId: string): EventSource {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
-  const url = new URL(`/imports/${jobId}/events`, baseUrl);
-  return new EventSource(url.toString());
+  return new EventSource(apiUrl(`/imports/${jobId}/events`).toString());
 }

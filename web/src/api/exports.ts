@@ -1,6 +1,5 @@
 import type { DashboardFilters } from "../types/dashboard";
-
-const DEFAULT_API_BASE_URL = "http://localhost:8000";
+import { apiUrl } from "./http";
 
 export function buildReceiptsExportFilename(filters: DashboardFilters = {}): string {
   const segments = ["shopping-analyzer-receipts"];
@@ -19,16 +18,7 @@ export function buildReceiptsExportFilename(filters: DashboardFilters = {}): str
 }
 
 export async function exportReceiptsJson(filters: DashboardFilters = {}): Promise<void> {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
-  const url = new URL("/exports/receipts", baseUrl);
-
-  for (const [key, value] of Object.entries(filters)) {
-    if (value != null && value !== "") {
-      url.searchParams.set(key, String(value));
-    }
-  }
-
-  const response = await fetch(url);
+  const response = await fetch(apiUrl("/exports/receipts", filters));
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }

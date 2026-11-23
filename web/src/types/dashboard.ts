@@ -1,13 +1,4 @@
-export type DashboardSectionKind =
-  | "metrics"
-  | "bonus_rewe"
-  | "bonus_lidl"
-  | "bonus_total"
-  | "time_series"
-  | "weekday"
-  | "top_items";
-
-export interface DashboardFilters {
+export type DashboardFilters = {
   retailer?: string;
   start_date?: string;
   end_date?: string;
@@ -17,13 +8,42 @@ export interface DashboardFilters {
   top_limit?: number;
   search?: string;
   page?: number;
-}
+};
 
-export interface DashboardSection {
-  kind: DashboardSectionKind;
-  title: string;
-  items: Array<Record<string, unknown>>;
-}
+/** Retailer-specific KPI fields; the backend decides which keys are present. */
+export type MetricsRow = Record<string, number>;
+
+export type TimeSeriesRow = {
+  period: string;
+  total_spent: number;
+  receipt_count: number;
+  retailers?: string[];
+};
+
+export type WeekdayRow = {
+  weekday: number;
+  weekday_name: string;
+  trip_count: number;
+  avg_spent: number;
+  total_spent: number;
+};
+
+export type TopItemRow = {
+  name: string;
+  total_quantity: number;
+  total_spent: number;
+  purchase_count: number;
+  unit: string;
+  total_count?: number;
+  page?: number;
+  page_size?: number;
+};
+
+export type DashboardSection =
+  | { kind: "metrics"; title: string; items: MetricsRow[] }
+  | { kind: "time_series"; title: string; items: TimeSeriesRow[] }
+  | { kind: "weekday"; title: string; items: WeekdayRow[] }
+  | { kind: "top_items"; title: string; items: TopItemRow[] };
 
 export interface DashboardError {
   error_code: number;
@@ -37,3 +57,35 @@ export interface DashboardPayload {
   max_date?: string | null;
   error?: DashboardError | null;
 }
+
+export type ReceiptAddress = {
+  street?: string;
+  street_no?: string;
+  zip?: string;
+  city?: string;
+};
+
+export type ReceiptItem = {
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  matched?: boolean;
+};
+
+export type ReceiptCoupon = {
+  name: string;
+  savings: number;
+};
+
+export type Receipt = {
+  id: string;
+  retailer: string;
+  purchase_date: string;
+  store?: string;
+  address?: ReceiptAddress;
+  total_price: number;
+  items: ReceiptItem[];
+  currency?: string;
+  rossmann_coupons?: ReceiptCoupon[];
+};
