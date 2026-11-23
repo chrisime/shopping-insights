@@ -1,312 +1,187 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import * as d3 from "d3";
 
-import { amount, text } from "../utils/format";
-import type { MonthLabel } from "../types/chart";
-
-const monthNames = [
-  "Januar",
-  "Februar",
-  "März",
-  "April",
-  "Mai",
-  "Juni",
-  "Juli",
-  "August",
-  "September",
-  "Oktober",
-  "November",
-  "Dezember",
-];
-
-let tooltipHideTimer: ReturnType<typeof setTimeout> | null = null;
-
-function computePeriod(
-  period: string,
-  granularity: string,
-): { startDate: string; endDate: string; label: string } {
-  if (granularity === "Täglich") {
-    const parts = period.split("-");
-    if (parts.length >= 3) {
-      const [y, m, d] = parts.map(Number);
-      return {
-        startDate: period,
-        endDate: period,
-        label: `${d}. ${monthNames[m - 1]} ${y}`,
-      };
-    }
-    return { startDate: period, endDate: period, label: period };
-  }
-  if (granularity === "Monatlich") {
-    const parts = period.split("-");
-    if (parts.length >= 2) {
-      const [y, m] = parts.map(Number);
-      const lastDay = new Date(y, m, 0).getDate();
-      return {
-        startDate: `${period}-01`,
-        endDate: `${period}-${String(lastDay).padStart(2, "0")}`,
-        label: `${monthNames[m - 1]} ${y}`,
-      };
-    }
-    return { startDate: `${period}-01-01`, endDate: `${period}-12-31`, label: period };
-  }
-  return {
-    startDate: `${period}-01-01`,
-    endDate: `${period}-12-31`,
-    label: period,
-  };
-}
-
-const emit = defineEmits<{
-  (e: "select-period", payload: { startDate: string; endDate: string; label: string }): void;
-}>();
+import { CHART_HEIGHT, Y_AXIS_WIDTH, chartWidth, xTickLabel, yAxisTicks } from "../utils/chart";
+import { computePeriod } from "../utils/period";
+import type { MonthLabel, PeriodSelection } from "../types/chart";
+import type { TimeSeriesRow } from "../types/dashboard";
 
 const props = defineProps<{
-  items: Array<Record<string, unknown>>;
+  items: TimeSeriesRow[];
   granularity: string;
   monthLabels?: MonthLabel[];
 }>();
 
-const CHART_HEIGHT = 500;
-const MARGIN = { top: 30, right: 16, bottom: 32, left: 0 };
-const Y_AXIS_WIDTH = 64;
+const emit = defineEmits<{
+  (e: "select-period", payload: PeriodSelection): void;
+}>();
+
+type Svg = d3.Selection<SVGSVGElement, unknown, null, undefined>;
+type Group = d3.Selection<SVGGElement, unknown, null, undefined>;
+type BandScale = d3.ScaleBand<string>;
+type ValueScale = d3.ScaleLinear<number, number>;
+
+const MARGIN = { top: 30, bottom: 32 };
+const TOOLTIP_WIDTH = 180;
+const TOOLTIP_HIDE_DELAY = 200;
+
+const TOOLTIP_ROWS = [
+  { className: "tooltip-period", y: 16, fontSize: "14px", fontWeight: "bold", fill: "#1e293b" },
+  { className: "tooltip-total", y: 42, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
+  { className: "tooltip-count", y: 60, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
+  { className: "tooltip-avg", y: 78, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
+  {
+    className: "tooltip-retailers",
+    y: 98,
+    fontSize: "12px",
+    fontWeight: "normal",
+    fill: "#64748b",
+  },
+];
+
+const BAR_LABELS = [
+  {
+    className: "datalabel",
+    fontSize: "12px",
+    fill: "white",
+    offset: (barHeight: number) => barHeight / 2 + 4,
+    text: (row: TimeSeriesRow) => (row.receipt_count > 0 ? String(row.receipt_count) : ""),
+  },
+  {
+    className: "euroLabel",
+    fontSize: "10px",
+    fill: "#475569",
+    offset: () => -4,
+    text: (row: TimeSeriesRow) => `€${row.total_spent.toFixed(2)}`,
+  },
+];
 
 const yAxisRef = ref<HTMLDivElement>();
 const chartRef = ref<HTMLDivElement>();
 
 const isScrollable = computed(() => props.granularity !== "Jährlich");
+const ticks = computed(() => yAxisTicks(props.items, props.granularity));
+const width = computed(() => chartWidth(props.items.length));
 
-function stepSizeForGranularity(granularity: string): number {
-  if (granularity === "Täglich") return 10;
-  if (granularity === "Monatlich") return 50;
-  return 500;
-}
+let hideTimer: ReturnType<typeof setTimeout> | null = null;
 
-const yAxisTicks = computed(() => {
-  const stepSize = stepSizeForGranularity(props.granularity);
-  const maxValue = Math.max(...props.items.map((item) => amount(item.total_spent)), 0);
-  const roundedMax = Math.ceil(maxValue / stepSize) * stepSize;
-  const ticks: number[] = [];
-  for (let i = 0; i <= roundedMax; i += stepSize) {
-    ticks.push(i);
-  }
-  return ticks;
-});
-
-const totalWidth = computed(() => props.items.length * 56 + MARGIN.right);
-
-function drawChart() {
-  if (!yAxisRef.value || !chartRef.value) return;
-
-  d3.select(yAxisRef.value).selectAll("svg").remove();
-  d3.select(chartRef.value).selectAll("svg").remove();
-
-  const items = props.items;
-  if (items.length === 0) return;
-  const monthLabels = props.monthLabels;
-  const ticks = yAxisTicks.value;
-
-  const yScale = d3
-    .scaleLinear()
-    .domain([0, ticks.length > 1 ? ticks[ticks.length - 1] : ticks[0] || 10])
-    .range([CHART_HEIGHT - MARGIN.bottom, MARGIN.top]);
-
-  const xScale = d3
-    .scaleBand()
-    .domain(d3.range(items.length).map(String))
-    .range([0, totalWidth.value])
-    .padding(0.2);
-
-  const yAxisSvg = d3
-    .select(yAxisRef.value)
-    .append("svg")
-    .attr("width", Y_AXIS_WIDTH)
-    .attr("height", CHART_HEIGHT)
-    .style("display", "block");
-
-  const yAxis = d3
-    .axisLeft(yScale)
-    .tickValues(ticks)
-    .tickFormat((d) => `€${Number(d).toFixed(0)}`)
+function renderYAxis(svg: Svg, scale: ValueScale, tickValues: number[]) {
+  const axis = d3
+    .axisLeft(scale)
+    .tickValues(tickValues)
+    .tickFormat((value) => `€${Number(value).toFixed(0)}`)
     .tickSize(0);
 
-  yAxisSvg
-    .append("g")
-    .attr("transform", `translate(${Y_AXIS_WIDTH - 8}, 0)`)
-    .call((g) => {
-      yAxis(g);
-      g.selectAll(".tick text")
-        .attr("text-anchor", "end")
-        .attr("font-family", "sans-serif")
-        .attr("font-size", "11px")
-        .attr("fill", "#64748b");
-      g.select(".domain").remove();
-    });
+  const group = svg.append("g").attr("transform", `translate(${Y_AXIS_WIDTH - 8}, 0)`);
+  axis(group);
+  group
+    .selectAll(".tick text")
+    .attr("text-anchor", "end")
+    .attr("font-family", "sans-serif")
+    .attr("font-size", "11px")
+    .attr("fill", "#64748b");
+  group.select(".domain").remove();
+}
 
-  const mainSvg = d3
-    .select(chartRef.value)
-    .append("svg")
-    .attr("width", totalWidth.value)
-    .attr("height", CHART_HEIGHT)
-    .style("display", "block");
-
-  const gridAxis = d3
-    .axisLeft(yScale)
-    .tickValues(ticks)
-    .tickSize(-totalWidth.value)
+function renderGrid(svg: Svg, scale: ValueScale, tickValues: number[]) {
+  const axis = d3
+    .axisLeft(scale)
+    .tickValues(tickValues)
+    .tickSize(-width.value)
     .tickFormat(() => "");
 
-  mainSvg.append("g").call((g) => {
-    gridAxis(g);
-    g.selectAll(".tick line").attr("stroke", "#e2e8f0");
-    g.select(".domain").remove();
-  });
+  const group = svg.append("g");
+  axis(group);
+  group.selectAll(".tick line").attr("stroke", "#e2e8f0");
+  group.select(".domain").remove();
+}
 
-  if (monthLabels && monthLabels.length > 1) {
-    for (let i = 1; i < monthLabels.length; i++) {
-      const prevEnd = monthLabels[i - 1].end;
-      const currStart = monthLabels[i].start;
-      const sepX =
-        (xScale(String(prevEnd))! + xScale.bandwidth()! + xScale(String(currStart))!) / 2;
-      mainSvg
-        .append("line")
-        .attr("x1", sepX)
-        .attr("y1", MARGIN.top - 4)
-        .attr("x2", sepX)
-        .attr("y2", CHART_HEIGHT - MARGIN.bottom)
-        .attr("stroke", "#cbd5e1")
-        .attr("stroke-width", 1);
-    }
+function renderMonthMarkers(svg: Svg, xScale: BandScale) {
+  const labels = props.monthLabels ?? [];
+
+  for (let i = 1; i < labels.length; i++) {
+    const previousEnd = xScale(String(labels[i - 1].end)) ?? 0;
+    const currentStart = xScale(String(labels[i].start)) ?? 0;
+    const separatorX = (previousEnd + xScale.bandwidth() + currentStart) / 2;
+
+    svg
+      .append("line")
+      .attr("x1", separatorX)
+      .attr("y1", MARGIN.top - 4)
+      .attr("x2", separatorX)
+      .attr("y2", CHART_HEIGHT - MARGIN.bottom)
+      .attr("stroke", "#cbd5e1")
+      .attr("stroke-width", 1);
   }
 
-  if (monthLabels) {
-    monthLabels.forEach((ml) => {
-      const midIndex = (ml.start + ml.end) / 2;
-      const midX = xScale(String(Math.floor(midIndex)))! + xScale.bandwidth()! / 2;
-      mainSvg
-        .append("text")
-        .attr("x", midX)
-        .attr("y", MARGIN.top - 6)
-        .attr("text-anchor", "middle")
-        .attr("font-family", "sans-serif")
-        .attr("font-size", "13px")
-        .attr("font-weight", "bold")
-        .attr("fill", "#475569")
-        .text(ml.label);
-    });
-  }
+  for (const label of labels) {
+    const middleIndex = Math.floor((label.start + label.end) / 2);
+    const middleX = (xScale(String(middleIndex)) ?? 0) + xScale.bandwidth() / 2;
 
-  mainSvg
-    .selectAll("rect.bar")
-    .data(items)
+    svg
+      .append("text")
+      .attr("x", middleX)
+      .attr("y", MARGIN.top - 6)
+      .attr("text-anchor", "middle")
+      .attr("font-family", "sans-serif")
+      .attr("font-size", "13px")
+      .attr("font-weight", "bold")
+      .attr("fill", "#475569")
+      .text(label.label);
+  }
+}
+
+function renderBars(svg: Svg, xScale: BandScale, yScale: ValueScale) {
+  svg
+    .selectAll<SVGRectElement, TimeSeriesRow>("rect.bar")
+    .data(props.items)
     .enter()
     .append("rect")
     .attr("class", "bar")
-    .attr("x", (_d: unknown, i: number) => xScale(String(i))!)
-    .attr("y", (d: Record<string, unknown>) => yScale(amount(d.total_spent)))
-    .attr("width", xScale.bandwidth()!)
-    .attr("height", (d: Record<string, unknown>) => yScale(0) - yScale(amount(d.total_spent)))
+    .attr("x", (_row, index) => xScale(String(index)) ?? 0)
+    .attr("y", (row) => yScale(row.total_spent))
+    .attr("width", xScale.bandwidth())
+    .attr("height", (row) => yScale(0) - yScale(row.total_spent))
     .attr("fill", "#6366f1")
-    .attr("rx", 4)
-    .on("click", (_event: unknown, d: Record<string, unknown>) => {
-      emit("select-period", computePeriod(String(d.period ?? ""), props.granularity));
-    })
-    .on("mouseenter", function (this: SVGRectElement, _event: unknown, d: Record<string, unknown>) {
-      if (tooltipHideTimer) clearTimeout(tooltipHideTimer);
+    .attr("rx", 4);
 
-      const barX = xScale(String(items.indexOf(d)))!;
-      const barTop = yScale(amount(d.total_spent));
-      const total = amount(d.total_spent);
-      const count = amount(d.receipt_count);
-      const avg = count > 0 ? total / count : 0;
-      const retailers = (d.retailers as string[] | undefined) ?? [];
+  for (const label of BAR_LABELS) {
+    svg
+      .selectAll<SVGTextElement, TimeSeriesRow>(`text.${label.className}`)
+      .data(props.items)
+      .enter()
+      .append("text")
+      .attr("class", label.className)
+      .attr("x", (_row, index) => (xScale(String(index)) ?? 0) + xScale.bandwidth() / 2)
+      .attr(
+        "y",
+        (row) => yScale(row.total_spent) + label.offset(yScale(0) - yScale(row.total_spent)),
+      )
+      .attr("text-anchor", "middle")
+      .attr("font-family", "sans-serif")
+      .attr("font-size", label.fontSize)
+      .attr("font-weight", "bold")
+      .attr("fill", label.fill)
+      .attr("pointer-events", "none")
+      .text((row) => label.text(row));
+  }
+}
 
-      tooltipG.attr("transform", `translate(${barX + xScale.bandwidth()! / 2}, ${barTop})`);
-
-      const periodLabel = computePeriod(String(d.period ?? ""), props.granularity).label;
-      tooltipG.select(".tooltip-period").text(periodLabel);
-      tooltipG.select(".tooltip-total").text(`€${total.toFixed(2)}  Gesamt`);
-      tooltipG.select(".tooltip-count").text(`${count} Belege`);
-      tooltipG.select(".tooltip-avg").text(`€${avg.toFixed(2)}  Ø/Beleg`);
-
-      const hasRetailers = retailers.length > 0;
-      tooltipG.select(".tooltip-retailers").text(hasRetailers ? retailers.join(", ") : "");
-
-      const bodyH = hasRetailers ? 104 : 84;
-      const totalH = bodyH + 6;
-      tooltipG.select(".tooltip-bg").attr("height", totalH);
-
-      tooltipG.select(".tooltip-sep").attr("y1", 22).attr("y2", 22);
-
-      tooltipG.select(".tooltip-period").attr("y", 16);
-      tooltipG.select(".tooltip-total").attr("y", 42);
-      tooltipG.select(".tooltip-count").attr("y", 60);
-      tooltipG.select(".tooltip-avg").attr("y", 78);
-      if (hasRetailers) {
-        tooltipG.select(".tooltip-retailers").attr("y", 98);
-      }
-
-      tooltipG.style("display", "block");
-    })
-    .on("mouseleave", function () {
-      tooltipHideTimer = setTimeout(() => {
-        tooltipG.style("display", "none");
-      }, 200);
-    });
-
-  mainSvg
-    .selectAll("text.datalabel")
-    .data(items)
-    .enter()
-    .append("text")
-    .attr("class", "datalabel")
-    .attr("x", (_d: unknown, i: number) => xScale(String(i))! + xScale.bandwidth()! / 2)
-    .attr("y", (d: Record<string, unknown>) => {
-      const barH = yScale(0) - yScale(amount(d.total_spent));
-      return yScale(amount(d.total_spent)) + barH / 2 + 4;
-    })
-    .attr("text-anchor", "middle")
-    .attr("font-family", "sans-serif")
-    .attr("font-size", "12px")
-    .attr("font-weight", "bold")
-    .attr("fill", "white")
-    .attr("pointer-events", "none")
-    .text((d: Record<string, unknown>) => {
-      const count = amount(d.receipt_count);
-      return count > 0 ? String(count) : "";
-    });
-
-  mainSvg
-    .selectAll("text.euroLabel")
-    .data(items)
-    .enter()
-    .append("text")
-    .attr("class", "euroLabel")
-    .attr("x", (_d: unknown, i: number) => xScale(String(i))! + xScale.bandwidth()! / 2)
-    .attr("y", (d: Record<string, unknown>) => yScale(amount(d.total_spent)) - 4)
-    .attr("text-anchor", "middle")
-    .attr("font-family", "sans-serif")
-    .attr("font-size", "10px")
-    .attr("font-weight", "bold")
-    .attr("fill", "#475569")
-    .attr("pointer-events", "none")
-    .text((d: Record<string, unknown>) => `€${amount(d.total_spent).toFixed(2)}`);
-
-  const tooltipW = 180;
-
-  const tooltipG = mainSvg
+/** Appended after the bars so the tooltip paints on top of them. */
+function createTooltip(svg: Svg): Group {
+  const group = svg
     .append("g")
     .attr("class", "tooltip-group")
     .style("display", "none")
     .style("pointer-events", "none");
 
-  tooltipG
+  group
     .append("rect")
     .attr("class", "tooltip-bg")
-    .attr("x", -tooltipW / 2)
+    .attr("x", -TOOLTIP_WIDTH / 2)
     .attr("y", 0)
-    .attr("width", tooltipW)
+    .attr("width", TOOLTIP_WIDTH)
     .attr("height", 0)
     .attr("rx", 8)
     .attr("ry", 8)
@@ -315,87 +190,144 @@ function drawChart() {
     .attr("stroke-width", 1)
     .attr("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.12))");
 
-  tooltipG
+  group
     .append("line")
     .attr("class", "tooltip-sep")
-    .attr("x1", -tooltipW / 2 + 8)
-    .attr("x2", tooltipW / 2 - 8)
-    .attr("y1", 0)
-    .attr("y2", 0)
+    .attr("x1", -TOOLTIP_WIDTH / 2 + 8)
+    .attr("x2", TOOLTIP_WIDTH / 2 - 8)
+    .attr("y1", 22)
+    .attr("y2", 22)
     .attr("stroke", "#e2e8f0")
     .attr("stroke-width", 1);
 
-  const textStyle = {
-    period: { yOffset: 18, fontSize: "14px", fontWeight: "bold", fill: "#1e293b" },
-    total: { yOffset: 44, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
-    count: { yOffset: 62, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
-    avg: { yOffset: 80, fontSize: "13px", fontWeight: "normal", fill: "#334155" },
-    retailers: { yOffset: 100, fontSize: "12px", fontWeight: "normal", fill: "#64748b" },
-  };
-
-  Object.entries(textStyle).forEach(([cls, s]) => {
-    tooltipG
+  for (const row of TOOLTIP_ROWS) {
+    group
       .append("text")
-      .attr("class", `tooltip-${cls}`)
+      .attr("class", row.className)
       .attr("text-anchor", "middle")
       .attr("x", 0)
-      .attr("y", s.yOffset)
+      .attr("y", row.y)
       .attr("font-family", "sans-serif")
-      .attr("font-size", s.fontSize)
-      .attr("font-weight", s.fontWeight)
-      .attr("fill", s.fill);
-  });
+      .attr("font-size", row.fontSize)
+      .attr("font-weight", row.fontWeight)
+      .attr("fill", row.fill);
+  }
 
-  mainSvg
-    .append("g")
-    .attr("transform", `translate(0, ${CHART_HEIGHT - MARGIN.bottom})`)
-    .call(
-      d3.axisBottom(xScale).tickFormat((_d: unknown, i: number) => {
-        const raw = text(items[i].period);
-        if (monthLabels && monthLabels.length > 0) return raw.slice(8, 10);
-        if (props.granularity === "Monatlich") {
-          const parts = raw.split("-");
-          if (parts.length >= 2) {
-            const [y, m] = parts.map(Number);
-            return `${monthNames[m - 1].slice(0, 3)} ${y}`;
-          }
-          return raw;
-        }
-        return raw;
-      }),
-    )
-    .call((g) => {
-      g.selectAll(".tick text")
-        .attr("font-family", "sans-serif")
-        .attr("font-size", "10px")
-        .attr("fill", "#94a3b8");
-      g.selectAll(".tick line").attr("display", "none");
-      g.select(".domain").attr("stroke", "#cbd5e1");
+  return group;
+}
+
+function showTooltip(tooltip: Group, row: TimeSeriesRow, barX: number, barTop: number) {
+  if (hideTimer) clearTimeout(hideTimer);
+
+  const count = row.receipt_count;
+  const average = count > 0 ? row.total_spent / count : 0;
+  const retailers = row.retailers ?? [];
+
+  tooltip.attr("transform", `translate(${barX}, ${barTop})`);
+  tooltip.select(".tooltip-period").text(computePeriod(row.period, props.granularity).label);
+  tooltip.select(".tooltip-total").text(`€${row.total_spent.toFixed(2)}  Gesamt`);
+  tooltip.select(".tooltip-count").text(`${count} Belege`);
+  tooltip.select(".tooltip-avg").text(`€${average.toFixed(2)}  Ø/Beleg`);
+  tooltip.select(".tooltip-retailers").text(retailers.join(", "));
+  tooltip.select(".tooltip-bg").attr("height", retailers.length > 0 ? 110 : 90);
+  tooltip.style("display", "block");
+}
+
+function attachBarHandlers(svg: Svg, xScale: BandScale, yScale: ValueScale, tooltip: Group) {
+  svg
+    .selectAll<SVGRectElement, TimeSeriesRow>("rect.bar")
+    .on("click", (_event, row) => {
+      emit("select-period", computePeriod(row.period, props.granularity));
+    })
+    .on("mouseenter", function (_event, row) {
+      const barX = Number(this.getAttribute("x")) + xScale.bandwidth() / 2;
+      showTooltip(tooltip, row, barX, yScale(row.total_spent));
+    })
+    .on("mouseleave", () => {
+      hideTimer = setTimeout(() => tooltip.style("display", "none"), TOOLTIP_HIDE_DELAY);
     });
 }
 
-onMounted(() => drawChart());
+function renderXAxis(svg: Svg, xScale: BandScale) {
+  const hasMonthLabels = (props.monthLabels?.length ?? 0) > 0;
+  const axis = d3
+    .axisBottom(xScale)
+    .tickFormat((_value, index) =>
+      xTickLabel(props.items[index].period, props.granularity, hasMonthLabels),
+    );
 
-watch(
-  () => [props.items, props.monthLabels, props.granularity],
-  () => drawChart(),
-  { deep: true },
-);
+  const group = svg.append("g").attr("transform", `translate(0, ${CHART_HEIGHT - MARGIN.bottom})`);
+  axis(group);
+  group
+    .selectAll(".tick text")
+    .attr("font-family", "sans-serif")
+    .attr("font-size", "10px")
+    .attr("fill", "#94a3b8");
+  group.selectAll(".tick line").attr("display", "none");
+  group.select(".domain").attr("stroke", "#cbd5e1");
+}
+
+function drawChart() {
+  if (!yAxisRef.value || !chartRef.value) return;
+
+  d3.select(yAxisRef.value).selectAll("svg").remove();
+  d3.select(chartRef.value).selectAll("svg").remove();
+  if (props.items.length === 0) return;
+
+  const tickValues = ticks.value;
+  const yScale = d3
+    .scaleLinear()
+    .domain([0, tickValues.length > 1 ? tickValues[tickValues.length - 1] : tickValues[0] || 10])
+    .range([CHART_HEIGHT - MARGIN.bottom, MARGIN.top]);
+  const xScale = d3
+    .scaleBand<string>()
+    .domain(d3.range(props.items.length).map(String))
+    .range([0, width.value])
+    .padding(0.2);
+
+  const yAxisSvg = d3
+    .select(yAxisRef.value)
+    .append("svg")
+    .attr("width", Y_AXIS_WIDTH)
+    .attr("height", CHART_HEIGHT)
+    .style("display", "block");
+  const mainSvg = d3
+    .select(chartRef.value)
+    .append("svg")
+    .attr("width", width.value)
+    .attr("height", CHART_HEIGHT)
+    .style("display", "block");
+
+  renderYAxis(yAxisSvg, yScale, tickValues);
+  renderGrid(mainSvg, yScale, tickValues);
+  renderMonthMarkers(mainSvg, xScale);
+  renderBars(mainSvg, xScale, yScale);
+  attachBarHandlers(mainSvg, xScale, yScale, createTooltip(mainSvg));
+  renderXAxis(mainSvg, xScale);
+}
+
+onMounted(drawChart);
+onUnmounted(() => {
+  if (hideTimer) clearTimeout(hideTimer);
+});
+
+watch([() => props.items, () => props.monthLabels, () => props.granularity], drawChart);
 </script>
 
 <template>
-  <div style="overflow: hidden">
-    <div style="height: 500px; position: relative">
+  <div class="overflow-hidden">
+    <div class="relative" :style="{ height: `${CHART_HEIGHT}px` }">
       <div
         ref="yAxisRef"
-        class="bg-white"
-        style="position: absolute; left: 0; top: 0; width: 64px; height: 500px; z-index: 10"
+        class="absolute left-0 top-0 z-10 bg-white"
+        :style="{ width: `${Y_AXIS_WIDTH}px`, height: `${CHART_HEIGHT}px` }"
       ></div>
       <div
+        class="overflow-y-hidden"
         :class="isScrollable ? 'overflow-x-auto' : ''"
-        style="height: 500px; margin-left: 64px; overflow-y: hidden"
+        :style="{ height: `${CHART_HEIGHT}px`, marginLeft: `${Y_AXIS_WIDTH}px` }"
       >
-        <div ref="chartRef" style="height: 500px; display: inline-block"></div>
+        <div ref="chartRef" class="inline-block" :style="{ height: `${CHART_HEIGHT}px` }"></div>
       </div>
     </div>
   </div>
