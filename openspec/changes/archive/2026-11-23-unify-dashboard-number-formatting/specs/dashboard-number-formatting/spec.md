@@ -1,3 +1,7 @@
+## Purpose
+
+Define consistent presentation of monetary amounts, quantities, and percentages across dashboard views.
+
 ## ADDED Requirements
 
 ### Requirement: Monetary amounts use consistent German formatting
