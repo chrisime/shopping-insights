@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { visibleKpiGroups } from "../kpiCards";
+import { visibleRetailerDiscounts } from "../kpiCards";
 
-describe("visibleKpiGroups", () => {
+describe("visibleRetailerDiscounts", () => {
   it("shows Rossmann coupon fields only when they have positive value", () => {
     const data = {
       rossmann_discount_amount: 8,
@@ -13,11 +13,13 @@ describe("visibleKpiGroups", () => {
       rossmann_unclassified_coupon_amount: 0,
     };
 
-    const groups = visibleKpiGroups(data);
-    expect(groups.flat().map(({ title }) => title)).not.toContain("Rossmann andere Coupons");
+    const groups = visibleRetailerDiscounts(data);
+    expect(groups.flatMap(({ details }) => details).map(({ title }) => title)).not.toContain(
+      "Rossmann andere Coupons",
+    );
     expect(
-      visibleKpiGroups({ ...data, rossmann_unclassified_coupon_amount: 2 })
-        .flat()
+      visibleRetailerDiscounts({ ...data, rossmann_unclassified_coupon_amount: 2 })
+        .flatMap(({ details }) => details)
         .map(({ title }) => title),
     ).toContain("Rossmann andere Coupons");
   });

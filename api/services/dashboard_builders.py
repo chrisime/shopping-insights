@@ -12,7 +12,7 @@ from api.services.dashboard_models import (
     DashboardSection,
     DashboardState,
 )
-from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow, WeekdayRow
+from shared.kpi_dtos import BasicKPIs, RetailerBonusKPIs, TimeSeriesRow, TopItemRow
 from storage.kpi_store import MetricsStore
 
 
@@ -155,13 +155,18 @@ def _build_kpi_metrics(state: DashboardState) -> dict[str, float]:
                 else state.bonus_kpis
             )
             rewe_regular = rewe_kpis.total_discount
+            rewe_spent = _retailer_spent(state, "rewe")
+            rewe_total = rewe_regular + rewe_bonus.rewe_bonus_redeemed
             rewe_bonus_open = max(0.0, rewe_bonus.rewe_bonus_collected - rewe_bonus.rewe_bonus_redeemed)
             metrics["rewe_discount_amount"] = rewe_regular
-            metrics["rewe_discount_pct"] = _pct(rewe_regular, _retailer_spent(state, "rewe"))
+            metrics["rewe_discount_pct"] = _pct(rewe_regular, rewe_spent)
             metrics["rewe_bonus_collected"] = rewe_bonus.rewe_bonus_collected
             metrics["rewe_bonus_balance"] = rewe_bonus.rewe_bonus_balance
             metrics["rewe_bonus_redeemed"] = rewe_bonus.rewe_bonus_redeemed
+            metrics["rewe_bonus_redeemed_pct"] = _pct(rewe_bonus.rewe_bonus_redeemed, rewe_spent)
             metrics["rewe_bonus_open"] = rewe_bonus_open
+            metrics["rewe_total_savings"] = round(rewe_total, 2)
+            metrics["rewe_total_savings_pct"] = _pct(rewe_total, rewe_spent)
 
     if state.retailer in (None, "lidl"):
         lidl_kpis = (
@@ -176,12 +181,16 @@ def _build_kpi_metrics(state: DashboardState) -> dict[str, float]:
                 else state.bonus_kpis
             )
             lidl_regular = lidl_kpis.total_discount
+            lidl_spent = _retailer_spent(state, "lidl")
+            lidl_total = lidl_regular + lidl_bonus.lidlplus_discount + lidl_bonus.sticker_discount
             metrics["lidlplus_discount_amount"] = lidl_bonus.lidlplus_discount
-            metrics["lidlplus_discount_pct"] = _pct(lidl_bonus.lidlplus_discount, _retailer_spent(state, "lidl"))
+            metrics["lidlplus_discount_pct"] = _pct(lidl_bonus.lidlplus_discount, lidl_spent)
             metrics["sticker_discount_amount"] = lidl_bonus.sticker_discount
-            metrics["sticker_discount_pct"] = _pct(lidl_bonus.sticker_discount, _retailer_spent(state, "lidl"))
+            metrics["sticker_discount_pct"] = _pct(lidl_bonus.sticker_discount, lidl_spent)
             metrics["lidl_discount_amount"] = lidl_regular
-            metrics["lidl_discount_pct"] = _pct(lidl_regular, _retailer_spent(state, "lidl"))
+            metrics["lidl_discount_pct"] = _pct(lidl_regular, lidl_spent)
+            metrics["lidl_total_savings"] = round(lidl_total, 2)
+            metrics["lidl_total_savings_pct"] = _pct(lidl_total, lidl_spent)
 
     rossmann_kpis = state.kpis if state.retailer == "rossmann" else state.rossmann_kpis
     if rossmann_kpis is not None and (state.retailer == "rossmann" or rossmann_kpis.total_receipts > 0):
@@ -207,6 +216,11 @@ def _build_kpi_metrics(state: DashboardState) -> dict[str, float]:
             metrics["rossmann_other_discount_amount"] = round(
                 rossmann_kpis.total_discount - (coupon or 0) - (app_coupon or 0), 2
             )
+
+    dm_kpis = state.kpis if state.retailer == "dm" else state.dm_kpis
+    if dm_kpis is not None and dm_kpis.total_discount != 0:
+        metrics["dm_total_savings"] = round(dm_kpis.total_discount, 2)
+        metrics["dm_total_savings_pct"] = _pct(dm_kpis.total_discount, dm_kpis.total_spent)
 
     return metrics
 
@@ -327,12 +341,13 @@ def build_dashboard_state(
                 available_kpis=available_kpis,
             )
         bonus_kpis = store.retailer_bonus_kpis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
-        rewe_kpis = lidl_kpis = rossmann_kpis = None
+        rewe_kpis = lidl_kpis = rossmann_kpis = dm_kpis = None
         rewe_bonus_kpis = lidl_bonus_kpis = None
         if normalized_retailer is None:
             rewe_kpis = store.basic_kpis(retailer="rewe", start_date=start_date, end_date=end_date)
             lidl_kpis = store.basic_kpis(retailer="lidl", start_date=start_date, end_date=end_date)
             rossmann_kpis = store.basic_kpis(retailer="rossmann", start_date=start_date, end_date=end_date)
+            dm_kpis = store.basic_kpis(retailer="dm", start_date=start_date, end_date=end_date)
             rewe_bonus_kpis = store.retailer_bonus_kpis(retailer="rewe", start_date=start_date, end_date=end_date)
             lidl_bonus_kpis = store.retailer_bonus_kpis(retailer="lidl", start_date=start_date, end_date=end_date)
         time_series = _build_time_series(store, normalized_retailer, start_date, end_date, time_granularity)
@@ -369,6 +384,7 @@ def build_dashboard_state(
         rewe_kpis=rewe_kpis,
         lidl_kpis=lidl_kpis,
         rossmann_kpis=rossmann_kpis,
+        dm_kpis=dm_kpis,
         rewe_bonus_kpis=rewe_bonus_kpis,
         lidl_bonus_kpis=lidl_bonus_kpis,
         derived=derived,

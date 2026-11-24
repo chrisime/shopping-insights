@@ -45,128 +45,77 @@ describe("DashboardKpiGrid", () => {
     expect(wrapper.text()).toContain("12,5 %");
   });
 
-  it("renders REWE bonus group when rewe fields present", () => {
-    const wrapper = mount(DashboardKpiGrid, {
-      props: {
-        data: kpiData({
-          rewe_discount_amount: 10.0,
-          rewe_discount_pct: 10.0,
-          rewe_bonus_collected: 1.0,
-          rewe_bonus_balance: 4.0,
-          rewe_bonus_redeemed: 3.0,
-          rewe_bonus_open: 0.0,
-        }),
-      },
-    });
-    expect(wrapper.text()).toContain("Rewe Rabatte");
-    expect(wrapper.text()).toContain("Rewe Bonus gesammelt");
-    expect(wrapper.text()).toContain("Rewe Bonus eingelöst");
-  });
-
-  it("skips REWE group when no rewe fields", () => {
-    const wrapper = mount(DashboardKpiGrid, {
-      props: { data: kpiData() },
-    });
-    expect(wrapper.text()).not.toContain("Rewe Rabatte");
-  });
-
-  it("renders Lidl bonus group when lidl fields present", () => {
-    const wrapper = mount(DashboardKpiGrid, {
-      props: {
-        data: kpiData({
-          lidlplus_discount_amount: 2.0,
-          lidlplus_discount_pct: 4.0,
-          sticker_discount_amount: 3.0,
-          sticker_discount_pct: 5.0,
-          lidl_discount_amount: 10.0,
-          lidl_discount_pct: 10.0,
-        }),
-      },
-    });
-    expect(wrapper.text()).toContain("Lidl Plus");
-    expect(wrapper.text()).toContain("Sticker Rabatte");
-    expect(wrapper.text()).toContain("Preisvorteil");
-  });
-
-  it("skips Lidl group when no lidl fields", () => {
-    const wrapper = mount(DashboardKpiGrid, {
-      props: { data: kpiData() },
-    });
-    expect(wrapper.text()).not.toContain("Lidl Plus");
-  });
-
-  it("renders the Rossmann Preisvorteil card", () => {
-    const wrapper = mount(DashboardKpiGrid, {
-      props: { data: kpiData({ rossmann_discount_amount: 4.91, rossmann_discount_pct: 48.9 }) },
-    });
-    expect(wrapper.text()).toContain("Preisvorteil");
-    expect(wrapper.text()).toContain("48,9 %");
-  });
-
-  it("renders only general cards when the data has no discount fields", () => {
-    const wrapper = mount(DashboardKpiGrid, { props: { data: kpiData() } });
-    expect(wrapper.text()).toContain("Ausgaben");
-    expect(wrapper.text()).toContain("Kassenbons");
-    expect(wrapper.text()).not.toContain("Rewe Rabatte");
-    expect(wrapper.text()).not.toContain("Rossmann");
-  });
-
-  it("renders only discount cards when the data has no general fields", () => {
+  it("shows one card per retailer with totals above the details", () => {
     const wrapper = mount(DashboardKpiGrid, {
       props: {
         data: {
-          rossmann_discount_amount: 8,
-          rossmann_discount_pct: 20,
-          rossmann_basket_coupon_amount: 2,
-          rossmann_product_coupon_amount: 4,
-          rossmann_product_coupon_pct: 10,
-          rossmann_unclassified_coupon_amount: 0,
+          rewe_discount_amount: 371.77,
+          rewe_discount_pct: 8,
+          rewe_bonus_collected: 191.84,
+          rewe_bonus_redeemed: 189.53,
+          rewe_bonus_redeemed_pct: 4.1,
+          rewe_bonus_open: 2.31,
+          rewe_total_savings: 561.3,
+          rewe_total_savings_pct: 12.1,
+          lidlplus_discount_amount: 545.1,
+          lidlplus_discount_pct: 7.1,
+          sticker_discount_amount: 48.78,
+          sticker_discount_pct: 0.6,
+          lidl_discount_amount: 136.41,
+          lidl_discount_pct: 1.8,
+          lidl_total_savings: 730.29,
+          lidl_total_savings_pct: 9.5,
+          rossmann_discount_amount: 72.29,
+          rossmann_discount_pct: 33.5,
+          rossmann_basket_coupon_amount: 23.98,
+          rossmann_product_coupon_amount: 48.31,
+          rossmann_product_coupon_pct: 22.4,
+          dm_total_savings: 43.12,
+          dm_total_savings_pct: 16.46,
         },
       },
     });
-    expect(wrapper.text()).not.toContain("Ausgaben");
-    expect(wrapper.text()).not.toContain("Kassenbons");
-    expect(wrapper.text()).toContain("Rossmann 10% Coupon");
-    expect(wrapper.text()).toContain("Preisvorteil");
-  });
 
-  it("splits Rossmann coupons and shows other coupons only for a positive amount", async () => {
-    const data = kpiData({
-      rossmann_discount_amount: 8,
-      rossmann_discount_pct: 20,
-      rossmann_basket_coupon_amount: 2,
-      rossmann_product_coupon_amount: 4,
-      rossmann_product_coupon_pct: 10,
-      rossmann_unclassified_coupon_amount: 0,
-    });
-    const wrapper = mount(DashboardKpiGrid, { props: { data } });
-    expect(wrapper.text()).toContain("Rossmann 10% Coupon");
-    const productCard = wrapper.get("[data-testid=kpi-card-rossmann_product_coupon_amount]");
-    expect(productCard.text()).toContain("10,0 %");
-    expect(wrapper.text()).not.toContain("Rossmann andere Coupons");
-
-    await wrapper.setProps({ data: { ...data, rossmann_unclassified_coupon_amount: 2 } });
-    expect(wrapper.text()).toContain("Rossmann andere Coupons");
-    await wrapper.setProps({ data: { ...data, rossmann_unclassified_coupon_amount: -2 } });
-    expect(wrapper.text()).not.toContain("Rossmann andere Coupons");
-  });
-
-  it("aligns Sparquote/Guthaben/Offen to the right", () => {
-    const wrapper = mount(DashboardKpiGrid, {
-      props: {
-        data: kpiData({
-          rewe_discount_amount: 10.0,
-          rewe_discount_pct: 10.0,
-          rewe_bonus_collected: 1.0,
-          rewe_bonus_balance: 4.0,
-          rewe_bonus_redeemed: 3.0,
-          rewe_bonus_open: 0.0,
-        }),
-      },
-    });
-    const rightAligned = wrapper.findAll("[data-testid=kpi-field]");
+    const cards = wrapper.findAll("article");
+    expect(cards.map((card) => card.get("h3").text())).toEqual(["REWE", "Lidl", "Rossmann", "dm"]);
     expect(
-      rightAligned.filter((field) => field.classes("justify-items-end")).length,
-    ).toBeGreaterThan(0);
+      cards.map((card) =>
+        card
+          .get("header")
+          .findAll("dd")
+          .map((value) => value.text()),
+      ),
+    ).toEqual([
+      ["561,30 €", "12,1 %"],
+      ["730,29 €", "9,5 %"],
+      ["72,29 €", "33,5 %"],
+      ["43,12 €", "16,5 %"],
+    ]);
+    expect(cards[0].findAll("h4").map((heading) => heading.text())).toEqual([
+      "Rewe Rabatte",
+      "Rewe Bonus",
+    ]);
+    expect(cards[0].text()).toContain("Gesammelt");
+    expect(cards[0].text()).toContain("Eingelöst");
+    expect(cards[0].text()).toContain("Offen");
+    expect(cards[0].text()).toContain("4,1 %");
+    expect(cards[1].findAll("h4").map((heading) => heading.text())).toEqual([
+      "Lidl Plus",
+      "Sticker Rabatte",
+      "Preisvorteil",
+    ]);
+    expect(cards[2].findAll("h4").map((heading) => heading.text())).toEqual([
+      "Rossmann 10% Coupon",
+      "Rossmann Produktcoupons",
+    ]);
+    expect(cards[3].findAll("h4")).toHaveLength(0);
+  });
+
+  it("shows only the selected retailer when only its metrics are present", () => {
+    const wrapper = mount(DashboardKpiGrid, {
+      props: { data: { dm_total_savings: 43.12, dm_total_savings_pct: 16.46 } },
+    });
+    expect(wrapper.findAll("article")).toHaveLength(1);
+    expect(wrapper.get("h3").text()).toBe("dm");
   });
 });

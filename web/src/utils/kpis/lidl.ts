@@ -1,7 +1,7 @@
 import { t } from "../copy";
-import type { KpiCard } from "../kpiCards";
+import type { DiscountDetail } from "../kpiCards";
 
-export const LIDL_KPI_CARDS: KpiCard[] = [
+export const LIDL_DISCOUNT_DETAILS: DiscountDetail[] = [
   { title: t("kpi.lidlPlus"), fields: ["lidlplus_discount_amount", "lidlplus_discount_pct"] },
   { title: t("kpi.stickerDiscounts"), fields: ["sticker_discount_amount", "sticker_discount_pct"] },
   { title: t("common.priceBenefit"), fields: ["lidl_discount_amount", "lidl_discount_pct"] },

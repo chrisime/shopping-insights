@@ -70,6 +70,7 @@ def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
         available_kpis=BasicKPIs(100.0, 4, 25.0, 10.0, 2.0, "2024-01-01", "2024-01-31"),
         kpis=BasicKPIs(100.0, 4, 25.0, 10.0, 2.0, "2024-01-01", "2024-01-31"),
         bonus_kpis=RetailerBonusKPIs(1.0, 2.0, 3.0, 4.0, 5.0),
+        dm_kpis=BasicKPIs(25.0, 1, 25.0, 3.0, 0.0, "2024-01-01", "2024-01-31"),
         derived=DashboardDerivedMetrics(117.0, 10.0, 9.0, 9.0, 19.0, 19.0, 4.0, 5.0),
         time_series=[TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1)],
         weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
@@ -95,10 +96,17 @@ def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
     assert discounts["items"][0]["rewe_bonus_collected"] == 1.0
     assert discounts["items"][0]["rewe_bonus_balance"] == 2.0
     assert discounts["items"][0]["rewe_bonus_redeemed"] == 3.0
+    assert discounts["items"][0]["rewe_bonus_redeemed_pct"] == 3.0
     assert discounts["items"][0]["rewe_bonus_open"] == 0.0
+    assert discounts["items"][0]["rewe_total_savings"] == 13.0
+    assert discounts["items"][0]["rewe_total_savings_pct"] == 13.0
     assert discounts["items"][0]["lidlplus_discount_amount"] == 4.0
     assert discounts["items"][0]["sticker_discount_amount"] == 5.0
     assert discounts["items"][0]["lidl_discount_amount"] == 10.0
+    assert discounts["items"][0]["lidl_total_savings"] == 19.0
+    assert discounts["items"][0]["lidl_total_savings_pct"] == 19.0
+    assert discounts["items"][0]["dm_total_savings"] == 3.0
+    assert discounts["items"][0]["dm_total_savings_pct"] == 12.0
 
 
 def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
