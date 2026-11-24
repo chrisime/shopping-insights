@@ -35,7 +35,6 @@ const prev = () => {
 const next = () => {
   if (props.page < totalPages.value) emit("update:page", props.page + 1);
 };
-
 </script>
 
 <template>

@@ -237,7 +237,12 @@ const showTooltip = (tooltip: Group, row: TimeSeriesRow, barX: number, barTop: n
   tooltip.style("display", "block");
 };
 
-const attachBarHandlers = function (svg: Svg, xScale: BandScale, yScale: ValueScale, tooltip: Group) {
+const attachBarHandlers = (
+    svg: Svg,
+    xScale: BandScale,
+    yScale: ValueScale,
+    tooltip: Group,
+) => {
   svg
     .selectAll<SVGRectElement, TimeSeriesRow>("rect.bar")
     .on("click", (_event, row) => {
@@ -318,7 +323,6 @@ onUnmounted(() => {
 });
 
 watch([() => props.items, () => props.monthLabels, () => props.granularity], drawChart);
-
 </script>
 
 <template>

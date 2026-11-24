@@ -10,7 +10,6 @@ const props = defineProps<{
 }>();
 
 const isMatched = (item: ReceiptItem): boolean => props.highlightMatched && item.matched === true;
-
 </script>
 
 <template>
@@ -24,9 +23,7 @@ const isMatched = (item: ReceiptItem): boolean => props.highlightMatched && item
           v-for="(item, index) in receipt.items"
           :key="index"
           class="flex items-center justify-between gap-3 px-3 py-2 text-sm"
-          :class="
-            isMatched(item) ? '-mx-3 rounded-xl bg-amber-50 px-3 ring-1 ring-amber-300' : ''
-          "
+          :class="isMatched(item) ? '-mx-3 rounded-xl bg-amber-50 px-3 ring-1 ring-amber-300' : ''"
         >
           <div class="flex items-center gap-2">
             <span
@@ -34,9 +31,7 @@ const isMatched = (item: ReceiptItem): boolean => props.highlightMatched && item
               data-testid="receipt-item-match"
               class="h-2 w-2 rounded-full bg-amber-400"
             />
-            <span
-              :class="isMatched(item) ? 'font-semibold text-amber-900' : 'text-slate-700'"
-            >
+            <span :class="isMatched(item) ? 'font-semibold text-amber-900' : 'text-slate-700'">
               {{ item.name }}
             </span>
           </div>

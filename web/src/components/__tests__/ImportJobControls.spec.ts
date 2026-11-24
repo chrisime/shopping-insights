@@ -160,8 +160,7 @@ describe("ImportJobControls", () => {
           OSelect: {
             props: ["modelValue"],
             emits: ["update:modelValue"],
-            template:
-              `<select :value="modelValue" @change="$emit('update:modelValue', $event.target.value)"><slot /></select>`,
+            template: `<select :value="modelValue" @change="$emit('update:modelValue', $event.target.value)"><slot /></select>`,
           },
         },
       },

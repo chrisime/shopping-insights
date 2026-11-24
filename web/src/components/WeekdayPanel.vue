@@ -31,8 +31,8 @@ const columns = computed(() =>
   })),
 );
 
-const barWidth = (value: number, max: number): string => max <= 0 ? "0%" : `${Math.max(0, (value / max) * 100)}%`;
-
+const barWidth = (value: number, max: number): string =>
+  max <= 0 ? "0%" : `${Math.max(0, (value / max) * 100)}%`;
 </script>
 
 <template>
