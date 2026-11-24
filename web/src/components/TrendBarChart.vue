@@ -66,9 +66,7 @@ const isScrollable = computed(() => props.granularity !== "yearly");
 const ticks = computed(() => yAxisTicks(props.items, props.granularity));
 const width = computed(() => chartWidth(props.items.length));
 
-let hideTimer: ReturnType<typeof setTimeout> | null = null;
-
-function renderYAxis(svg: Svg, scale: ValueScale, tickValues: number[]) {
+const renderYAxis = (svg: Svg, scale: ValueScale, tickValues: number[]) => {
   const axis = d3
     .axisLeft(scale)
     .tickValues(tickValues)
@@ -84,9 +82,9 @@ function renderYAxis(svg: Svg, scale: ValueScale, tickValues: number[]) {
     .attr("font-size", "11px")
     .attr("fill", "#64748b");
   group.select(".domain").remove();
-}
+};
 
-function renderGrid(svg: Svg, scale: ValueScale, tickValues: number[]) {
+const renderGrid = (svg: Svg, scale: ValueScale, tickValues: number[]) => {
   const axis = d3
     .axisLeft(scale)
     .tickValues(tickValues)
@@ -97,9 +95,9 @@ function renderGrid(svg: Svg, scale: ValueScale, tickValues: number[]) {
   axis(group);
   group.selectAll(".tick line").attr("stroke", "#e2e8f0");
   group.select(".domain").remove();
-}
+};
 
-function renderMonthMarkers(svg: Svg, xScale: BandScale) {
+const renderMonthMarkers = (svg: Svg, xScale: BandScale) => {
   const labels = props.monthLabels ?? [];
 
   for (let i = 1; i < labels.length; i++) {
@@ -132,9 +130,9 @@ function renderMonthMarkers(svg: Svg, xScale: BandScale) {
       .attr("fill", "#475569")
       .text(label.label);
   }
-}
+};
 
-function renderBars(svg: Svg, xScale: BandScale, yScale: ValueScale) {
+const renderBars = (svg: Svg, xScale: BandScale, yScale: ValueScale) => {
   svg
     .selectAll<SVGRectElement, TimeSeriesRow>("rect.bar")
     .data(props.items)
@@ -169,10 +167,10 @@ function renderBars(svg: Svg, xScale: BandScale, yScale: ValueScale) {
       .attr("pointer-events", "none")
       .text((row) => label.text(row));
   }
-}
+};
 
 /** Appended after the bars so the tooltip paints on top of them. */
-function createTooltip(svg: Svg): Group {
+const createTooltip = (svg: Svg): Group => {
   const group = svg
     .append("g")
     .attr("class", "tooltip-group")
@@ -218,9 +216,11 @@ function createTooltip(svg: Svg): Group {
   }
 
   return group;
-}
+};
 
-function showTooltip(tooltip: Group, row: TimeSeriesRow, barX: number, barTop: number) {
+let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
+const showTooltip = (tooltip: Group, row: TimeSeriesRow, barX: number, barTop: number) => {
   if (hideTimer) clearTimeout(hideTimer);
 
   const count = row.receipt_count;
@@ -235,9 +235,9 @@ function showTooltip(tooltip: Group, row: TimeSeriesRow, barX: number, barTop: n
   tooltip.select(".tooltip-retailers").text(retailers.map(retailerLabel).join(", "));
   tooltip.select(".tooltip-bg").attr("height", retailers.length > 0 ? 110 : 90);
   tooltip.style("display", "block");
-}
+};
 
-function attachBarHandlers(svg: Svg, xScale: BandScale, yScale: ValueScale, tooltip: Group) {
+const attachBarHandlers = function (svg: Svg, xScale: BandScale, yScale: ValueScale, tooltip: Group) {
   svg
     .selectAll<SVGRectElement, TimeSeriesRow>("rect.bar")
     .on("click", (_event, row) => {
@@ -250,9 +250,9 @@ function attachBarHandlers(svg: Svg, xScale: BandScale, yScale: ValueScale, tool
     .on("mouseleave", () => {
       hideTimer = setTimeout(() => tooltip.style("display", "none"), TOOLTIP_HIDE_DELAY);
     });
-}
+};
 
-function renderXAxis(svg: Svg, xScale: BandScale) {
+const renderXAxis = (svg: Svg, xScale: BandScale) => {
   const hasMonthLabels = (props.monthLabels?.length ?? 0) > 0;
   const axis = d3
     .axisBottom(xScale)
@@ -269,9 +269,9 @@ function renderXAxis(svg: Svg, xScale: BandScale) {
     .attr("fill", "#94a3b8");
   group.selectAll(".tick line").attr("display", "none");
   group.select(".domain").attr("stroke", "#cbd5e1");
-}
+};
 
-function drawChart() {
+const drawChart = () => {
   if (!yAxisRef.value || !chartRef.value) return;
 
   d3.select(yAxisRef.value).selectAll("svg").remove();
@@ -310,7 +310,7 @@ function drawChart() {
   renderBars(mainSvg, xScale, yScale);
   attachBarHandlers(mainSvg, xScale, yScale, createTooltip(mainSvg));
   renderXAxis(mainSvg, xScale);
-}
+};
 
 onMounted(drawChart);
 onUnmounted(() => {
@@ -318,6 +318,7 @@ onUnmounted(() => {
 });
 
 watch([() => props.items, () => props.monthLabels, () => props.granularity], drawChart);
+
 </script>
 
 <template>

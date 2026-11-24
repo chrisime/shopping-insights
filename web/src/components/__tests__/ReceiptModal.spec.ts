@@ -3,31 +3,28 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { stubDialog } from "../../test/stubDialog";
 import ReceiptModal from "../ReceiptModal.vue";
 
-const TELEPORT_STUB = { template: "<div><slot /></div>" };
+const receipt = (id: string, matched: boolean) => ({
+  id,
+  retailer: "lidl",
+  purchase_date: "2024-01-15",
+  store: "Lidl München",
+  total_price: 42.5,
+  items: [{ name: "Apfel", quantity: 3, unit: "stk", price: 1.99, matched }],
+});
 
-function receipt(id: string, matched: boolean) {
-  return {
-    id,
-    retailer: "lidl",
-    purchase_date: "2024-01-15",
-    store: "Lidl München",
-    total_price: 42.5,
-    items: [{ name: "Apfel", quantity: 3, unit: "stk", price: 1.99, matched }],
-  };
-}
-
-function mountModal() {
-  return mount(ReceiptModal, {
+const mountModal = () =>
+  mount(ReceiptModal, {
     props: { articleName: "Apfel", visible: false },
-    global: { stubs: { Teleport: TELEPORT_STUB } },
   });
-}
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+stubDialog();
 
 describe("ReceiptModal", () => {
   it("shows the article and retailer in the title and highlights matched items", async () => {

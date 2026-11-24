@@ -3,9 +3,8 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi, afterEach } from "vite-plus/test";
 
+import { stubDialog } from "../../test/stubDialog";
 import ReceiptListModal from "../ReceiptListModal.vue";
-
-const TELEPORT_STUB = { template: "<div><slot /></div>" };
 
 type ModalProps = {
   startDate: string;
@@ -14,28 +13,28 @@ type ModalProps = {
   retailer?: string;
 };
 
-function mountModal(props: ModalProps) {
-  return mount(ReceiptListModal, {
+const mountModal = (props: ModalProps) =>
+  mount(ReceiptListModal, {
     props,
-    global: { stubs: { Teleport: TELEPORT_STUB } },
   });
-}
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function stubFetch(data: unknown) {
+const stubFetch = (data: unknown) => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => data }));
-}
+};
 
-async function settled() {
+const settled = async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));
-}
+};
+
+stubDialog();
 
 describe("ReceiptListModal", () => {
-  it("renders receipt details from API response", async () => {
+  it("shows the oldest receipt first when the API returns receipts in date order", async () => {
     stubFetch([
       {
         id: "r1",
@@ -47,6 +46,15 @@ describe("ReceiptListModal", () => {
         items: [{ name: "Apfel", quantity: 3, unit: "stk", price: 1.99 }],
         payment_methods: [{ method: "EC-Karte", amount: 42.5 }],
       },
+      {
+        id: "r2",
+        retailer: "lidl",
+        purchase_date: "2024-01-24",
+        store: "Lidl Augsburg",
+        total_price: 10,
+        items: [],
+        payment_methods: [],
+      },
     ]);
 
     const wrapper = mountModal({ startDate: "2024-01-01", endDate: "2024-01-31", visible: false });
@@ -57,6 +65,9 @@ describe("ReceiptListModal", () => {
     expect(wrapper.text()).toContain("Lidl München");
     expect(wrapper.text()).toContain("42,50 €");
     expect(wrapper.text()).toContain("Apfel");
+
+    await wrapper.get("[data-testid=receipt-next]").trigger("click");
+    expect(wrapper.text()).toContain("Lidl Augsburg");
   });
 
   it("shows loading state while fetching", async () => {

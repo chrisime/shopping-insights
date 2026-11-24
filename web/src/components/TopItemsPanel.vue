@@ -24,17 +24,18 @@ const totalPages = computed(() => Math.max(1, Math.ceil(props.totalCount / props
 const rangeStart = computed(() => (props.page - 1) * props.pageSize + 1);
 const rangeEnd = computed(() => Math.min(props.page * props.pageSize, props.totalCount));
 
-function updateTopLimit(value: number | undefined) {
+const updateTopLimit = (value: number | undefined) => {
   if (value !== undefined) emit("update:topLimit", value);
-}
+};
 
-function prev() {
+const prev = () => {
   if (props.page > 1) emit("update:page", props.page - 1);
-}
+};
 
-function next() {
+const next = () => {
   if (props.page < totalPages.value) emit("update:page", props.page + 1);
-}
+};
+
 </script>
 
 <template>

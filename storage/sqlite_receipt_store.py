@@ -6,7 +6,6 @@ from typing import Any, Optional, Sequence
 
 from sqlalchemy import Connection, select
 
-from config import storage_config
 from result_types import PersistResult
 from shared.receipt_dto import ReceiptDTO, receipt_dto_to_dict
 from shared.receipt_hashes import calculate_receipt_payload_hash
@@ -203,6 +202,7 @@ class SqliteReceiptStore(ReceiptStore):
         with connect() as connection:
             purchase_domain = PurchaseDomain(connection)
             return purchase_domain.find_ids_by_retailer(retailer)
+        return None
 
     @staticmethod
     def list_receipts(retailer: str) -> list[dict[str, Any]]:
@@ -218,6 +218,7 @@ class SqliteReceiptStore(ReceiptStore):
                 _map_purchase_to_receipt_dict(purchase, retailer, connection)
                 for purchase in purchases
             ]
+        return None
 
     @staticmethod
     def list_receipts_by_item(
@@ -244,7 +245,7 @@ class SqliteReceiptStore(ReceiptStore):
                 stmt = stmt.where(purchase_table.c.purchase_date >= start_date)
             if end_date:
                 stmt = stmt.where(purchase_table.c.purchase_date <= end_date)
-            stmt = stmt.order_by(purchase_table.c.purchase_date.desc(), purchase_table.c.id)
+            stmt = stmt.order_by(purchase_table.c.purchase_date.asc(), purchase_table.c.id)
 
             rows = connection.execute(stmt).fetchall()
 
@@ -269,6 +270,7 @@ class SqliteReceiptStore(ReceiptStore):
                 receipts.append(receipt)
 
             return receipts
+        return None
 
     @staticmethod
     def list_receipts_by_date_range(
@@ -285,7 +287,7 @@ class SqliteReceiptStore(ReceiptStore):
             )
             if retailer:
                 stmt = stmt.where(store_table.c.retailer_code == retailer.lower())
-            stmt = stmt.order_by(purchase_table.c.purchase_date.desc(), purchase_table.c.id)
+            stmt = stmt.order_by(purchase_table.c.purchase_date.asc(), purchase_table.c.id)
 
             rows = connection.execute(stmt).fetchall()
 
@@ -305,6 +307,7 @@ class SqliteReceiptStore(ReceiptStore):
                 receipts.append(receipt)
 
             return receipts
+        return None
 
     def persist_receipts(self, receipts: Sequence[ReceiptDTO], retailer: str) -> PersistResult:
         created_count = 0

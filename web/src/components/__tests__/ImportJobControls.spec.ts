@@ -157,16 +157,32 @@ describe("ImportJobControls", () => {
       global: {
         stubs: {
           OField: { template: "<div><slot /></div>" },
-          OSelect: { template: "<select><slot /></select>" },
+          OSelect: {
+            props: ["modelValue"],
+            emits: ["update:modelValue"],
+            template:
+              `<select :value="modelValue" @change="$emit('update:modelValue', $event.target.value)"><slot /></select>`,
+          },
         },
       },
     });
 
+    const browserSelect = wrapper.get('select:has(option[value="firefox"])');
+    expect(
+      browserSelect.findAll("option").map((option) => [option.element.value, option.text()]),
+    ).toEqual([
+      ["firefox", "Firefox"],
+      ["librewolf", "LibreWolf"],
+      ["chrome", "Chrome"],
+      ["chromium", "Chromium"],
+    ]);
+
+    await browserSelect.setValue("librewolf");
     await wrapper.get("[data-testid=import-form]").trigger("submit");
 
     expect(wrapper.emitted("start-import")?.[0][0]).toEqual({
       retailer: "lidl",
-      browser: "firefox",
+      browser: "librewolf",
     });
   });
 

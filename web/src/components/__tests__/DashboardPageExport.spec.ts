@@ -5,6 +5,7 @@ import { mount } from "@vue/test-utils";
 import Oruga from "@oruga-ui/oruga-next";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { stubDialog } from "../../test/stubDialog";
 import DashboardPage from "../DashboardPage.vue";
 import * as dashboardComposable from "../../composables/useDashboard";
 import * as exportApi from "../../api/exports";
@@ -12,6 +13,8 @@ import * as exportApi from "../../api/exports";
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+stubDialog();
 
 describe("DashboardPage export", () => {
   it("exports the current dashboard filters as json", async () => {

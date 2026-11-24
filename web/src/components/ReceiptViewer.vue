@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 
-import ReceiptCouponSavings from "./ReceiptCouponSavings.vue";
-import { addressText, euro, quantity, retailerLabel, text } from "../utils/format";
+import ReceiptInfo from "./ReceiptInfo.vue";
+import ReceiptItems from "./ReceiptItems.vue";
 import { t } from "../utils/copy";
 import type { Receipt } from "../types/dashboard";
 
@@ -23,23 +23,40 @@ const emit = defineEmits<{
 
 const current = computed<Receipt | undefined>(() => props.receipts[props.currentIndex]);
 
-function isMatched(item: Receipt["items"][number]): boolean {
-  return props.highlightMatched && item.matched === true;
-}
+const dialog = ref<HTMLDialogElement | null>(null);
+
+watch(
+  [dialog, () => props.visible],
+  ([element, visible]) => {
+    if (!element) return;
+
+    if (visible) {
+      element.showModal();
+    } else {
+      element.close();
+    }
+  },
+  { flush: "post" },
+);
 </script>
 
 <template>
-  <Teleport to="body">
+  <dialog
+    ref="dialog"
+    :aria-label="title"
+    class="fixed inset-0 m-0 h-full max-h-none w-full max-w-none overflow-hidden overscroll-none bg-transparent p-0 backdrop:bg-black/30"
+    @cancel.prevent="emit('close')"
+  >
     <div
       v-if="visible"
       data-testid="receipt-overlay"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      class="flex h-full items-center justify-center p-4"
       @click.self="emit('close')"
     >
       <div
-        class="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        class="flex h-150 max-h-full w-full max-w-200 flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl"
       >
-        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">
           <h2 class="text-lg font-semibold tracking-tight text-slate-900">{{ title }}</h2>
           <button
             type="button"
@@ -77,7 +94,7 @@ function isMatched(item: Receipt["items"][number]): boolean {
         <template v-else>
           <div
             v-if="receipts.length > 1"
-            class="flex items-center justify-between border-b border-slate-100 px-5 py-2.5"
+            class="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-2.5"
           >
             <button
               type="button"
@@ -101,84 +118,11 @@ function isMatched(item: Receipt["items"][number]): boolean {
             </button>
           </div>
 
-          <div class="overflow-y-auto px-5 py-4">
-            <div class="mb-4 grid grid-cols-4 gap-3 text-sm">
-              <div>
-                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
-                  {{ t("common.retailer") }}
-                </p>
-                <p class="mt-0.5 font-bold uppercase text-slate-900">
-                  {{ retailerLabel(current.retailer) }}
-                </p>
-              </div>
-              <div>
-                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
-                  {{ t("receipt.market") }}
-                </p>
-                <p class="mt-0.5 font-medium text-slate-900">{{ text(current.store) }}</p>
-              </div>
-              <div>
-                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
-                  {{ t("receipt.address") }}
-                </p>
-                <p class="mt-0.5 text-xs text-slate-500">{{ addressText(current.address) }}</p>
-              </div>
-              <div class="text-right">
-                <p class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
-                  {{ t("receipt.date") }}
-                </p>
-                <p class="mt-0.5 font-medium text-slate-900">{{ text(current.purchase_date) }}</p>
-              </div>
-            </div>
+          <ReceiptInfo :receipt="current" />
 
-            <div class="border-t border-slate-200 pt-3">
-              <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                {{ t("receipt.items") }}
-              </h3>
-              <div class="divide-y divide-slate-100">
-                <div
-                  v-for="(item, index) in current.items"
-                  :key="index"
-                  class="flex items-center justify-between gap-3 px-3 py-2 text-sm"
-                  :class="
-                    isMatched(item) ? '-mx-3 rounded-xl bg-amber-50 px-3 ring-1 ring-amber-300' : ''
-                  "
-                >
-                  <div class="flex items-center gap-2">
-                    <span
-                      v-if="isMatched(item)"
-                      data-testid="receipt-item-match"
-                      class="h-2 w-2 rounded-full bg-amber-400"
-                    />
-                    <span
-                      :class="isMatched(item) ? 'font-semibold text-amber-900' : 'text-slate-700'"
-                    >
-                      {{ item.name }}
-                    </span>
-                  </div>
-                  <span class="shrink-0 text-slate-600">
-                    {{ quantity(item.quantity, item.unit) }} ×
-                    {{ euro(item.price) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <ReceiptCouponSavings
-              v-if="current.retailer === 'rossmann'"
-              :coupons="current.receipt_coupons"
-              :currency="current.currency"
-            />
-
-            <div class="mt-4 border-t border-slate-200 pt-3 text-right">
-              <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">{{
-                t("receipt.total")
-              }}</span>
-              <p class="text-xl font-semibold text-slate-900">{{ euro(current.total_price) }}</p>
-            </div>
-          </div>
+          <ReceiptItems :receipt="current" :highlight-matched="highlightMatched" />
         </template>
       </div>
     </div>
-  </Teleport>
+  </dialog>
 </template>

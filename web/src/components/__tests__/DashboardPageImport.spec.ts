@@ -5,9 +5,12 @@ import { mount } from "@vue/test-utils";
 import Oruga from "@oruga-ui/oruga-next";
 import { describe, expect, it, vi } from "vite-plus/test";
 
+import { stubDialog } from "../../test/stubDialog";
 import DashboardPage from "../DashboardPage.vue";
 import * as dashboardComposable from "../../composables/useDashboard";
 import * as importComposable from "../../composables/useImportJob";
+
+stubDialog();
 
 describe("DashboardPage import", () => {
   it("renders the import control and starts an import when clicked", async () => {

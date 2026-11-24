@@ -11,12 +11,9 @@ import type {
 } from "../types/imports";
 import { t } from "../utils/copy";
 
-const BROWSER_OPTIONS = [
-  { value: "firefox", labelKey: "import.browser.firefox" },
-  { value: "librewolf", labelKey: "import.browser.librewolf" },
-  { value: "chrome", labelKey: "import.browser.chrome" },
-  { value: "chromium", labelKey: "import.browser.chromium" },
-] as const;
+const browsers = ["firefox", "librewolf", "chrome", "chromium"] as const;
+
+type BrowserOptionValue = (typeof browsers)[number];
 
 const props = defineProps<{
   retailer: ImportRetailer;
@@ -28,12 +25,12 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (event: "update:retailer", value: ImportRetailer): void;
-  (event: "start-import", payload: ImportStartRequest): void;
+  (eventName: "update:retailer", value: ImportRetailer): void;
+  (eventName: "start-import", payload: ImportStartRequest): void;
 }>();
 
 const authMode = ref<"mfa-login" | "cookies-file" | "user-login">("mfa-login");
-const browser = ref<(typeof BROWSER_OPTIONS)[number]["value"]>("firefox");
+const browser = ref<BrowserOptionValue>("firefox");
 const cookiesFile = ref("lidl_cookies.json");
 const customerId = ref("");
 const showCustomerId = ref(false);
@@ -73,7 +70,7 @@ const canStart = computed(
   () =>
     !props.running &&
     (authMode.value !== "user-login" ||
-      Boolean(loginEmail.value.trim() && loginPassword.value.trim())),
+      (loginEmail.value.trim() !== "" && loginPassword.value.trim() !== "")),
 );
 
 function submitImport() {
@@ -136,11 +133,11 @@ function submitImport() {
             <OSelect v-model="browser" expanded>
               <option
                 data-testid="import-option"
-                v-for="option in BROWSER_OPTIONS"
-                :key="option.value"
-                :value="option.value"
+                v-for="value in browsers"
+                :key="value"
+                :value="value"
               >
-                {{ t(option.labelKey) }}
+                {{ t(`import.browser.${value}`) }}
               </option>
             </OSelect>
           </OField>
