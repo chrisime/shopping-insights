@@ -19,16 +19,16 @@ JSON-Dateien sind ein **Exportformat** aus dem aktuellen DB-Stand.
 Zusätzlich gibt es für alle Händler einen Diagnosepfad für Cookie-/Request-Dateien:
 
 ```bash
-python fetch_tickets.py check --retailer lidl --cookies-file lidl_cookies.json
-python fetch_tickets.py check --retailer rewe --cookies-file rewe_cookies.json
-python fetch_tickets.py check --retailer dm --cookies-file dm_cookies.json
-python fetch_tickets.py check --retailer rossmann --cookies-file rossmann_cookies.json
+uv run --locked python fetch_tickets.py check --retailer lidl --cookies-file lidl_cookies.json
+uv run --locked python fetch_tickets.py check --retailer rewe --cookies-file rewe_cookies.json
+uv run --locked python fetch_tickets.py check --retailer dm --cookies-file dm_cookies.json
+uv run --locked python fetch_tickets.py check --retailer rossmann --cookies-file rossmann_cookies.json
 ```
 
 ## Voraussetzungen
 
-- Python 3.10 oder neuer
-- installierte Projekt-Abhängigkeiten aus `requirements.txt`
+- Python 3.11 oder neuer und uv
+- mit `uv sync --locked` installierte Projekt-Abhängigkeiten
 - ein aktives Konto beim gewünschten Händler
 - für Lidl, REWE und dm ein unterstütztes Browserprofil oder eine exportierte Cookie-/Request-Datei
 - für Rossmann die Zugangsdaten des Kontos, das in der Rossmann-App die Filialbons anzeigt
@@ -38,15 +38,7 @@ Installation:
 ```bash
 git clone <repository-url>
 cd shopping-analyzer
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-Unter Windows:
-
-```cmd
-venv\Scripts\activate
+uv sync --locked
 ```
 
 ## Schnellstart
@@ -54,7 +46,7 @@ venv\Scripts\activate
 ### Interaktives Menü
 
 ```bash
-python fetch_tickets.py
+uv run --locked python fetch_tickets.py
 ```
 
 Im Menü kannst du je nach Händler folgende Aktionen wählen:
@@ -67,24 +59,24 @@ Im Menü kannst du je nach Händler folgende Aktionen wählen:
 ### Direkte CLI-Aufrufe
 
 ```bash
-python fetch_tickets.py initial --retailer lidl --cookies-file lidl_cookies.json
-python fetch_tickets.py update --retailer lidl --cookies-file lidl_cookies.json
-python fetch_tickets.py check --retailer lidl --cookies-file lidl_cookies.json
-python fetch_tickets.py export --retailer lidl --output-file lidl_receipts.json
+uv run --locked python fetch_tickets.py initial --retailer lidl --cookies-file lidl_cookies.json
+uv run --locked python fetch_tickets.py update --retailer lidl --cookies-file lidl_cookies.json
+uv run --locked python fetch_tickets.py check --retailer lidl --cookies-file lidl_cookies.json
+uv run --locked python fetch_tickets.py export --retailer lidl --output-file lidl_receipts.json
 
-python fetch_tickets.py initial --retailer rewe --cookies-file rewe_cookies.json
-python fetch_tickets.py update --retailer rewe --output-dir tmp/rewe
-python fetch_tickets.py check --retailer rewe --cookies-file rewe_cookies.json
-python fetch_tickets.py export --retailer rewe --output-file rewe_receipts.json
+uv run --locked python fetch_tickets.py initial --retailer rewe --cookies-file rewe_cookies.json
+uv run --locked python fetch_tickets.py update --retailer rewe --output-dir tmp/rewe
+uv run --locked python fetch_tickets.py check --retailer rewe --cookies-file rewe_cookies.json
+uv run --locked python fetch_tickets.py export --retailer rewe --output-file rewe_receipts.json
 
-python fetch_tickets.py initial --retailer dm --cookies-file dm_cookies.json
-python fetch_tickets.py update --retailer dm --output-dir tmp/dm
-python fetch_tickets.py check --retailer dm --cookies-file dm_cookies.json
-python fetch_tickets.py export --retailer dm --output-file dm_receipts.json
+uv run --locked python fetch_tickets.py initial --retailer dm --cookies-file dm_cookies.json
+uv run --locked python fetch_tickets.py update --retailer dm --output-dir tmp/dm
+uv run --locked python fetch_tickets.py check --retailer dm --cookies-file dm_cookies.json
+uv run --locked python fetch_tickets.py export --retailer dm --output-file dm_receipts.json
 
-python fetch_tickets.py initial --retailer rossmann --login
-python fetch_tickets.py update --retailer rossmann --output-dir tmp/rossmann
-python fetch_tickets.py export --retailer rossmann --output-file rossmann_receipts.json
+uv run --locked python fetch_tickets.py initial --retailer rossmann --login
+uv run --locked python fetch_tickets.py update --retailer rossmann --output-dir tmp/rossmann
+uv run --locked python fetch_tickets.py export --retailer rossmann --output-file rossmann_receipts.json
 ```
 
 ## Händler-spezifische Anleitungen
@@ -115,7 +107,7 @@ Je nach Workflow entstehen insbesondere folgende Dateien:
 Starte das FastAPI-Backend im Projektverzeichnis.
 
 ```bash
-./start_backend.sh
+uv run --locked start-backend
 ```
 
 Starte das Vue-Dashboard in einem zweiten Terminal.

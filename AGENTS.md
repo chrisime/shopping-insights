@@ -11,7 +11,7 @@
 - Use `pnpm` in `web/`.
 - The frontend toolchain is Vite+ (`vp`): prefer `pnpm exec vp ...` or the pnpm scripts (`pnpm dev`, `pnpm test`, `pnpm build`).
 - Always run the project-local `vp` from `web/node_modules/.bin`; a globally installed `vp` bundles its own Vitest and cannot resolve project-only deps such as `jsdom`.
-- Use the project venv for backend commands.
+- Use uv for backend commands.
 - Lidl requests must retry with exponential backoff on 429/5xx.
 - Shared auth-method resolution (`--browser` / `--cookies-file`) should stay common between Lidl and REWE.
 - No third-party retry libraries; use plain `requests` + `time.sleep`.
@@ -30,8 +30,8 @@
 - Frontend toolchain migrated to Vite+ 1.7.0 (`vp`); lint/format run through Oxlint/Oxfmt, TS typecheck through tsrs, Vue SFCs through a `vue-tsc` task.
 
 ## Backend
-- Start the API with `./start_backend.sh`.
-- Use the project venv for Python commands, for example `./.venv/bin/python -m pytest -q`.
+- Start the API with `uv run --locked start-backend`.
+- Use uv for Python commands, for example `uv run --locked python -m pytest -q`.
 - The dashboard API lives at `api/main.py` and includes the `ui`, `kpis`, `receipts`, `items`, `exports`, and `triggers` routers.
 - `GET /receipts/by-date` endpoint supports `start_date`, `end_date`, and optional `retailer` filter.
 - Time-series KPIs in `storage/kpi_store.py` use `GROUP_CONCAT(DISTINCT s.retailer_code)` for retailer aggregation.
@@ -55,12 +55,12 @@
 - REWE export from SQLite: `python fetch_tickets.py export --retailer rewe --output-file rewe_receipts.json`
 
 ## Recent Verification
-- `python3 -m pytest -q` → 429 passed.
+- `uv run --locked python -m pytest -q` → 429 passed.
 - `corepack pnpm exec vp test run` → 110 passed (23 files).
 - `corepack pnpm exec vp check` → format, lint, and tsgo typecheck clean.
 - `corepack pnpm exec vp run typecheck` → vue-tsc clean.
 - `corepack pnpm exec vp build` → builds cleanly.
-- `./start_backend.sh` then `curl http://localhost:8000/ui` confirms API responds.
+- `uv run --locked start-backend` then `curl http://localhost:8000/ui/dashboard` confirms API responds.
 
 ## Key Decisions
 - Keep backend payloads section-based and reusable.
@@ -115,8 +115,8 @@
 - `web/vite.config.ts` — Vite+ config (lint/fmt/typecheck, `typecheck` task)
 - `web/pnpm-workspace.yaml` — Vite+ catalog for `vite`, `vitest`, `vite-plus`
 - `web/src/env.d.ts` — `*.vue` module shim for tsgo
-- `requirements.txt`
-- `start_backend.sh`
+- `pyproject.toml` and `uv.lock`
+- `api/server.py`
 - `web/src/components/__tests__/TrendBarChart.spec.ts` — bar chart + tooltip tests
 - `web/src/components/__tests__/ReceiptListModal.spec.ts`
 - `web/src/components/__tests__/DashboardPanels.spec.ts` — updated for D3 SVG

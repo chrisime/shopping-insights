@@ -31,7 +31,7 @@ Intern laufen Parse, Validierung und Persistenz über die gemeinsame Pipeline in
 
 Du brauchst:
 
-- Python 3
+- Python 3.11 oder neuer und uv
 - installierte Projekt-Abhängigkeiten
 - ein eingeloggtes dm-Konto im Browser (`account.dm.de/purchases`)
 - entweder ein lokales Browserprofil mit aktiver dm-Session oder eine exportierte Cookie-Datei
@@ -39,9 +39,7 @@ Du brauchst:
 Abhängigkeiten installieren:
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+uv sync --locked
 ```
 
 ---
@@ -61,7 +59,7 @@ Exportiere die Cookies direkt nach einem funktionierenden Aufruf von `https://ac
 Du kannst die Qualität der Cookie-Datei vorab prüfen:
 
 ```bash
-python fetch_tickets.py check --retailer dm --cookies-file dm_cookies.json
+uv run --locked python fetch_tickets.py check --retailer dm --cookies-file dm_cookies.json
 ```
 
 Dieser Befehl zeigt eine Ampel-Diagnose und versucht, über die Session einen Access-Token auszustellen.
@@ -71,13 +69,13 @@ Dieser Befehl zeigt eine Ampel-Diagnose und versucht, über die Session einen Ac
 ## Initialer Import
 
 ```bash
-python fetch_tickets.py initial --retailer dm --cookies-file dm_cookies.json
+uv run --locked python fetch_tickets.py initial --retailer dm --cookies-file dm_cookies.json
 ```
 
 Optional kannst du einen Ausgabeordner angeben:
 
 ```bash
-python fetch_tickets.py initial --retailer dm --cookies-file dm_cookies.json --output-dir tmp/dm
+uv run --locked python fetch_tickets.py initial --retailer dm --cookies-file dm_cookies.json --output-dir tmp/dm
 ```
 
 Der Ablauf:
@@ -96,7 +94,7 @@ Der Ablauf:
 Der Update-Modus importiert nur bereits lokal vorhandene eBon-JSONs neu (ohne erneuten Download):
 
 ```bash
-python fetch_tickets.py update --retailer dm --output-dir tmp/dm
+uv run --locked python fetch_tickets.py update --retailer dm --output-dir tmp/dm
 ```
 
 ---
@@ -106,7 +104,7 @@ python fetch_tickets.py update --retailer dm --output-dir tmp/dm
 Aus dem aktuellen DB-Stand kannst du die dm-eBons als JSON exportieren:
 
 ```bash
-python fetch_tickets.py export --retailer dm --output-file dm_receipts.json
+uv run --locked python fetch_tickets.py export --retailer dm --output-file dm_receipts.json
 ```
 
 ---

@@ -3,9 +3,7 @@
 import re
 import logging
 from pathlib import Path
-
-
-from pyarrow.lib import UUID
+from uuid import UUID
 
 import requests
 

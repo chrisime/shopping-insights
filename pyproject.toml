@@ -1,0 +1,37 @@
+[project]
+name = "shopping-insights"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = [
+    "browser_cookie3>=0.20.1",
+    "lz4>=4.4.5",
+    "beautifulsoup4>=4.15.0",
+    "requests>=2.34.2",
+    "cloudscraper>=1.2.71",
+    "pdfplumber>=0.11.11",
+    "simplejson>=4.3.0",
+    "sqlalchemy>=2.1.9",
+    "alembic>=1.20.1",
+    "fastapi>=0.165.0",
+    "pydantic>=2.14.4",
+    "uvicorn>=0.54.0",
+]
+
+[dependency-groups]
+dev = ["httpx2", "pytest"]
+
+[project.scripts]
+start-backend = "api.server:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["fetch_tickets", "result_types"]
+
+[tool.setuptools.packages.find]
+include = [
+    "api", "api.*", "auth", "cli", "client", "config", "export", "metrics",
+    "parsing", "reporting", "shared", "storage", "storage.*", "workflows",
+]

@@ -1,31 +1,31 @@
 # Dependency Hygiene Specification
 
 ## Purpose
-Keep the project's declared dependencies (backend `requirements.txt`, frontend `web/package.json` + `web/pnpm-lock.yaml`) minimal, current, and in sync with what the code actually imports, so installs are lean and the test suite and production build stay green.
+Keep the project's declared dependencies (backend `pyproject.toml` + `uv.lock`, frontend `web/package.json` + `web/pnpm-lock.yaml`) minimal, current, and in sync with what the code actually imports, so installs are lean and the test suite and production build stay green.
 
 ## Requirements
 
 ### Requirement: Declared backend dependencies match actual imports
 
-Rule: Every package in `requirements.txt` SHALL be imported by the project source or tests; packages that are never imported SHALL be removed.
+Rule: Every package in `pyproject.toml` SHALL be used by the project source, entry points, or tests; packages that are never used SHALL be removed.
 
 #### Scenario: Unused backend package removed from requirements
 
-- **GIVEN** a package declared in `requirements.txt` that is not imported by any source module or test
+- **GIVEN** a package declared in `pyproject.toml` that is not imported by any source module or test
 - **WHEN** the dependency list is updated
-- **THEN** the package is removed from `requirements.txt`
+- **THEN** the package is removed from `pyproject.toml`
 - **AND** no source module or test imports that package
 
 #### Scenario: Used backend package kept
 
-- **GIVEN** a package in `requirements.txt` that is imported by at least one source module or test
+- **GIVEN** a package in `pyproject.toml` that is imported by at least one source module or test
 - **WHEN** the dependency list is reviewed
-- **THEN** the package remains declared in `requirements.txt`
+- **THEN** the package remains declared in `pyproject.toml`
 
 #### Scenario: Clean install resolves
 
-- **GIVEN** a fresh virtual environment and the updated `requirements.txt`
-- **WHEN** `pip install -r requirements.txt` runs
+- **GIVEN** a fresh virtual environment and the updated `pyproject.toml`
+- **WHEN** `uv sync --locked` runs
 - **THEN** all declared packages resolve and install without errors
 
 ### Requirement: Declared frontend dependencies match actual imports

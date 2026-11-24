@@ -309,7 +309,7 @@ def _print_missing_dependency_hint(exc: ModuleNotFoundError) -> None:
             "✗ Fehlende Python-Abhängigkeit: "
             f"{missing_module}.\n"
             "Bitte installiere die Projektabhängigkeiten und starte den Befehl erneut:\n"
-            "  python3.14 -m pip install -r requirements.txt"
+            "  uv sync --locked"
         ),
         file=sys.stderr,
     )

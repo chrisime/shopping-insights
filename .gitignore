@@ -24,3 +24,5 @@ shopping_receipts.sqlite.bkp
 openspec/schemas/*/.tmp-validate/
 
 .DS_Store
+
+*.egg-info/

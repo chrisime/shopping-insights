@@ -33,17 +33,17 @@ Im Belegdetail listet **Deine Coupon-Ersparnis heute** die erkannten Coupons mit
 
 ## Per CLI abrufen, lokal importieren und exportieren
 
-Führe die Befehle im Projektverzeichnis mit aktiviertem Projekt-venv aus.
+Führe die Befehle im Projektverzeichnis aus.
 
 ```bash
 # Neue Filialbons online abrufen und importieren (auch für spätere Abrufe)
-python fetch_tickets.py initial --retailer rossmann --login
+uv run --locked python fetch_tickets.py initial --retailer rossmann --login
 
 # Bereits heruntergeladene Detail-JSONs lokal erneut importieren
-python fetch_tickets.py update --retailer rossmann --output-dir tmp/rossmann
+uv run --locked python fetch_tickets.py update --retailer rossmann --output-dir tmp/rossmann
 
 # Gespeicherte Rossmann-Bons als JSON exportieren
-python fetch_tickets.py export --retailer rossmann --output-file rossmann_receipts.json
+uv run --locked python fetch_tickets.py export --retailer rossmann --output-file rossmann_receipts.json
 ```
 
 `--login` fragt E-Mail und Passwort im Terminal ab. Eine Cookie-Datei ist für diesen Weg entbehrlich. `update` verwendet die lokalen Dateien und stellt keine Verbindung zu Rossmann her.
@@ -63,5 +63,5 @@ Bei älteren Importen ergänzt `update` die Rabattbeträge, Coupon-Kategorien un
 ## Fehler beim Abruf
 
 - Bei **Rossmann-Anmeldung fehlgeschlagen** prüfe die Anmeldung mit demselben Konto in der Rossmann-App. Bei wiederholtem HTTP 400 trotz funktionierender App-Anmeldung hilft der Abschnitt zur [Konto-API](./docs/ROSSMANN_ANYBILL_ERKENNTNISSE.md#konto-api) bei der technischen Diagnose.
-- Der alternative Modus **Cookie-Datei** setzt eine Datei mit der App-Kontoidentität (`accountId` und `accountHash`) voraus. Ein Webshop-Cookie-Export allein reicht für den Abruf nicht aus. `python fetch_tickets.py check --retailer rossmann --cookies-file rossmann_cookies.json` prüft die Cookie-Datei lokal. Die Prüfung sagt nichts darüber aus, ob ein anybill-Token ausgestellt werden kann.
+- Der alternative Modus **Cookie-Datei** setzt eine Datei mit der App-Kontoidentität (`accountId` und `accountHash`) voraus. Ein Webshop-Cookie-Export allein reicht für den Abruf nicht aus. `uv run --locked python fetch_tickets.py check --retailer rossmann --cookies-file rossmann_cookies.json` prüft die Cookie-Datei lokal. Die Prüfung sagt nichts darüber aus, ob ein anybill-Token ausgestellt werden kann.
 - Bei einer Meldung über fehlgeschlagene Belegdetails starte den Online-Abruf erneut. Bereits lokal gespeicherte Detail-JSONs können beim Wiederholen verwendet werden.
