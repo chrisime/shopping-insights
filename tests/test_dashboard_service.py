@@ -26,14 +26,14 @@ def test_time_series_items_include_retailers():
             TimeSeriesRow(period="2024-02", total_spent=20.0, receipt_count=2, retailers=["rewe"]),
         ],
         weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
-        top_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
-        top_items_total=0,
+        shopping_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
+        shopping_items_total=0,
         min_date=date(2024, 1, 1),
         max_date=date(2024, 1, 31),
     )
 
     page = build_dashboard_page_model(state).to_dict()
-    time_series_section = next(s for s in page["sections"] if s["kind"] == "time_series")
+    time_series_section = next(s for s in page["sections"] if s["kind"] == "spending_over_time")
 
     for item in time_series_section["items"]:
         assert "retailers" in item

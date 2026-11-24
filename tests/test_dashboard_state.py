@@ -69,7 +69,7 @@ def test_build_dashboard_state_computes_derived_metrics():
     assert state.derived.total_savings_pct == 22.0
     assert state.time_series[0].total_spent == 10.0
     assert state.weekday[0].weekday_name == "Montag"
-    assert state.top_items[0].name == "Apfel"
+    assert state.shopping_items[0].name == "Apfel"
     assert calls == [
         ("basic", "lidl", None, None),
         ("basic", "lidl", "2024-01-01", "2024-01-31"),

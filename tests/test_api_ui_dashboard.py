@@ -47,7 +47,7 @@ def test_build_dashboard_state_turns_kumulativ_time_series_cumulative():
     )
 
     page = build_dashboard_page_model(state)
-    time_series_section = next(section for section in page.sections if section.kind == "time_series")
+    time_series_section = next(section for section in page.sections if section.kind == "spending_over_time")
 
     assert [item["total_spent"] for item in time_series_section.items] == [10.0, 25.0]
 
@@ -73,8 +73,8 @@ def test_build_dashboard_page_model_formats_kpis_and_includes_bonus_sections():
         derived=DashboardDerivedMetrics(117.0, 10.0, 9.0, 9.0, 19.0, 19.0, 4.0, 5.0),
         time_series=[TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1)],
         weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
-        top_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
-        top_items_total=0,
+        shopping_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
+        shopping_items_total=0,
         min_date=date(2024, 1, 1),
         max_date=date(2024, 1, 31),
     )
@@ -126,8 +126,8 @@ def test_ui_dashboard_endpoint_returns_section_payload(monkeypatch):
         derived=DashboardDerivedMetrics(122.0, 10.0, 12.0, 12.0, 22.0, 22.0, 4.0, 5.0),
         time_series=[TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1)],
         weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
-        top_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
-        top_items_total=0,
+        shopping_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
+        shopping_items_total=0,
         min_date=date(2024, 1, 1),
         max_date=date(2024, 1, 31),
     )

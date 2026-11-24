@@ -23,8 +23,8 @@ def test_build_dashboard_page_model_maps_state_to_ui_sections():
         derived=DashboardDerivedMetrics(122.0, 10.0, 12.0, 12.0, 22.0, 22.0, 4.0, 5.0),
         time_series=[TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1)],
         weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
-        top_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
-        top_items_total=0,
+        shopping_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
+        shopping_items_total=0,
         min_date=date(2024, 1, 1),
         max_date=date(2024, 1, 31),
     )
@@ -75,8 +75,8 @@ def test_build_dashboard_page_model_omits_discounts_section_without_discount_met
         derived=DashboardDerivedMetrics(10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
         time_series=[TimeSeriesRow(period="2024-01", total_spent=10.0, receipt_count=1)],
         weekday=[WeekdayRow(weekday=0, weekday_name="Montag", trip_count=1, avg_spent=10.0, total_spent=10.0)],
-        top_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
-        top_items_total=0,
+        shopping_items=[TopItemRow(name="Apfel", total_quantity=2.0, total_spent=4.0, purchase_count=1, unit="pc")],
+        shopping_items_total=0,
         min_date=date(2024, 1, 1),
         max_date=date(2024, 1, 31),
     )

@@ -26,7 +26,7 @@ def test_frontend_api_codes_use_the_4xx_or_5xx_number_ranges():
 
     assert len(codes) == len(set(codes))
     assert all(4001 <= code <= 4099 or 5001 <= code <= 5099 for code in codes)
-    catalog = json.loads(Path("web/src/locales/de.json").read_text())
+    catalog = json.loads(Path("web/src/i18n/de.json").read_text())
     assert all(f"errors.api.{code}" in catalog for code in set(codes))
 
 

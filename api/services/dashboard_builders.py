@@ -90,7 +90,7 @@ def _cumulative_time_series(time_series: list[TimeSeriesRow]) -> list[TimeSeries
     return cumulative
 
 
-def _build_top_items(
+def _build_shopping_items(
     provider: MetricsStore,
     retailer: str | None,
     start_date: str | None,
@@ -246,8 +246,8 @@ def _empty_dashboard_state(
         derived=empty_derived,
         time_series=[],
         weekday=[],
-        top_items=[],
-        top_items_total=0,
+        shopping_items=[],
+        shopping_items_total=0,
         min_date=None,
         max_date=None,
         error=error,
@@ -289,8 +289,8 @@ def _empty_no_receipts_state(
         derived=empty_derived,
         time_series=[],
         weekday=[],
-        top_items=[],
-        top_items_total=0,
+        shopping_items=[],
+        shopping_items_total=0,
         min_date=available_kpis.min_date,
         max_date=available_kpis.max_date,
         error=no_receipts_error(),
@@ -339,7 +339,7 @@ def build_dashboard_state(
         if spending_view == "Kumulativ":
             time_series = _cumulative_time_series(time_series)
         weekday = store.weekday_analysis(retailer=normalized_retailer, start_date=start_date, end_date=end_date)
-        top_items, top_items_total = _build_top_items(store, normalized_retailer, start_date, end_date, top_view, top_limit, search, page)
+        shopping_items, shopping_items_total = _build_shopping_items(store, normalized_retailer, start_date, end_date, top_view, top_limit, search, page)
         derived = _build_derived_metrics(kpis, bonus_kpis)
     except sqlite3.OperationalError:
         return _empty_dashboard_state(
@@ -374,8 +374,8 @@ def build_dashboard_state(
         derived=derived,
         time_series=time_series,
         weekday=weekday,
-        top_items=top_items,
-        top_items_total=top_items_total,
+        shopping_items=shopping_items,
+        shopping_items_total=shopping_items_total,
         min_date=available_kpis.min_date,
         max_date=available_kpis.max_date,
     )
@@ -401,7 +401,7 @@ def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
     sections.extend(
         [
             DashboardSection(
-                kind="time_series",
+                kind="spending_over_time",
                 title="Ausgaben über Zeit",
                 items=[
                     {"period": row.period, "total_spent": row.total_spent, "receipt_count": row.receipt_count, "retailers": row.retailers}
@@ -409,7 +409,7 @@ def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
                 ],
             ),
             DashboardSection(
-                kind="weekday",
+                kind="shopping",
                 title="Einkaufsverhalten nach Wochentag",
                 items=[
                     {
@@ -423,7 +423,7 @@ def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
                 ],
             ),
             DashboardSection(
-                kind="top_items",
+                kind="shopping_items",
                 title="Top-Artikel",
                 items=[
                     {
@@ -433,20 +433,20 @@ def build_dashboard_page_model(state: DashboardState) -> DashboardPageModel:
                         "purchase_count": row.purchase_count,
                         "unit": row.unit,
                     }
-                    for row in state.top_items
+                    for row in state.shopping_items
                 ],
             ),
         ]
     )
 
-    # append pagination metadata to the top_items section
-    if sections and sections[-1].kind == "top_items":
+    # append pagination metadata to the shopping_items section
+    if sections and sections[-1].kind == "shopping_items":
         last = sections[-1]
         sections[-1] = DashboardSection(
-            kind="top_items",
+            kind="shopping_items",
             title=last.title,
             items=[
-                {**item, "total_count": state.top_items_total, "page": state.page, "page_size": state.top_limit}
+                {**item, "total_count": state.shopping_items_total, "page": state.page, "page_size": state.top_limit}
                 for item in last.items
             ],
         )

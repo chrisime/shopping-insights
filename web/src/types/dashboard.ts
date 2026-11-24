@@ -19,7 +19,7 @@ export type TimeSeriesRow = {
   retailers?: string[];
 };
 
-export type WeekdayRow = {
+export type Shopping = {
   weekday: number;
   weekday_name: string;
   trip_count: number;
@@ -27,7 +27,7 @@ export type WeekdayRow = {
   total_spent: number;
 };
 
-export type TopItemRow = {
+export type ShoppingItems = {
   name: string;
   total_quantity: number;
   total_spent: number;
@@ -40,9 +40,9 @@ export type TopItemRow = {
 
 export type DashboardSection =
   | { kind: "metrics"; title: string; items: MetricsRow[] }
-  | { kind: "time_series"; title: string; items: TimeSeriesRow[] }
-  | { kind: "weekday"; title: string; items: WeekdayRow[] }
-  | { kind: "top_items"; title: string; items: TopItemRow[] };
+  | { kind: "spending_over_time"; title: string; items: TimeSeriesRow[] }
+  | { kind: "shopping"; title: string; items: Shopping[] }
+  | { kind: "shopping_items"; title: string; items: ShoppingItems[] };
 
 export interface DashboardError {
   error_code: number;

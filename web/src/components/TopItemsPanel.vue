@@ -4,10 +4,10 @@ import { OField, OSelect } from "@oruga-ui/oruga-next";
 
 import { euro, quantity } from "../utils/format";
 import { t } from "../utils/copy";
-import type { TopItemRow } from "../types/dashboard";
+import type { ShoppingItems } from "../types/dashboard";
 
 const props = defineProps<{
-  items: TopItemRow[];
+  items: ShoppingItems[];
   page: number;
   pageSize: number;
   totalCount: number;

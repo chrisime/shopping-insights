@@ -3,24 +3,24 @@ import { computed } from "vue";
 
 import { euro } from "../utils/format";
 import { t } from "../utils/copy";
-import type { WeekdayRow } from "../types/dashboard";
+import type { Shopping } from "../types/dashboard";
 
 const props = defineProps<{
-  items: WeekdayRow[];
+  items: Shopping[];
 }>();
 
 const METRICS = [
   {
     key: "trips",
     title: t("weekday.purchasesTitle"),
-    value: (item: WeekdayRow) => item.trip_count,
-    label: (item: WeekdayRow) => t("weekday.purchases", { count: item.trip_count }),
+    value: (item: Shopping) => item.trip_count,
+    label: (item: Shopping) => t("weekday.purchases", { count: item.trip_count }),
   },
   {
     key: "avg",
     title: t("weekday.averagePerPurchase"),
-    value: (item: WeekdayRow) => item.avg_spent,
-    label: (item: WeekdayRow) => euro(item.avg_spent),
+    value: (item: Shopping) => item.avg_spent,
+    label: (item: Shopping) => euro(item.avg_spent),
   },
 ];
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { t } from "../utils/copy";
 
-export type SidebarTab = "import" | "spending" | "shopping" | "items";
+export type SidebarTab = "import" | "spending" | "spending-over-time" | "shopping" | "items";
 
 const activeTab = defineModel<SidebarTab>("activeTab", { required: true });
 const collapsed = defineModel<boolean>("collapsed", { required: true });
@@ -9,6 +9,7 @@ const collapsed = defineModel<boolean>("collapsed", { required: true });
 const tabs: { key: SidebarTab; icon: string; label: string }[] = [
   { key: "import", icon: "📥", label: t("tabs.import") },
   { key: "spending", icon: "💰", label: t("tabs.spending") },
+  { key: "spending-over-time", icon: "📈", label: t("tabs.spendingOverTime") },
   { key: "shopping", icon: "📊", label: t("tabs.shopping") },
   { key: "items", icon: "🛒", label: t("tabs.items") },
 ];
@@ -45,7 +46,7 @@ const tabs: { key: SidebarTab; icon: string; label: string }[] = [
         @click="activeTab = tab.key"
       >
         <span class="text-lg">{{ tab.icon }}</span>
-        <span v-if="!collapsed" class="truncate">{{ tab.label }}</span>
+        <span v-if="!collapsed" class="min-w-0">{{ tab.label }}</span>
       </button>
     </nav>
   </aside>

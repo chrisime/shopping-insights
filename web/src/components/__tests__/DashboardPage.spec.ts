@@ -1,5 +1,8 @@
+// @vitest-environment jsdom
+
 import { createSSRApp, nextTick, effectScope } from "vue";
 import { renderToString } from "@vue/server-renderer";
+import { flushPromises, mount } from "@vue/test-utils";
 import Oruga from "@oruga-ui/oruga-next";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -39,7 +42,7 @@ describe("DashboardPage", () => {
               ],
             },
             {
-              kind: "time_series",
+              kind: "spending_over_time",
               title: "Ausgaben über Zeit",
               items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }],
             },
@@ -48,12 +51,21 @@ describe("DashboardPage", () => {
       }),
     );
 
-    const html = await renderToString(createSSRApp(DashboardPage).use(Oruga));
+    const wrapper = mount(DashboardPage, {
+      global: {
+        plugins: [Oruga],
+        stubs: { ReceiptModal: true, ReceiptListModal: true },
+      },
+    });
+    await flushPromises();
 
-    expect(html).toContain("Shopping Analyzer Dashboard");
-    expect(html).toContain("Allgemeine Informationen");
-    expect(html).toContain("Ausgaben gesamt");
-    expect(html).toContain("Ausgaben über Zeit");
+    expect(wrapper.text()).toContain("Shopping Analyzer Dashboard");
+    expect(wrapper.text()).toContain("Allgemeine Informationen");
+    expect(wrapper.text()).toContain("Ausgaben gesamt");
+
+    await wrapper.get('[data-testid="dashboard-tab-spending-over-time"]').trigger("click");
+    expect(wrapper.text()).toContain("Ausgaben über Zeit");
+    wrapper.unmount();
   });
 
   it("seeds the dashboard date filters from the first payload", async () => {

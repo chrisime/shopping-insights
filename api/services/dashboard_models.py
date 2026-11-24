@@ -39,8 +39,8 @@ class DashboardState:
     derived: DashboardDerivedMetrics
     time_series: list[TimeSeriesRow]
     weekday: list[WeekdayRow]
-    top_items: list[TopItemRow]
-    top_items_total: int
+    shopping_items: list[TopItemRow]
+    shopping_items_total: int
     min_date: str | None
     max_date: str | None
     error: DashboardError | None = None
