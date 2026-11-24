@@ -62,7 +62,7 @@ const BAR_LABELS = [
 const yAxisRef = ref<HTMLDivElement>();
 const chartRef = ref<HTMLDivElement>();
 
-const isScrollable = computed(() => props.granularity !== "Jährlich");
+const isScrollable = computed(() => props.granularity !== "yearly");
 const ticks = computed(() => yAxisTicks(props.items, props.granularity));
 const width = computed(() => chartWidth(props.items.length));
 
@@ -141,6 +141,7 @@ function renderBars(svg: Svg, xScale: BandScale, yScale: ValueScale) {
     .enter()
     .append("rect")
     .attr("class", "bar")
+    .attr("data-testid", "trend-chart-bar")
     .attr("x", (_row, index) => xScale(String(index)) ?? 0)
     .attr("y", (row) => yScale(row.total_spent))
     .attr("width", xScale.bandwidth())
@@ -175,6 +176,7 @@ function createTooltip(svg: Svg): Group {
   const group = svg
     .append("g")
     .attr("class", "tooltip-group")
+    .attr("data-testid", "trend-chart-tooltip")
     .style("display", "none")
     .style("pointer-events", "none");
 
@@ -290,12 +292,14 @@ function drawChart() {
   const yAxisSvg = d3
     .select(yAxisRef.value)
     .append("svg")
+    .attr("data-testid", "trend-chart-y-axis-svg")
     .attr("width", Y_AXIS_WIDTH)
     .attr("height", CHART_HEIGHT)
     .style("display", "block");
   const mainSvg = d3
     .select(chartRef.value)
     .append("svg")
+    .attr("data-testid", "trend-chart-svg")
     .attr("width", width.value)
     .attr("height", CHART_HEIGHT)
     .style("display", "block");
@@ -325,6 +329,7 @@ watch([() => props.items, () => props.monthLabels, () => props.granularity], dra
         :style="{ width: `${Y_AXIS_WIDTH}px`, height: `${CHART_HEIGHT}px` }"
       ></div>
       <div
+        data-testid="trend-chart-scroll"
         class="overflow-y-hidden"
         :class="isScrollable ? 'overflow-x-auto' : ''"
         :style="{ height: `${CHART_HEIGHT}px`, marginLeft: `${Y_AXIS_WIDTH}px` }"

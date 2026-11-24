@@ -32,28 +32,29 @@ const emit = defineEmits<{
   (event: "start-import", payload: ImportStartRequest): void;
 }>();
 
-const authMode = ref<"browser" | "cookies-file" | "rossmann-login">("browser");
+const authMode = ref<"mfa-login" | "cookies-file" | "user-login">("mfa-login");
 const browser = ref<(typeof BROWSER_OPTIONS)[number]["value"]>("firefox");
 const cookiesFile = ref("lidl_cookies.json");
 const customerId = ref("");
 const showCustomerId = ref(false);
-const rossmannEmail = ref("");
-const rossmannPassword = ref("");
+const loginEmail = ref("");
+const loginPassword = ref("");
 
 function applyRetailerDefaults(retailer: ImportRetailer) {
-  browser.value = "firefox";
   const defaultFiles: Record<ImportRetailer, string> = {
     lidl: "lidl_cookies.json",
     rewe: "rewe_cookies.json",
     dm: "dm_cookies.json",
     rossmann: "rossmann_cookies.json",
   };
-  cookiesFile.value = defaultFiles[retailer] ?? "lidl_cookies.json";
-  authMode.value = retailer === "rossmann" ? "rossmann-login" : "browser";
+
+  browser.value = "firefox";
+  cookiesFile.value = defaultFiles[retailer];
+  authMode.value = retailer === "rossmann" ? "user-login" : "mfa-login";
   customerId.value = "";
   showCustomerId.value = false;
-  rossmannEmail.value = "";
-  rossmannPassword.value = "";
+  loginEmail.value = "";
+  loginPassword.value = "";
 }
 
 watch(
@@ -65,27 +66,27 @@ watch(
 );
 
 watch(authMode, () => {
-  rossmannPassword.value = "";
+  loginPassword.value = "";
 });
 
 const canStart = computed(
   () =>
     !props.running &&
-    (authMode.value !== "rossmann-login" ||
-      Boolean(rossmannEmail.value.trim() && rossmannPassword.value)),
+    (authMode.value !== "user-login" ||
+      Boolean(loginEmail.value.trim() && loginPassword.value.trim())),
 );
 
 function submitImport() {
   if (!canStart.value) return;
 
   const payload: ImportStartRequest = { retailer: props.retailer };
-  if (authMode.value === "rossmann-login") {
-    payload.rossmann_login = {
-      email: rossmannEmail.value.trim(),
-      password: rossmannPassword.value,
+  if (authMode.value === "user-login") {
+    payload.user_login = {
+      email: loginEmail.value.trim(),
+      password: loginPassword.value,
     };
-    rossmannPassword.value = "";
-  } else if (authMode.value === "browser") {
+    loginPassword.value = "";
+  } else if (authMode.value === "mfa-login") {
     payload.browser = browser.value;
   } else {
     payload.cookies_file = cookiesFile.value;
@@ -99,7 +100,7 @@ function submitImport() {
 
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-    <form class="grid gap-4" @submit.prevent="submitImport">
+    <form data-testid="import-form" class="grid gap-4" @submit.prevent="submitImport">
       <div class="grid gap-4 sm:grid-cols-2">
         <OField :label="t('import.forRetailer')">
           <OSelect
@@ -107,27 +108,38 @@ function submitImport() {
             expanded
             @update:model-value="emit('update:retailer', $event as ImportRetailer)"
           >
-            <option value="lidl">{{ t("retailer.lidl") }}</option>
-            <option value="rewe">{{ t("retailer.rewe") }}</option>
-            <option value="dm">{{ t("retailer.dm") }}</option>
-            <option value="rossmann">{{ t("retailer.rossmann") }}</option>
+            <option data-testid="import-option" value="lidl">{{ t("retailer.lidl") }}</option>
+            <option data-testid="import-option" value="rewe">{{ t("retailer.rewe") }}</option>
+            <option data-testid="import-option" value="dm">{{ t("retailer.dm") }}</option>
+            <option data-testid="import-option" value="rossmann">
+              {{ t("retailer.rossmann") }}
+            </option>
           </OSelect>
         </OField>
 
         <div class="grid gap-4 sm:grid-cols-2">
           <OField :label="t('import.authentication')">
             <OSelect v-model="authMode" expanded>
-              <option v-if="retailer === 'rossmann'" value="rossmann-login">
+              <option data-testid="import-option" v-if="retailer === 'rossmann'" value="user-login">
                 {{ t("import.rossmannAccount") }}
               </option>
-              <option v-else value="browser">{{ t("import.browserProfile") }}</option>
-              <option value="cookies-file">{{ t("import.cookieFile") }}</option>
+              <option data-testid="import-option" v-else value="mfa-login">
+                {{ t("import.browserProfile") }}
+              </option>
+              <option data-testid="import-option" value="cookies-file">
+                {{ t("import.cookieFile") }}
+              </option>
             </OSelect>
           </OField>
 
-          <OField v-if="authMode === 'browser'" :label="t('import.browser')">
+          <OField v-if="authMode === 'mfa-login'" :label="t('import.browser')">
             <OSelect v-model="browser" expanded>
-              <option v-for="option in BROWSER_OPTIONS" :key="option.value" :value="option.value">
+              <option
+                data-testid="import-option"
+                v-for="option in BROWSER_OPTIONS"
+                :key="option.value"
+                :value="option.value"
+              >
                 {{ t(option.labelKey) }}
               </option>
             </OSelect>
@@ -143,11 +155,12 @@ function submitImport() {
         </div>
       </div>
 
-      <div v-if="authMode === 'rossmann-login'" class="grid gap-4 sm:grid-cols-2">
+      <div v-if="authMode === 'user-login'" class="grid gap-4 sm:grid-cols-2">
         <OField :label="t('import.rossmannEmail')" label-for="rossmann-import-email">
           <input
+            data-testid="import-email"
             id="rossmann-import-email"
-            v-model="rossmannEmail"
+            v-model="loginEmail"
             autocomplete="username"
             type="email"
             required
@@ -156,8 +169,9 @@ function submitImport() {
         </OField>
         <OField :label="t('import.rossmannPassword')" label-for="rossmann-import-password">
           <input
+            data-testid="import-password"
             id="rossmann-import-password"
-            v-model="rossmannPassword"
+            v-model="loginPassword"
             autocomplete="current-password"
             type="password"
             required
@@ -170,12 +184,14 @@ function submitImport() {
         <button
           type="button"
           class="text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4"
+          data-testid="import-customer-id-toggle"
           @click="showCustomerId = !showCustomerId"
         >
           {{ showCustomerId ? t("import.customerId.hide") : t("import.customerId.show") }}
         </button>
         <OField v-if="showCustomerId" :label="t('import.customerId.label')">
           <input
+            data-testid="import-customer-id"
             v-model="customerId"
             class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
             type="text"
@@ -185,6 +201,7 @@ function submitImport() {
       </div>
 
       <button
+        data-testid="import-submit"
         type="submit"
         class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="!canStart"

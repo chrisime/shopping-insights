@@ -18,7 +18,7 @@ export class ImportStartError extends Error {
 export async function startImportJob(payload: ImportStartRequest): Promise<ImportStartResponse> {
   const url = apiUrl("/imports/start");
   if (
-    payload.rossmann_login &&
+    payload.user_login &&
     url.protocol !== "https:" &&
     !(url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
   ) {
@@ -33,7 +33,7 @@ export async function startImportJob(payload: ImportStartRequest): Promise<Impor
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
-      ...(payload.rossmann_login && { redirect: "error", cache: "no-store" }),
+      ...(payload.user_login && { redirect: "error", cache: "no-store" }),
     });
   } catch {
     throw new ImportStartError(networkErrorText(), UNKNOWN_API_CODE, true);

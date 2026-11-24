@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { t } from "../utils/copy";
 
-export type SidebarTab = "import" | "ausgaben" | "einkauf" | "artikel";
+export type SidebarTab = "import" | "spending" | "shopping" | "items";
 
 const activeTab = defineModel<SidebarTab>("activeTab", { required: true });
 const collapsed = defineModel<boolean>("collapsed", { required: true });
 
 const tabs: { key: SidebarTab; icon: string; label: string }[] = [
   { key: "import", icon: "📥", label: t("tabs.import") },
-  { key: "ausgaben", icon: "💰", label: t("tabs.spending") },
-  { key: "einkauf", icon: "📊", label: t("tabs.shopping") },
-  { key: "artikel", icon: "🛒", label: t("tabs.items") },
+  { key: "spending", icon: "💰", label: t("tabs.spending") },
+  { key: "shopping", icon: "📊", label: t("tabs.shopping") },
+  { key: "items", icon: "🛒", label: t("tabs.items") },
 ];
 </script>
 
@@ -33,6 +33,7 @@ const tabs: { key: SidebarTab; icon: string; label: string }[] = [
     <nav class="flex flex-col gap-1 px-2 py-4">
       <button
         v-for="tab in tabs"
+        :data-testid="`dashboard-tab-${tab.key}`"
         :key="tab.key"
         type="button"
         :class="[

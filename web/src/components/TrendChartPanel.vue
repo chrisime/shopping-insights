@@ -17,14 +17,14 @@ const emit = defineEmits<{
   (e: "select-period", payload: PeriodSelection): void;
 }>();
 
-const granularity = computed(() => props.timeGranularity || "Monatlich");
+const granularity = computed(() => props.timeGranularity || "monthly");
 const groupLabel = computed(() => {
-  if (granularity.value === "Täglich") return t("dashboard.granularityDays");
-  if (granularity.value === "Monatlich") return t("dashboard.granularityMonths");
+  if (granularity.value === "daily") return t("dashboard.granularityDays");
+  if (granularity.value === "monthly") return t("dashboard.granularityMonths");
   return t("dashboard.granularityYears");
 });
 const monthLabels = computed(() =>
-  granularity.value === "Täglich" ? buildMonthLabels(props.items) : [],
+  granularity.value === "daily" ? buildMonthLabels(props.items) : [],
 );
 
 const summaryCards = computed(() => {
@@ -61,6 +61,7 @@ const summaryCards = computed(() => {
     <div class="grid gap-2">
       <h3 v-if="items.length > 0" class="text-sm font-semibold text-slate-800">{{ groupLabel }}</h3>
       <TrendBarChart
+        data-testid="trend-bar-chart"
         v-if="items.length > 0"
         :items="items"
         :granularity="granularity"

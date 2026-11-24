@@ -86,5 +86,5 @@ export type Receipt = {
   total_price: number;
   items: ReceiptItem[];
   currency?: string;
-  rossmann_coupons?: ReceiptCoupon[];
+  receipt_coupons?: ReceiptCoupon[];
 };

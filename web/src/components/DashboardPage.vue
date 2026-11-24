@@ -18,7 +18,7 @@ import { useDashboard } from "../composables/useDashboard";
 import { useImportJob } from "../composables/useImportJob";
 import { exportReceiptsJson } from "../api/exports";
 import { ApiRequestError } from "../api/http";
-import { apiErrorText, networkErrorText, t } from "../utils/copy";
+import { apiErrorText, dashboardSectionTitle, networkErrorText, t } from "../utils/copy";
 import type { PeriodSelection } from "../types/chart";
 import type { ImportRetailer } from "../types/imports";
 
@@ -50,7 +50,7 @@ const importRetailer = ref<ImportRetailer>("lidl");
 const exporting = ref(false);
 const exportError = ref<string | null>(null);
 const sidebarCollapsed = ref(false);
-const activeTab = ref<SidebarTab>("ausgaben");
+const activeTab = ref<SidebarTab>("spending");
 const selectedArticle = ref<string | null>(null);
 const selectedPeriod = ref<PeriodSelection | null>(null);
 
@@ -60,17 +60,6 @@ const bannerMessage = computed(() =>
     : (exportError.value ?? error.value),
 );
 
-function sectionTitle(title: string) {
-  const keys: Record<string, Parameters<typeof t>[0]> = {
-    "Allgemeine Informationen": "sections.general",
-    Rabatte: "sections.discounts",
-    "Ausgaben über Zeit": "sections.spendingOverTime",
-    "Einkaufsverhalten nach Wochentag": "sections.shoppingByWeekday",
-    "Top-Artikel": "sections.topItems",
-  };
-  const key = keys[title];
-  return key ? t(key) : t("sections.unknown");
-}
 const spendingSections = computed(
   () =>
     payload.value?.sections.filter(
@@ -128,6 +117,7 @@ async function handleExport() {
           type="button"
           class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           :disabled="loading || exporting || !payload || !!payload.error"
+          data-testid="dashboard-export"
           @click="handleExport"
         >
           {{ exporting ? t("dashboard.exporting") : t("dashboard.export") }}
@@ -191,11 +181,11 @@ async function handleExport() {
           @start-import="startImport($event)"
         />
 
-        <template v-else-if="activeTab === 'ausgaben'">
+        <template v-else-if="activeTab === 'spending'">
           <DashboardSection
             v-for="section in spendingSections"
             :key="`${section.kind}-${section.title}`"
-            :title="sectionTitle(section.title)"
+            :title="dashboardSectionTitle(section.title)"
             :empty="section.items.length === 0"
           >
             <DashboardKpiGrid v-if="section.kind === 'metrics'" :data="section.items[0] ?? {}" />
@@ -205,13 +195,13 @@ async function handleExport() {
                   t("filters.granularity")
                 }}</label>
                 <div class="flex gap-4">
-                  <ORadio v-model="timeGranularity" native-value="Täglich">{{
+                  <ORadio v-model="timeGranularity" native-value="daily">{{
                     t("filters.daily")
                   }}</ORadio>
-                  <ORadio v-model="timeGranularity" native-value="Monatlich">{{
+                  <ORadio v-model="timeGranularity" native-value="monthly">{{
                     t("filters.monthly")
                   }}</ORadio>
-                  <ORadio v-model="timeGranularity" native-value="Jährlich">{{
+                  <ORadio v-model="timeGranularity" native-value="yearly">{{
                     t("filters.yearly")
                   }}</ORadio>
                 </div>
@@ -227,23 +217,23 @@ async function handleExport() {
           </DashboardSection>
         </template>
 
-        <template v-else-if="activeTab === 'einkauf'">
+        <template v-else-if="activeTab === 'shopping'">
           <DashboardSection
             v-for="section in weekdaySections"
             :key="`${section.kind}-${section.title}`"
-            :title="sectionTitle(section.title)"
+            :title="dashboardSectionTitle(section.title)"
             :empty="section.items.length === 0"
           >
             <WeekdayPanel :items="section.items" />
           </DashboardSection>
         </template>
 
-        <template v-else-if="activeTab === 'artikel'">
+        <template v-else-if="activeTab === 'items'">
           <DashboardFilterBar v-model:search="search" v-model:top-view="topView" class="mb-4" />
           <DashboardSection
             v-for="section in topItemSections"
             :key="`${section.kind}-${section.title}`"
-            :title="sectionTitle(section.title)"
+            :title="dashboardSectionTitle(section.title)"
             :empty="section.items.length === 0"
           >
             <TopItemsPanel

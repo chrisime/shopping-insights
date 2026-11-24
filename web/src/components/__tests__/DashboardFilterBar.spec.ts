@@ -22,13 +22,13 @@ describe("DashboardFilterBar", () => {
       },
     });
 
-    await wrapper.find("input").setValue("milch");
+    await wrapper.find("[data-testid=dashboard-search]").setValue("milch");
 
     expect(wrapper.emitted("update:search")?.at(-1)).toEqual(["milch"]);
-    expect(wrapper.findComponent({ name: "OField" }).exists()).toBe(true);
-    expect(wrapper.find("form").classes()).toContain("rounded-2xl");
+    expect(wrapper.find("[data-testid=dashboard-search-field]").exists()).toBe(true);
+    expect(wrapper.find("[data-testid=dashboard-filter-form]").classes()).toContain("rounded-2xl");
 
-    await wrapper.find("select").setValue("Ausgaben");
+    await wrapper.find("[data-testid=dashboard-sort]").setValue("Ausgaben");
 
     expect(wrapper.emitted("update:topView")?.at(-1)).toEqual(["Ausgaben"]);
   });

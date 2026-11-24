@@ -141,10 +141,8 @@ describe("DashboardKpiGrid", () => {
     });
     const wrapper = mount(DashboardKpiGrid, { props: { data } });
     expect(wrapper.text()).toContain("Rossmann 10% Coupon");
-    const productCard = wrapper
-      .findAll("article")
-      .find((card) => card.text().includes("Rossmann Produktcoupons"));
-    expect(productCard?.text()).toContain("10,0 %");
+    const productCard = wrapper.get("[data-testid=kpi-card-rossmann_product_coupon_amount]");
+    expect(productCard.text()).toContain("10,0 %");
     expect(wrapper.text()).not.toContain("Rossmann andere Coupons");
 
     await wrapper.setProps({ data: { ...data, rossmann_unclassified_coupon_amount: 2 } });
@@ -166,7 +164,9 @@ describe("DashboardKpiGrid", () => {
         }),
       },
     });
-    const rightAligned = wrapper.findAll(".justify-items-end");
-    expect(rightAligned.length).toBeGreaterThan(0);
+    const rightAligned = wrapper.findAll("[data-testid=kpi-field]");
+    expect(
+      rightAligned.filter((field) => field.classes("justify-items-end")).length,
+    ).toBeGreaterThan(0);
   });
 });

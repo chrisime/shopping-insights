@@ -12,6 +12,7 @@ const showCode = ref(false);
 <template>
   <p class="text-sm text-slate-500">
     <button
+      data-testid="import-error-details-toggle"
       type="button"
       class="mr-2 underline decoration-slate-300 underline-offset-4"
       @click="showCode = !showCode"

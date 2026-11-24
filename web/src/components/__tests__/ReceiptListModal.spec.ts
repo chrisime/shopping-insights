@@ -99,7 +99,7 @@ describe("ReceiptListModal", () => {
     await wrapper.setProps({ visible: true });
     await settled();
 
-    await wrapper.find(".fixed.inset-0").trigger("click");
+    await wrapper.find("[data-testid=receipt-overlay]").trigger("click");
     expect(wrapper.emitted("close")).toHaveLength(1);
   });
 

@@ -16,7 +16,7 @@ describe("ImportErrorDetails", () => {
     expect(wrapper.text()).toContain("Fehlercode anzeigen");
     expect(wrapper.text()).not.toContain("Code 4008");
 
-    await wrapper.get("button").trigger("click");
+    await wrapper.get("[data-testid=import-error-details-toggle]").trigger("click");
 
     expect(wrapper.text()).toContain("Fehlercode verbergen");
     expect(wrapper.text()).toContain("Fehlercode 4008");

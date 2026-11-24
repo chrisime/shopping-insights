@@ -10,10 +10,11 @@ describe("TrendBarChart", () => {
     const wrapper = mount(TrendBarChart, {
       props: {
         items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }],
-        granularity: "Monatlich",
+        granularity: "monthly",
       },
     });
-    expect(wrapper.findAll("svg").length).toBe(2);
+    expect(wrapper.find("[data-testid=trend-chart-svg]").exists()).toBe(true);
+    expect(wrapper.find("[data-testid=trend-chart-y-axis-svg]").exists()).toBe(true);
   });
 
   it("renders monthly labels", () => {
@@ -23,7 +24,7 @@ describe("TrendBarChart", () => {
           { period: "2024-01", total_spent: 10, receipt_count: 1 },
           { period: "2024-02", total_spent: 20, receipt_count: 2 },
         ],
-        granularity: "Monatlich",
+        granularity: "monthly",
       },
     });
     expect(wrapper.text()).toContain("Jan 2024");
@@ -34,10 +35,10 @@ describe("TrendBarChart", () => {
     const wrapper = mount(TrendBarChart, {
       props: {
         items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }],
-        granularity: "Monatlich",
+        granularity: "monthly",
       },
     });
-    expect(wrapper.find(".overflow-x-auto").exists()).toBe(true);
+    expect(wrapper.find("[data-testid=trend-chart-scroll]").classes("overflow-x-auto")).toBe(true);
   });
 
   it("renders yearly labels", () => {
@@ -47,7 +48,7 @@ describe("TrendBarChart", () => {
           { period: "2024", total_spent: 100, receipt_count: 12 },
           { period: "2025", total_spent: 200, receipt_count: 24 },
         ],
-        granularity: "Jährlich",
+        granularity: "yearly",
       },
     });
     expect(wrapper.text()).toContain("2024");
@@ -61,7 +62,7 @@ describe("TrendBarChart", () => {
           { period: "2024-01-15", total_spent: 10, receipt_count: 1 },
           { period: "2024-02-20", total_spent: 20, receipt_count: 2 },
         ],
-        granularity: "Täglich",
+        granularity: "daily",
         monthLabels: [
           { label: "Januar 2024", start: 0, end: 0 },
           { label: "Februar 2024", start: 1, end: 1 },
@@ -78,7 +79,7 @@ describe("TrendBarChart", () => {
     const wrapper = mount(TrendBarChart, {
       props: {
         items: [{ period: "2024-01-15", total_spent: 10, receipt_count: 1 }],
-        granularity: "Täglich",
+        granularity: "daily",
       },
     });
     expect(wrapper.text()).toContain("2024-01-15");
@@ -87,12 +88,12 @@ describe("TrendBarChart", () => {
   it("emits select-period with monthly boundaries", async () => {
     const wrapper = mount(TrendBarChart, {
       props: {
-        granularity: "Monatlich",
+        granularity: "monthly",
         items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }],
       },
     });
 
-    const rect = wrapper.find("rect.bar");
+    const rect = wrapper.find("[data-testid=trend-chart-bar]");
     await rect.trigger("click");
 
     expect(wrapper.emitted("select-period")).toHaveLength(1);
@@ -104,12 +105,12 @@ describe("TrendBarChart", () => {
   it("emits select-period with daily boundaries", async () => {
     const wrapper = mount(TrendBarChart, {
       props: {
-        granularity: "Täglich",
+        granularity: "daily",
         items: [{ period: "2024-01-15", total_spent: 10, receipt_count: 1 }],
       },
     });
 
-    const rect = wrapper.find("rect.bar");
+    const rect = wrapper.find("[data-testid=trend-chart-bar]");
     await rect.trigger("click");
 
     expect(wrapper.emitted("select-period")![0]).toEqual([
@@ -120,12 +121,12 @@ describe("TrendBarChart", () => {
   it("emits select-period with yearly boundaries", async () => {
     const wrapper = mount(TrendBarChart, {
       props: {
-        granularity: "Jährlich",
+        granularity: "yearly",
         items: [{ period: "2024", total_spent: 100, receipt_count: 12 }],
       },
     });
 
-    const rect = wrapper.find("rect.bar");
+    const rect = wrapper.find("[data-testid=trend-chart-bar]");
     await rect.trigger("click");
 
     expect(wrapper.emitted("select-period")![0]).toEqual([
@@ -136,7 +137,7 @@ describe("TrendBarChart", () => {
   it("shows tooltip on bar mouseenter", async () => {
     const wrapper = mount(TrendBarChart, {
       props: {
-        granularity: "Monatlich",
+        granularity: "monthly",
         items: [
           {
             period: "2024-01",
@@ -148,10 +149,10 @@ describe("TrendBarChart", () => {
       },
     });
 
-    const rect = wrapper.find("rect.bar");
+    const rect = wrapper.find("[data-testid=trend-chart-bar]");
     await rect.trigger("mouseenter");
 
-    const tooltipGroup = wrapper.find(".tooltip-group");
+    const tooltipGroup = wrapper.find("[data-testid=trend-chart-tooltip]");
     expect(tooltipGroup.exists()).toBe(true);
     expect(tooltipGroup.attributes("style")).not.toContain("display: none");
   });
@@ -159,7 +160,7 @@ describe("TrendBarChart", () => {
   it("tooltip contains period, total, count, avg, and retailers", async () => {
     const wrapper = mount(TrendBarChart, {
       props: {
-        granularity: "Monatlich",
+        granularity: "monthly",
         items: [
           {
             period: "2024-01",
@@ -171,7 +172,7 @@ describe("TrendBarChart", () => {
       },
     });
 
-    const rect = wrapper.find("rect.bar");
+    const rect = wrapper.find("[data-testid=trend-chart-bar]");
     await rect.trigger("mouseenter");
 
     expect(wrapper.text()).toContain("Januar 2024");
@@ -186,7 +187,7 @@ describe("TrendBarChart", () => {
     vi.useFakeTimers();
     const wrapper = mount(TrendBarChart, {
       props: {
-        granularity: "Monatlich",
+        granularity: "monthly",
         items: [
           {
             period: "2024-01",
@@ -198,12 +199,12 @@ describe("TrendBarChart", () => {
       },
     });
 
-    const rect = wrapper.find("rect.bar");
+    const rect = wrapper.find("[data-testid=trend-chart-bar]");
     await rect.trigger("mouseenter");
     await rect.trigger("mouseleave");
 
     // Immediately after leave, tooltip should still be visible (200ms delay)
-    const tooltipGroup = wrapper.find(".tooltip-group");
+    const tooltipGroup = wrapper.find("[data-testid=trend-chart-tooltip]");
     expect(tooltipGroup.attributes("style")).not.toContain("display: none");
 
     // Advance past the 200ms delay
@@ -218,7 +219,7 @@ describe("TrendBarChart", () => {
     vi.useFakeTimers();
     const wrapper = mount(TrendBarChart, {
       props: {
-        granularity: "Monatlich",
+        granularity: "monthly",
         items: [
           {
             period: "2024-01",
@@ -230,7 +231,7 @@ describe("TrendBarChart", () => {
       },
     });
 
-    const rect = wrapper.find("rect.bar");
+    const rect = wrapper.find("[data-testid=trend-chart-bar]");
     await rect.trigger("mouseenter");
     await rect.trigger("mouseleave");
 
@@ -239,7 +240,7 @@ describe("TrendBarChart", () => {
     vi.advanceTimersByTime(201);
     await wrapper.vm.$nextTick();
 
-    const tooltipGroup = wrapper.find(".tooltip-group");
+    const tooltipGroup = wrapper.find("[data-testid=trend-chart-tooltip]");
     // Tooltip should still be visible because re-enter cancelled the timer
     expect(tooltipGroup.attributes("style")).not.toContain("display: none");
 

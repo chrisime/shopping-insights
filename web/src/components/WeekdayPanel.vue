@@ -52,6 +52,7 @@ function barWidth(value: number, max: number): string {
           </div>
           <div class="h-2 overflow-hidden rounded-full bg-slate-200">
             <div
+              data-testid="weekday-bar"
               class="h-full rounded-full bg-indigo-500"
               :style="{ width: barWidth(column.value(item), column.max) }"
             />

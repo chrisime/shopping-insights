@@ -1,6 +1,8 @@
-import germanCopy from "../locales/de.json";
+import germanCopy from "../i18n/de.json";
 
-export type CopyKey = keyof typeof germanCopy;
+export type CopyKey = Exclude<keyof typeof germanCopy, "sectionTitleKeys">;
+
+const sectionTitleKeys: Readonly<Partial<Record<string, string>>> = germanCopy.sectionTitleKeys;
 export type CopyValues = Record<string, string | number>;
 
 export function t(key: CopyKey, values: CopyValues = {}): string {
@@ -10,6 +12,13 @@ export function t(key: CopyKey, values: CopyValues = {}): string {
   return template.replace(/\{\{(\w+)\}\}/g, (placeholder, name: string) =>
     name in values ? String(values[name]) : placeholder,
   );
+}
+
+export function dashboardSectionTitle(title: string): string {
+  const key = Object.hasOwn(sectionTitleKeys, title) ? sectionTitleKeys[title] : undefined;
+  return key && key !== "sectionTitleKeys" && Object.hasOwn(germanCopy, key)
+    ? t(key as CopyKey)
+    : t("sections.unknown");
 }
 
 export function apiErrorText(errorCode?: number): string {

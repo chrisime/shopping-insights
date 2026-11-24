@@ -20,7 +20,7 @@ export interface ImportStartRequest {
   browser?: string | null;
   cookies_file?: string | null;
   customer_id?: string | null;
-  rossmann_login?: { email: string; password: string };
+  user_login?: { email: string; password: string };
 }
 
 export interface ImportStartResponse {

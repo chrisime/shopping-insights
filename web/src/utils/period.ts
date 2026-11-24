@@ -20,7 +20,7 @@ export const MONTH_NAMES = [
 export function computePeriod(period: string, granularity: string): PeriodSelection {
   const parts = period.split("-");
 
-  if (granularity === "Täglich") {
+  if (granularity === "daily") {
     if (parts.length >= 3) {
       const [year, month, day] = parts.map(Number);
       return {
@@ -32,7 +32,7 @@ export function computePeriod(period: string, granularity: string): PeriodSelect
     return { startDate: period, endDate: period, label: period };
   }
 
-  if (granularity === "Monatlich" && parts.length >= 2) {
+  if (granularity === "monthly" && parts.length >= 2) {
     const [year, month] = parts.map(Number);
     const lastDay = new Date(year, month, 0).getDate();
     return {

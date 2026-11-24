@@ -14,11 +14,17 @@ import { ApiRequestError } from "../api/http";
 import type { DashboardPayload } from "../types/dashboard";
 import { apiErrorText, networkErrorText, t } from "../utils/copy";
 
+const apiTimeGranularities = {
+  daily: "Täglich",
+  monthly: "Monatlich",
+  yearly: "Jährlich",
+} as const;
+
 export function useDashboard() {
   const retailer = ref("");
   const startDate = ref("");
   const endDate = ref("");
-  const timeGranularity = ref("Täglich");
+  const timeGranularity = ref<keyof typeof apiTimeGranularities>("daily");
   const topView = ref("Menge");
   const topLimit = ref(20);
   const search = ref("");
@@ -36,7 +42,7 @@ export function useDashboard() {
     retailer: retailer.value || undefined,
     start_date: startDate.value || undefined,
     end_date: endDate.value || undefined,
-    time_granularity: timeGranularity.value,
+    time_granularity: apiTimeGranularities[timeGranularity.value],
     top_view: topView.value,
     top_limit: topLimit.value,
     search: search.value.length >= 3 ? search.value : undefined,

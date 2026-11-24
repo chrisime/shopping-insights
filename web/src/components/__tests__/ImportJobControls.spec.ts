@@ -35,9 +35,11 @@ describe("ImportJobControls", () => {
     expect(wrapper.text()).toContain("Import");
     expect(wrapper.text()).toContain("1/3");
     expect(wrapper.text()).toContain("r1");
-    expect(wrapper.findAll("option").length).toBeGreaterThanOrEqual(8);
-    expect(wrapper.findAll("option")[0].element.selected).toBe(true);
-    expect(wrapper.find(".h-2").exists()).toBe(true);
+    expect(wrapper.findAll("[data-testid=import-option]").length).toBeGreaterThanOrEqual(8);
+    expect(
+      wrapper.findAll<HTMLOptionElement>("[data-testid=import-option]")[0].element.selected,
+    ).toBe(true);
+    expect(wrapper.find("[data-testid=import-progress-track]").exists()).toBe(true);
   });
 
   it("defaults lidl and rewe to browser auth", async () => {
@@ -96,8 +98,8 @@ describe("ImportJobControls", () => {
 
     expect(reweWrapper.text()).toContain("Browser-Profil");
     expect(reweWrapper.text()).toContain("Firefox");
-    await reweWrapper.get("button").trigger("click");
-    expect(reweWrapper.findAll('input[type="text"]').length).toBe(1);
+    await reweWrapper.get("[data-testid=import-customer-id-toggle]").trigger("click");
+    expect(reweWrapper.findAll("[data-testid=import-customer-id]").length).toBe(1);
   });
 
   it("renders technical error details", async () => {
@@ -129,7 +131,7 @@ describe("ImportJobControls", () => {
     expect(wrapper.text()).toContain("Fehlercode anzeigen");
     expect(wrapper.text()).not.toContain("Code 4008");
 
-    await wrapper.findAll("button")[1].trigger("click");
+    await wrapper.get("[data-testid=import-error-details-toggle]").trigger("click");
 
     expect(wrapper.text()).toContain("Fehlercode 4008");
   });
@@ -160,7 +162,7 @@ describe("ImportJobControls", () => {
       },
     });
 
-    await wrapper.get("form").trigger("submit");
+    await wrapper.get("[data-testid=import-form]").trigger("submit");
 
     expect(wrapper.emitted("start-import")?.[0][0]).toEqual({
       retailer: "lidl",
@@ -194,7 +196,9 @@ describe("ImportJobControls", () => {
       },
     });
 
-    const optionValues = wrapper.findAll("option").map((o) => o.attributes("value"));
+    const optionValues = wrapper
+      .findAll("[data-testid=import-option]")
+      .map((o) => o.attributes("value"));
     expect(optionValues).toContain("dm");
   });
 
@@ -224,7 +228,7 @@ describe("ImportJobControls", () => {
       },
     });
 
-    await wrapper.get("form").trigger("submit");
+    await wrapper.get("[data-testid=import-form]").trigger("submit");
 
     expect(wrapper.emitted("start-import")?.[0][0]).toEqual({ retailer: "dm", browser: "firefox" });
   });
@@ -254,15 +258,15 @@ describe("ImportJobControls", () => {
       },
     });
 
-    const password = wrapper.get<HTMLInputElement>('input[type="password"]');
-    expect(wrapper.get("button").attributes("disabled")).toBeDefined();
-    await wrapper.get('input[type="email"]').setValue("person@example.test");
+    const password = wrapper.get<HTMLInputElement>("[data-testid=import-password]");
+    expect(wrapper.get("[data-testid=import-submit]").attributes("disabled")).toBeDefined();
+    await wrapper.get("[data-testid=import-email]").setValue("person@example.test");
     await password.setValue("test-password");
-    await wrapper.get("form").trigger("submit");
+    await wrapper.get("[data-testid=import-form]").trigger("submit");
 
     expect(wrapper.emitted("start-import")?.[0][0]).toEqual({
       retailer: "rossmann",
-      rossmann_login: { email: "person@example.test", password: "test-password" },
+      user_login: { email: "person@example.test", password: "test-password" },
     });
     expect(password.element.value).toBe("");
   });

@@ -45,7 +45,7 @@ describe("ReceiptModal", () => {
     expect(wrapper.text()).toContain("Lidl München");
     expect(wrapper.text()).toContain("42,50 €");
     expect(wrapper.text()).toContain("3 stk");
-    expect(wrapper.find(".bg-amber-50").exists()).toBe(true);
+    expect(wrapper.find("[data-testid=receipt-item-match]").exists()).toBe(true);
   });
 
   it("formats fractional piece and kilogram quantities consistently", async () => {
@@ -81,7 +81,7 @@ describe("ReceiptModal", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(wrapper.find(".bg-amber-50").exists()).toBe(false);
+    expect(wrapper.find("[data-testid=receipt-item-match]").exists()).toBe(false);
   });
 
   it("pages through multiple receipts", async () => {
@@ -99,11 +99,11 @@ describe("ReceiptModal", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(wrapper.text()).toContain("1 von 2");
-    const next = wrapper.findAll("button").find((button) => button.text() === "Weiter");
+    const next = wrapper.get("[data-testid=receipt-next]");
     expect(next).toBeDefined();
     await next?.trigger("click");
     expect(wrapper.text()).toContain("2 von 2");
-    expect(wrapper.find(".bg-amber-50").exists()).toBe(false);
+    expect(wrapper.find("[data-testid=receipt-item-match]").exists()).toBe(false);
   });
 
   it("emits close when the overlay is clicked", async () => {
@@ -113,7 +113,7 @@ describe("ReceiptModal", () => {
     await wrapper.setProps({ visible: true });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    await wrapper.find(".fixed.inset-0").trigger("click");
+    await wrapper.find("[data-testid=receipt-overlay]").trigger("click");
     expect(wrapper.emitted("close")).toHaveLength(1);
   });
 });

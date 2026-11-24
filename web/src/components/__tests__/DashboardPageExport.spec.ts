@@ -18,7 +18,7 @@ describe("DashboardPage export", () => {
     const retailer = ref("lidl");
     const startDate = ref("2024-01-01");
     const endDate = ref("2024-01-31");
-    const timeGranularity = ref("Täglich");
+    const timeGranularity = ref("daily");
     const topView = ref("Menge");
     const topLimit = ref(20);
     const search = ref("");
@@ -69,7 +69,7 @@ describe("DashboardPage export", () => {
       },
     });
 
-    await wrapper.find("main button").trigger("click");
+    await wrapper.find("[data-testid=dashboard-export]").trigger("click");
 
     expect(exportSpy).toHaveBeenCalledWith({
       retailer: "lidl",

@@ -4,7 +4,7 @@ import { buildMonthLabels, computePeriod, periodLabel } from "../period";
 
 describe("computePeriod", () => {
   it("maps a daily period to a single day", () => {
-    expect(computePeriod("2024-01-15", "Täglich")).toEqual({
+    expect(computePeriod("2024-01-15", "daily")).toEqual({
       startDate: "2024-01-15",
       endDate: "2024-01-15",
       label: "15. Januar 2024",
@@ -12,7 +12,7 @@ describe("computePeriod", () => {
   });
 
   it("maps a monthly period to the full month including leap years", () => {
-    expect(computePeriod("2024-02", "Monatlich")).toEqual({
+    expect(computePeriod("2024-02", "monthly")).toEqual({
       startDate: "2024-02-01",
       endDate: "2024-02-29",
       label: "Februar 2024",
@@ -20,7 +20,7 @@ describe("computePeriod", () => {
   });
 
   it("maps a yearly period to the full year", () => {
-    expect(computePeriod("2024", "Jährlich")).toEqual({
+    expect(computePeriod("2024", "yearly")).toEqual({
       startDate: "2024-01-01",
       endDate: "2024-12-31",
       label: "2024",
@@ -28,7 +28,7 @@ describe("computePeriod", () => {
   });
 
   it("falls back to the raw period when a daily period is incomplete", () => {
-    expect(computePeriod("2024-01", "Täglich")).toEqual({
+    expect(computePeriod("2024-01", "daily")).toEqual({
       startDate: "2024-01",
       endDate: "2024-01",
       label: "2024-01",
@@ -36,7 +36,7 @@ describe("computePeriod", () => {
   });
 
   it("treats a year-only monthly period as a year range", () => {
-    expect(computePeriod("2024", "Monatlich")).toEqual({
+    expect(computePeriod("2024", "monthly")).toEqual({
       startDate: "2024-01-01",
       endDate: "2024-12-31",
       label: "2024",

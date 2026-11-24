@@ -15,7 +15,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "close"): void;
+  (eventName: "close"): void;
 }>();
 
 const visible = computed(() => props.visible);

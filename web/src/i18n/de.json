@@ -83,10 +83,16 @@
   "filters.quantity": "Menge",
   "filters.spending": "Ausgaben",
   "filters.entriesPerPage": "Einträge pro Seite",
-  "filters.entriesPerPage": "Einträge pro Seite",
   "filters.paginationRange": "{{start}}–{{end}} von {{total}}",
   "filters.previousPage": "Zurück",
   "filters.nextPage": "Weiter",
+  "sectionTitleKeys": {
+    "Allgemeine Informationen": "sections.general",
+    "Rabatte": "sections.discounts",
+    "Ausgaben über Zeit": "sections.spendingOverTime",
+    "Einkaufsverhalten nach Wochentag": "sections.shoppingByWeekday",
+    "Top-Artikel": "sections.topItems"
+  },
   "sections.general": "Allgemeine Informationen",
   "sections.discounts": "Rabatte",
   "sections.spendingOverTime": "Ausgaben über Zeit",

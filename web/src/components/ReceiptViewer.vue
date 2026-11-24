@@ -17,14 +17,14 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "close"): void;
-  (e: "update:currentIndex", value: number): void;
+  (eventName: "close"): void;
+  (eventName: "update:currentIndex", value: number): void;
 }>();
 
 const current = computed<Receipt | undefined>(() => props.receipts[props.currentIndex]);
 
 function isMatched(item: Receipt["items"][number]): boolean {
-  return props.highlightMatched === true && item.matched === true;
+  return props.highlightMatched && item.matched === true;
 }
 </script>
 
@@ -32,6 +32,7 @@ function isMatched(item: Receipt["items"][number]): boolean {
   <Teleport to="body">
     <div
       v-if="visible"
+      data-testid="receipt-overlay"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       @click.self="emit('close')"
     >
@@ -93,6 +94,7 @@ function isMatched(item: Receipt["items"][number]): boolean {
               type="button"
               :disabled="currentIndex >= receipts.length - 1"
               class="rounded-lg border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              data-testid="receipt-next"
               @click="emit('update:currentIndex', currentIndex + 1)"
             >
               {{ t("common.next") }}
@@ -143,7 +145,11 @@ function isMatched(item: Receipt["items"][number]): boolean {
                   "
                 >
                   <div class="flex items-center gap-2">
-                    <span v-if="isMatched(item)" class="h-2 w-2 rounded-full bg-amber-400" />
+                    <span
+                      v-if="isMatched(item)"
+                      data-testid="receipt-item-match"
+                      class="h-2 w-2 rounded-full bg-amber-400"
+                    />
                     <span
                       :class="isMatched(item) ? 'font-semibold text-amber-900' : 'text-slate-700'"
                     >
@@ -160,7 +166,7 @@ function isMatched(item: Receipt["items"][number]): boolean {
 
             <ReceiptCouponSavings
               v-if="current.retailer === 'rossmann'"
-              :coupons="current.rossmann_coupons"
+              :coupons="current.receipt_coupons"
               :currency="current.currency"
             />
 

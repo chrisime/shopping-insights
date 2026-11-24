@@ -15,14 +15,18 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:page", value: number): void;
-  (e: "update:topLimit", value: number): void;
-  (e: "select-article", name: string): void;
+  (eventName: "update:page", value: number): void;
+  (eventName: "update:topLimit", value: number): void;
+  (eventName: "select-article", name: string): void;
 }>();
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.totalCount / props.pageSize)));
 const rangeStart = computed(() => (props.page - 1) * props.pageSize + 1);
 const rangeEnd = computed(() => Math.min(props.page * props.pageSize, props.totalCount));
+
+function updateTopLimit(value: number | undefined) {
+  if (value !== undefined) emit("update:topLimit", value);
+}
 
 function prev() {
   if (props.page > 1) emit("update:page", props.page - 1);
@@ -35,7 +39,7 @@ function next() {
 
 <template>
   <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-    <table class="min-w-full divide-y divide-slate-200">
+    <table data-testid="top-items-table" class="min-w-full divide-y divide-slate-200">
       <thead class="bg-slate-50">
         <tr>
           <th
@@ -68,6 +72,7 @@ function next() {
         <tr
           v-for="item in items"
           :key="item.name"
+          :data-testid="`top-item-${item.name}`"
           class="cursor-pointer transition hover:bg-slate-50"
           @click="emit('select-article', item.name)"
         >
@@ -91,9 +96,10 @@ function next() {
       <div class="flex items-center gap-3">
         <OField :label="t('filters.entriesPerPage')" class="mb-0">
           <OSelect
+            data-testid="top-items-page-size"
             :model-value="topLimit"
             expanded
-            @update:model-value="emit('update:topLimit', $event)"
+            @update:model-value="updateTopLimit"
           >
             <option :value="10">10</option>
             <option :value="20">20</option>
@@ -105,6 +111,7 @@ function next() {
             type="button"
             :disabled="page <= 1"
             class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="top-items-previous"
             @click="prev"
           >
             {{ t("filters.previousPage") }}
@@ -113,6 +120,7 @@ function next() {
             type="button"
             :disabled="page >= totalPages"
             class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="top-items-next"
             @click="next"
           >
             {{ t("filters.nextPage") }}

@@ -28,6 +28,8 @@ describe("ImportJobProgress", () => {
     expect(wrapper.text()).toContain("receipt-2");
     expect(wrapper.text()).toContain("Import läuft");
     expect(wrapper.text()).toContain("Ein Beleg ist fehlgeschlagen");
-    expect(wrapper.find(".h-2 > div").attributes("style")).toContain("width: 50%");
+    expect(wrapper.find("[data-testid=import-progress-fill]").attributes("style")).toContain(
+      "width: 50%",
+    );
   });
 });

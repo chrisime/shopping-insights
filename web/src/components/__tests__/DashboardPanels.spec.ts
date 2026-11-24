@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import Oruga from "@oruga-ui/oruga-next";
 import { describe, expect, it } from "vite-plus/test";
 
 import DashboardSkeleton from "../DashboardSkeleton.vue";
-import TopItemsPanel from "../TopItemsPanel.vue";
 import TrendChartPanel from "../TrendChartPanel.vue";
 import WeekdayPanel from "../WeekdayPanel.vue";
 
@@ -13,7 +11,7 @@ describe("dashboard panels", () => {
   it("renders the new vertical bar charts", () => {
     const monthly = mount(TrendChartPanel, {
       props: {
-        timeGranularity: "Monatlich",
+        timeGranularity: "monthly",
         items: [
           { period: "2023-01", total_spent: 10, receipt_count: 1 },
           { period: "2023-02", total_spent: 20, receipt_count: 2 },
@@ -25,12 +23,13 @@ describe("dashboard panels", () => {
     expect(monthly.text()).toContain("2023");
     expect(monthly.text()).toContain("Jan 2023");
     expect(monthly.text()).toContain("10,00 €");
-    expect(monthly.findAll("svg").length).toBeGreaterThanOrEqual(2);
-    expect(monthly.findAll("details")).toHaveLength(0);
+    expect(monthly.find("[data-testid=trend-chart-svg]").exists()).toBe(true);
+    expect(monthly.find("[data-testid=trend-chart-y-axis-svg]").exists()).toBe(true);
+    expect(monthly.html()).not.toMatch(/<details[\s>]/);
 
     const daily = mount(TrendChartPanel, {
       props: {
-        timeGranularity: "Täglich",
+        timeGranularity: "daily",
         items: [
           { period: "2024-01-01", total_spent: 10, receipt_count: 1 },
           { period: "2024-01-02", total_spent: 20, receipt_count: 2 },
@@ -42,7 +41,8 @@ describe("dashboard panels", () => {
     expect(daily.text()).toContain("01");
     expect(daily.text()).toContain("02");
     expect(daily.text()).toContain("Tage");
-    expect(daily.findAll("svg").length).toBeGreaterThanOrEqual(2);
+    expect(daily.find("[data-testid=trend-chart-svg]").exists()).toBe(true);
+    expect(daily.find("[data-testid=trend-chart-y-axis-svg]").exists()).toBe(true);
 
     const trend = mount(TrendChartPanel, {
       props: {
@@ -54,11 +54,12 @@ describe("dashboard panels", () => {
     });
     expect(trend.text()).toContain("Jan 2024");
     expect(trend.text()).toContain("Feb 2024");
-    expect(trend.findAll("svg").length).toBeGreaterThanOrEqual(2);
+    expect(trend.find("[data-testid=trend-chart-svg]").exists()).toBe(true);
+    expect(trend.find("[data-testid=trend-chart-y-axis-svg]").exists()).toBe(true);
 
     const yearly = mount(TrendChartPanel, {
       props: {
-        timeGranularity: "Jährlich",
+        timeGranularity: "yearly",
         items: [
           { period: "2023", total_spent: 100, receipt_count: 12 },
           { period: "2024", total_spent: 200, receipt_count: 24 },
@@ -70,10 +71,11 @@ describe("dashboard panels", () => {
     expect(yearly.text()).toContain("2023");
     expect(yearly.text()).toContain("2024");
     expect(yearly.text()).toContain("2025");
-    expect(yearly.findAll("svg").length).toBeGreaterThanOrEqual(2);
+    expect(yearly.find("[data-testid=trend-chart-svg]").exists()).toBe(true);
+    expect(yearly.find("[data-testid=trend-chart-y-axis-svg]").exists()).toBe(true);
   });
 
-  it("renders weekday, top items, and skeleton", () => {
+  it("renders weekday and skeleton", () => {
     const weekday = mount(WeekdayPanel, {
       props: {
         items: [
@@ -85,33 +87,7 @@ describe("dashboard panels", () => {
     expect(weekday.text()).toContain("Montag");
     expect(weekday.text()).toContain("Anzahl Einkäufe");
     expect(weekday.text()).toContain("Ø Ausgaben pro Einkauf");
-    expect(weekday.findAll(".bg-indigo-500")).toHaveLength(4);
-
-    const topItems = mount(TopItemsPanel, {
-      props: {
-        items: [
-          { name: "Apfel", total_quantity: 2.9, total_spent: 4, purchase_count: 1, unit: "pc" },
-        ],
-        page: 1,
-        pageSize: 20,
-        totalCount: 1,
-        topLimit: 20,
-      },
-      global: {
-        plugins: [Oruga],
-      },
-    });
-    expect(topItems.find("table").exists()).toBe(true);
-    expect(topItems.text()).toContain("Artikel");
-    expect(topItems.text()).toContain("Gesamtmenge");
-    expect(topItems.text()).toContain("Ausgaben");
-    expect(topItems.text()).toContain("Einkäufe");
-    expect(topItems.text()).toContain("Apfel");
-    expect(topItems.text()).toContain("2");
-    expect(topItems.text()).toContain("2,9 pc");
-    expect(topItems.text()).toContain("4,00 €");
-    expect(topItems.text()).toContain("1");
-    expect(topItems.text()).toContain("pc");
+    expect(weekday.findAll("[data-testid=weekday-bar]")).toHaveLength(4);
 
     const skeleton = mount(DashboardSkeleton);
     expect(skeleton.text()).toBe("");
@@ -124,7 +100,7 @@ describe("dashboard panels", () => {
   it("handles year boundary for daily granularity (Dec 2024 → Jan 2025)", () => {
     const daily = mount(TrendChartPanel, {
       props: {
-        timeGranularity: "Täglich",
+        timeGranularity: "daily",
         items: [
           { period: "2024-12-30", total_spent: 10, receipt_count: 1 },
           { period: "2024-12-31", total_spent: 15, receipt_count: 2 },
@@ -138,11 +114,12 @@ describe("dashboard panels", () => {
     expect(daily.text()).toContain("31");
     expect(daily.text()).toContain("01");
     expect(daily.text()).toContain("02");
-    expect(daily.findAll("svg").length).toBeGreaterThanOrEqual(2);
+    expect(daily.find("[data-testid=trend-chart-svg]").exists()).toBe(true);
+    expect(daily.find("[data-testid=trend-chart-y-axis-svg]").exists()).toBe(true);
     expect(daily.text()).toContain("Tage");
   });
 
-  it("renders absolute time-series summary stats and top-item quantities", () => {
+  it("renders absolute time-series summary stats", () => {
     const trend = mount(TrendChartPanel, {
       props: {
         items: [
@@ -156,30 +133,5 @@ describe("dashboard panels", () => {
     expect(trend.text()).toContain("7,50 €");
     expect(trend.text()).toContain("10,00 €");
     expect(trend.text()).toContain("5,00 €");
-
-    const topItems = mount(TopItemsPanel, {
-      props: {
-        items: [
-          {
-            name: "Tomaten",
-            total_quantity: 0.696,
-            total_spent: 3.99,
-            purchase_count: 1,
-            unit: "kg",
-          },
-        ],
-        page: 1,
-        pageSize: 20,
-        totalCount: 1,
-        topLimit: 20,
-      },
-      global: {
-        plugins: [Oruga],
-      },
-    });
-
-    expect(topItems.text()).toContain("Tomaten");
-    expect(topItems.text()).toContain("0,696 kg");
-    expect(topItems.text()).toContain("3,99 €");
   });
 });

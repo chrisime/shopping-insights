@@ -34,7 +34,7 @@ describe("DashboardPage import", () => {
       retailer: ref("lidl"),
       startDate: ref(""),
       endDate: ref(""),
-      timeGranularity: ref("Täglich"),
+      timeGranularity: ref("daily"),
       topView: ref("Menge"),
       topLimit: ref(20),
       search: ref(""),
@@ -59,7 +59,7 @@ describe("DashboardPage import", () => {
           DashboardFilterBar: true,
           ImportJobControls: {
             template:
-              "<button class=\"import-control\" @click=\"$emit('start-import', { retailer: 'lidl', browser: 'firefox' })\">Import</button>",
+              "<button data-testid=\"import-control\" @click=\"$emit('start-import', { retailer: 'lidl', browser: 'firefox' })\">Import</button>",
           },
           DashboardSection: true,
           DashboardSkeleton: true,
@@ -72,8 +72,8 @@ describe("DashboardPage import", () => {
     });
 
     expect(wrapper.text()).toContain("Import");
-    await wrapper.find("nav button").trigger("click");
-    await wrapper.get(".import-control").trigger("click");
+    await wrapper.find("[data-testid=dashboard-tab-import]").trigger("click");
+    await wrapper.get("[data-testid=import-control]").trigger("click");
 
     expect(startImport).toHaveBeenCalledWith({ retailer: "lidl", browser: "firefox" });
   });

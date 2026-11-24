@@ -28,8 +28,9 @@ const progressStats = computed(() => [
 
 <template>
   <div class="mt-4 space-y-2">
-    <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+    <div data-testid="import-progress-track" class="h-2 overflow-hidden rounded-full bg-slate-100">
       <div
+        data-testid="import-progress-fill"
         class="h-full rounded-full bg-emerald-500 transition-all"
         :style="{ width: `${progressPercent}%` }"
       />

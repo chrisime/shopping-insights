@@ -39,6 +39,7 @@ const visibleGroups = computed(() => visibleKpiGroups(props.data));
       <article
         v-for="card in group"
         :key="card.title"
+        :data-testid="`kpi-card-${card.fields[0]}`"
         class="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm ring-1 ring-slate-100/70"
       >
         <div class="border-b border-slate-200/70 pb-2">
@@ -49,6 +50,7 @@ const visibleGroups = computed(() => visibleKpiGroups(props.data));
           <div
             v-for="(field, index) in card.fields"
             :key="field"
+            data-testid="kpi-field"
             class="grid gap-1"
             :class="index % 2 === 1 ? 'justify-items-end text-right' : ''"
           >
