@@ -25,6 +25,9 @@ type BandScale = d3.ScaleBand<string>;
 type ValueScale = d3.ScaleLinear<number, number>;
 
 const MARGIN = { top: 30, bottom: 32 };
+const YEAR_HEADER_HEIGHT = 18;
+const YEAR_LABEL_INSET = 4;
+const YEAR_LABEL_SPACE = 36;
 const TOOLTIP_WIDTH = 180;
 const TOOLTIP_HIDE_DELAY = 200;
 
@@ -61,9 +64,13 @@ const BAR_LABELS = [
 
 const yAxisRef = ref<HTMLDivElement>();
 const chartRef = ref<HTMLDivElement>();
+const scrollRef = ref<HTMLDivElement>();
 
 const isScrollable = computed(() => props.granularity !== "yearly");
 const ticks = computed(() => yAxisTicks(props.items, props.granularity));
+const plotTop = computed(() =>
+  props.monthLabels?.length ? MARGIN.top + YEAR_HEADER_HEIGHT : MARGIN.top,
+);
 const width = computed(() => chartWidth(props.items.length));
 
 const renderYAxis = (svg: Svg, scale: ValueScale, tickValues: number[]) => {
@@ -97,6 +104,20 @@ const renderGrid = (svg: Svg, scale: ValueScale, tickValues: number[]) => {
   group.select(".domain").remove();
 };
 
+interface YearMarker {
+  start: number;
+  end: number;
+}
+
+const positionYearLabels = () => {
+  const scrollLeft = scrollRef.value?.scrollLeft ?? 0;
+  d3.select(chartRef.value ?? null)
+    .selectAll<SVGTextElement, YearMarker>(".year-label")
+    .attr("x", ({ start, end }) =>
+      Math.min(Math.max(start, scrollLeft) + YEAR_LABEL_INSET, end - YEAR_LABEL_SPACE),
+    );
+};
+
 const renderMonthMarkers = (svg: Svg, xScale: BandScale) => {
   const labels = props.monthLabels ?? [];
 
@@ -108,27 +129,50 @@ const renderMonthMarkers = (svg: Svg, xScale: BandScale) => {
     svg
       .append("line")
       .attr("x1", separatorX)
-      .attr("y1", MARGIN.top - 4)
+      .attr("y1", plotTop.value - 4)
       .attr("x2", separatorX)
       .attr("y2", CHART_HEIGHT - MARGIN.bottom)
       .attr("stroke", "#cbd5e1")
       .attr("stroke-width", 1);
   }
 
-  for (const label of labels) {
-    const middleIndex = Math.floor((label.start + label.end) / 2);
-    const middleX = (xScale(String(middleIndex)) ?? 0) + xScale.bandwidth() / 2;
-
+  const barCenter = (index: number) => (xScale(String(index)) ?? 0) + xScale.bandwidth() / 2;
+  const addLabel = (className: string, x: number, y: number, label: string) =>
     svg
       .append("text")
-      .attr("x", middleX)
-      .attr("y", MARGIN.top - 6)
+      .attr("class", className)
+      .attr("x", x)
+      .attr("y", y)
       .attr("text-anchor", "middle")
       .attr("font-family", "sans-serif")
       .attr("font-size", "13px")
       .attr("font-weight", "bold")
       .attr("fill", "#475569")
-      .text(label.label);
+      .text(label);
+
+  const yearOf = (label: MonthLabel) => props.items[label.start].period.slice(0, 4);
+  const years = d3.groups(labels, yearOf);
+  for (const [index, [year, months]] of years.entries()) {
+    const start = xScale(String(months[0].start)) ?? 0;
+    const nextYear = years[index + 1];
+    const end = nextYear ? (xScale(String(nextYear[1][0].start)) ?? width.value) : width.value;
+
+    addLabel("year-label", start, plotTop.value - 6 - YEAR_HEADER_HEIGHT, year)
+      .attr("text-anchor", "start")
+      .datum<YearMarker>({ start, end });
+  }
+  positionYearLabels();
+
+  for (const label of labels) {
+    const start = barCenter(label.start);
+    const end = barCenter(label.end);
+    const month = label.label.replace(/ \d{4}$/, "");
+    addLabel(
+      "month-label",
+      (start + end) / 2,
+      plotTop.value - 6,
+      label.start === label.end ? month.slice(0, 3) : month,
+    );
   }
 };
 
@@ -287,7 +331,7 @@ const drawChart = () => {
   const yScale = d3
     .scaleLinear()
     .domain([0, tickValues.length > 1 ? tickValues[tickValues.length - 1] : tickValues[0] || 10])
-    .range([CHART_HEIGHT - MARGIN.bottom, MARGIN.top]);
+    .range([CHART_HEIGHT - MARGIN.bottom, plotTop.value]);
   const xScale = d3
     .scaleBand<string>()
     .domain(d3.range(props.items.length).map(String))
@@ -334,10 +378,12 @@ watch([() => props.items, () => props.monthLabels, () => props.granularity], dra
         :style="{ width: `${Y_AXIS_WIDTH}px`, height: `${CHART_HEIGHT}px` }"
       ></div>
       <div
+        ref="scrollRef"
         data-testid="trend-chart-scroll"
         class="overflow-y-hidden"
         :class="isScrollable ? 'overflow-x-auto' : ''"
         :style="{ height: `${CHART_HEIGHT}px`, marginLeft: `${Y_AXIS_WIDTH}px` }"
+        @scroll.passive="positionYearLabels"
       >
         <div ref="chartRef" class="inline-block" :style="{ height: `${CHART_HEIGHT}px` }"></div>
       </div>

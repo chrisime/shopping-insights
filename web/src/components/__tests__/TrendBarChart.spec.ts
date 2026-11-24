@@ -55,24 +55,45 @@ describe("TrendBarChart", () => {
     expect(wrapper.text()).toContain("2025");
   });
 
-  it("shows day-only labels when monthLabels is provided", () => {
+  it("keeps the year above day-only labels until the next year pushes it out", async () => {
     const wrapper = mount(TrendBarChart, {
       props: {
         items: [
           { period: "2024-01-15", total_spent: 10, receipt_count: 1 },
           { period: "2024-02-20", total_spent: 20, receipt_count: 2 },
+          { period: "2025-01-10", total_spent: 10, receipt_count: 1 },
         ],
         granularity: "daily",
         monthLabels: [
           { label: "Januar 2024", start: 0, end: 0 },
           { label: "Februar 2024", start: 1, end: 1 },
+          { label: "Januar 2025", start: 2, end: 2 },
         ],
       },
     });
+    const years = wrapper.findAll(".year-label");
+    const months = wrapper.findAll(".month-label");
+    expect(years.map((label) => label.text())).toEqual(["2024", "2025"]);
+    expect(months.map((label) => label.text())).toEqual(["Jan", "Feb", "Jan"]);
+    expect(Number(years[0].attributes("y"))).toBeLessThan(Number(months[0].attributes("y")));
     expect(wrapper.text()).toContain("15");
     expect(wrapper.text()).toContain("20");
     expect(wrapper.text()).not.toContain("2024-01-15");
     expect(wrapper.text()).not.toContain("2024-02-20");
+
+    const scroll = wrapper.get<HTMLDivElement>('[data-testid="trend-chart-scroll"]');
+    scroll.element.scrollLeft = 50;
+    await scroll.trigger("scroll");
+    expect(years[0].attributes("x")).toBe("54");
+
+    const nextYearX = Number(years[1].attributes("x"));
+    scroll.element.scrollLeft = nextYearX - 15;
+    await scroll.trigger("scroll");
+    expect(Number(years[0].attributes("x"))).toBeLessThan(scroll.element.scrollLeft);
+
+    scroll.element.scrollLeft = nextYearX + 8;
+    await scroll.trigger("scroll");
+    expect(Number(years[1].attributes("x"))).toBe(scroll.element.scrollLeft + 4);
   });
 
   it("shows full labels when monthLabels is not provided", () => {

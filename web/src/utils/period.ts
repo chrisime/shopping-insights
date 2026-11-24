@@ -72,15 +72,15 @@ export function buildMonthLabels(items: Array<{ period: string }>): MonthLabel[]
 
   const labels: MonthLabel[] = [];
   let start = 0;
-  let currentMonth = items[0].period.slice(5, 7);
+  let currentMonth = items[0].period.slice(0, 7);
 
   for (let i = 1; i <= items.length; i++) {
-    const month = i < items.length ? items[i].period.slice(5, 7) : null;
+    const month = i < items.length ? items[i].period.slice(0, 7) : null;
     if (month === currentMonth) continue;
 
-    const year = items[i - 1].period.slice(0, 4);
+    const [year, monthNumber] = currentMonth.split("-");
     labels.push({
-      label: `${MONTH_NAMES[Number(currentMonth) - 1]} ${year}`,
+      label: `${MONTH_NAMES[Number(monthNumber) - 1]} ${year}`,
       start,
       end: i - 1,
     });
