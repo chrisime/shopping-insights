@@ -32,7 +32,12 @@ export default defineConfig({
               name: "echarts-vendor",
               // Keep shared Vue modules on the startup path.
               includeDependenciesRecursively: false,
-              test: /[\\/]node_modules[\\/](?:echarts|zrender|vue-echarts|tslib)[\\/]/,
+              test: /[\\/]node_modules[\\/](?:echarts|vue-echarts)[\\/]/,
+            },
+            {
+              name: "zrender-vendor",
+              includeDependenciesRecursively: false,
+              test: /[\\/]node_modules[\\/](?:zrender|tslib)[\\/]/,
             },
           ],
         },
