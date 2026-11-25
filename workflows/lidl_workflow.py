@@ -18,7 +18,7 @@ from storage import create_receipt_store
 from .import_workflow import ImportWorkflow, resolve_auth_method
 from .local_import import import_local_sources
 from .pipeline_types import WorkflowResult
-from .progress_display import ReceiptProgressDisplay
+from .progress_display import ReceiptProgressDisplay, report_existing_receipts
 from .workflow_constants import RETAILER_LIDL, REASON_KIND_LIDL_FETCH
 from .workflow_errors import clear_last_workflow_error, lidl_initial_error, set_last_workflow_error
 
@@ -69,6 +69,11 @@ class _LidlImportWorkflow(ImportWorkflow):
 
         print(f"ℹ Gefunden: {len(discovered_ids)} LIDL-Kassenbon-IDs")
         existing_ids = store.find_existing_ids(retailer=RETAILER_LIDL)
+        report_existing_receipts(
+            discovered_ids,
+            existing_ids,
+            progress_listener,
+        )
         local_ids = {path.stem for path in tickets_dir.glob("*.json")}
         receipt_ids = _filter_new_lidl_receipt_ids(discovered_ids, existing_ids | local_ids)
 

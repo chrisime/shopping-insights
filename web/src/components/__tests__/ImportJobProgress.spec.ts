@@ -6,7 +6,7 @@ import { describe, expect, it } from "vite-plus/test";
 import ImportJobProgress from "../ImportJobProgress.vue";
 
 describe("ImportJobProgress", () => {
-  it("shows progress status independently from import form controls", () => {
+  it("shows progress status independently from import form controls", async () => {
     const wrapper = mount(ImportJobProgress, {
       props: {
         progress: {
@@ -25,6 +25,13 @@ describe("ImportJobProgress", () => {
     });
 
     expect(wrapper.text()).toContain("2/4");
+    expect(wrapper.text()).not.toContain("Bereits vorhandene Belege");
+    await wrapper.setProps({ progress: { ...wrapper.props("progress"), existing: 7 } });
+    expect(wrapper.findAll("article").slice(0, 3).map((card) => card.text())).toEqual([
+      "Neu1",
+      "Bereits vorhandene Belege7",
+      "Übersprungen0",
+    ]);
     expect(wrapper.text()).toContain("receipt-2");
     expect(wrapper.text()).toContain("Import läuft");
     expect(wrapper.text()).toContain("Ein Beleg ist fehlgeschlagen");

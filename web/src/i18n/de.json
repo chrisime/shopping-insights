@@ -143,6 +143,7 @@
   "import.running": "Import läuft …",
   "import.success": "Import abgeschlossen.",
   "import.stat.added": "Neu",
+  "import.stat.existing": "Bereits vorhandene Belege",
   "import.stat.skipped": "Übersprungen",
   "import.stat.errors": "Fehler",
   "import.stat.items": "Artikel",

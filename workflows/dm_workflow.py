@@ -38,7 +38,7 @@ from storage import create_receipt_store
 from .import_workflow import ImportWorkflow, resolve_auth_method
 from .local_import import import_local_sources
 from .pipeline_types import WorkflowResult
-from .progress_display import ReceiptProgressDisplay
+from .progress_display import ReceiptProgressDisplay, report_existing_receipts
 from .workflow_constants import RETAILER_DM, REASON_KIND_DM_FETCH
 from .workflow_errors import clear_last_workflow_error, dm_initial_error, set_last_workflow_error
 
@@ -109,6 +109,11 @@ class _DmImportWorkflow(ImportWorkflow):
             print("ℹ Online-Bestellungen werden nicht als Beleg importiert.")
 
         existing_ids = store.find_existing_ids(retailer=RETAILER_DM)
+        report_existing_receipts(
+            (purchase["id"] for purchase in market_ebons if purchase.get("id")),
+            existing_ids,
+            progress_listener,
+        )
         local_ids = {path.stem for path in ebons_dir.glob("*.json")}
         new_ebons = [p for p in market_ebons if p.get("id") not in existing_ids and p.get("id") not in local_ids]
 

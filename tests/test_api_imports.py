@@ -263,12 +263,15 @@ def test_rossmann_import_adds_new_receipt_with_items_only_once(monkeypatch, tmp_
         return json.loads(stream.text.strip().splitlines()[-1].removeprefix("data: "))
 
     assert import_from_dashboard()["progress"]["added"] == 1
-    listed_ids.insert(0, new_id)
+    listed_ids[:] = [new_id]
     result = import_from_dashboard()
     assert result["progress"]["added"] == 1
     assert result["progress"]["items"] == 1
+    listed_ids.append(first_id)
     repeat = import_from_dashboard()
     assert repeat["progress"]["added"] == repeat["progress"]["items"] == 0
+    assert result["progress"]["existing"] == 0
+    assert repeat["progress"]["existing"] == 2
     assert requested_details == [first_id, new_id]
 
     receipts = {receipt["id"]: receipt["items"] for receipt in SqliteReceiptStore.list_receipts("rossmann")}

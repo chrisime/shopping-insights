@@ -24,6 +24,7 @@ class ImportJobSnapshot:
     progress: ProgressState
     error: dict[str, object] | None = None
     message: str | None = None
+    existing_receipts: int = 0
 
 
 _jobs: dict[str, ImportJobSnapshot] = {}
@@ -89,6 +90,7 @@ def get_import_job(job_id: str) -> ImportJobSnapshot | None:
             progress=replace(current.progress),
             error=dict(current.error) if current.error is not None else None,
             message=current.message,
+            existing_receipts=current.existing_receipts,
         )
 
 
@@ -189,8 +191,11 @@ def _run_import_job(
 
 
 def _build_progress_listener(job_id: str, retailer: str) -> Callable[[ProgressState], None]:
+    existing_ids: set[str] = set()
+
     def progress_listener(progress: ProgressState) -> None:
-        _update_job(job_id, retailer=retailer, progress=progress)
+        existing_ids.update(progress.existing_ids)
+        _update_job(job_id, retailer=retailer, progress=progress, existing_receipts=len(existing_ids))
 
     return progress_listener
 
@@ -231,6 +236,7 @@ def _snapshot_to_dict(snapshot: ImportJobSnapshot) -> dict[str, object]:
             "current": snapshot.progress.current,
             "total": snapshot.progress.total,
             "added": snapshot.progress.added,
+            "existing": snapshot.existing_receipts,
             "skipped": snapshot.progress.skipped,
             "errors": snapshot.progress.errors,
             "items": snapshot.progress.items,
@@ -249,6 +255,7 @@ def _update_job(
     progress: ProgressState | None = None,
     error: dict[str, object] | None = None,
     message: str | None = None,
+    existing_receipts: int | None = None,
 ) -> None:
     with _jobs_lock:
         current = _jobs.get(job_id)
@@ -261,6 +268,7 @@ def _update_job(
             progress=replace(progress) if progress is not None else replace(current.progress),
             error=dict(error) if error is not None else current.error,
             message=message if message is not None else current.message,
+            existing_receipts=existing_receipts if existing_receipts is not None else current.existing_receipts,
         )
         _jobs[job_id] = updated
 

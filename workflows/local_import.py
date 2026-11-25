@@ -19,6 +19,7 @@ from shared.receipt_store import ReceiptStore
 from .error_mapping import render_exception_reason
 from .pipeline_runner import parse_receipts, validate_receipts
 from .pipeline_types import RawReceiptRecord, ReceiptIssue, WorkflowResult
+from .progress_display import ProgressState
 
 
 def identity_loader(source_path: Path) -> Any:
@@ -85,9 +86,24 @@ def import_local_sources(
         progress_listener=progress_listener,
     )
     receipt_dtos = [receipt_dict_to_dto(record, retailer) for record in validation_result.records]
+    existing_ids = (
+        store.find_existing_ids(retailer=retailer).intersection(receipt.id for receipt in receipt_dtos)
+        if progress_listener is not None and receipt_dtos
+        else set()
+    )
     persist_result = store.persist_receipts(receipt_dtos, retailer=retailer)
 
     skipped_issues = [*load_issues, *parse_result.issues, *validation_result.issues]
+    if progress_listener is not None:
+        progress_listener(ProgressState(
+            current=len(active_source_paths),
+            total=len(active_source_paths),
+            added=persist_result.created_count,
+            skipped=len(skipped_issues),
+            errors=len(skipped_issues),
+            items=validation_result.total_items,
+            existing_ids=frozenset(existing_ids),
+        ))
     skipped_details = [issue.as_detail() for issue in skipped_issues]
     skipped_report_path = _write_skipped_report(
         source_dir, skipped_details, skipped_report_filename

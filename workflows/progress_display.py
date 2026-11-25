@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Iterable
 
 
 @dataclass
@@ -17,7 +17,26 @@ class ProgressState:
     errors: int
     items: int
     current_receipt: str = "-"
+    existing_ids: frozenset[str] = frozenset()
 
+
+def report_existing_receipts(
+    discovered_ids: Iterable[str],
+    stored_ids: set[str],
+    progress_listener: Callable[[object], None] | None,
+) -> None:
+    if progress_listener is not None:
+        existing_ids = stored_ids.intersection(discovered_ids)
+        if existing_ids:
+            progress_listener(ProgressState(
+                current=0,
+                total=0,
+                added=0,
+                skipped=0,
+                errors=0,
+                items=0,
+                existing_ids=frozenset(existing_ids),
+            ))
 
 class ReceiptProgressDisplay:
     """Render a fixed 3-line progress block in the terminal."""

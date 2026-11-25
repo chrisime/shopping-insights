@@ -38,7 +38,7 @@ from storage import create_receipt_store
 from .import_workflow import ImportWorkflow
 from .local_import import import_local_sources
 from .pipeline_types import WorkflowResult
-from .progress_display import ReceiptProgressDisplay
+from .progress_display import ReceiptProgressDisplay, report_existing_receipts
 from .workflow_constants import RETAILER_ROSSMANN, REASON_KIND_ROSSMANN_FETCH
 from .workflow_errors import clear_last_workflow_error, rossmann_initial_error, set_last_workflow_error
 
@@ -98,8 +98,14 @@ class _RossmannImportWorkflow(ImportWorkflow):
 
         existing_ids = store.find_existing_ids(retailer=RETAILER_ROSSMANN)
         self._existing_receipt_count = len(existing_ids)
-        pending_receipt_ids = {receipt["id"] for receipt in receipts if receipt.get("id")} - existing_ids
+        discovered_ids = {receipt["id"] for receipt in receipts if receipt.get("id")}
+        pending_receipt_ids = discovered_ids - existing_ids
         self._pending_receipt_ids = pending_receipt_ids
+        report_existing_receipts(
+            discovered_ids,
+            existing_ids,
+            progress_listener,
+        )
         local_ids = {path.stem for path in receipts_dir.glob("*.json")}
         new_receipts = [
             r for r in receipts

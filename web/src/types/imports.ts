@@ -9,6 +9,7 @@ export interface ImportProgressState {
   current: number;
   total: number;
   added: number;
+  existing?: number;
   skipped: number;
   errors: number;
   items: number;

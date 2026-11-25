@@ -18,8 +18,13 @@ const progressPercent = computed(() =>
     : 0,
 );
 
+const existingReceipts = computed(() => props.progress.existing ?? 0);
+
 const progressStats = computed(() => [
   { label: t("import.stat.added"), value: props.progress.added },
+  ...(existingReceipts.value > 0
+    ? [{ label: t("import.stat.existing"), value: existingReceipts.value }]
+    : []),
   { label: t("import.stat.skipped"), value: props.progress.skipped },
   { label: t("import.stat.errors"), value: props.progress.errors },
   { label: t("import.stat.items"), value: props.progress.items },
@@ -36,7 +41,10 @@ const progressStats = computed(() => [
       />
     </div>
 
-    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <div
+      class="grid gap-2 sm:grid-cols-2"
+      :class="existingReceipts > 0 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'"
+    >
       <article
         v-for="stat in progressStats"
         :key="stat.label"
