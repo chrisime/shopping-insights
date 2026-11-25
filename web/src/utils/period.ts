@@ -17,7 +17,7 @@ export const MONTH_NAMES = [
 ];
 
 /** Maps a chart period ("2024", "2024-01", "2024-01-15") to a selectable date range. */
-export function computePeriod(period: string, granularity: string): PeriodSelection {
+export const computePeriod = (period: string, granularity: string): PeriodSelection => {
   const parts = period.split("-");
 
   if (granularity === "daily") {
@@ -47,10 +47,10 @@ export function computePeriod(period: string, granularity: string): PeriodSelect
     endDate: `${period}-12-31`,
     label: period,
   };
-}
+};
 
-/** Human readable headline for a receipt list range. */
-export function periodLabel(startDate: string, endDate: string): string {
+/** Human-readable headline for a receipt list range. */
+export const periodLabel = (startDate: string, endDate: string): string => {
   if (!startDate) return "";
 
   if (startDate === endDate) {
@@ -64,10 +64,10 @@ export function periodLabel(startDate: string, endDate: string): string {
 
   const [year, month] = startDate.split("-").map(Number);
   return `${MONTH_NAMES[month - 1]} ${year}`;
-}
+};
 
 /** Groups consecutive daily periods by month so the chart can label month boundaries. */
-export function buildMonthLabels(items: Array<{ period: string }>): MonthLabel[] {
+export const buildMonthLabels = (items: Array<{ period: string }>): MonthLabel[] => {
   if (items.length === 0) return [];
 
   const labels: MonthLabel[] = [];
@@ -92,4 +92,4 @@ export function buildMonthLabels(items: Array<{ period: string }>): MonthLabel[]
   }
 
   return labels;
-}
+};

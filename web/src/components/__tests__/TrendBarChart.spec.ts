@@ -273,4 +273,70 @@ describe("TrendBarChart", () => {
     expect(tooltipGroup.attributes("style")).toContain("display: none");
     vi.useRealTimers();
   });
+
+  it("replaces the SVGs and binds selection to the new data after a props update", async () => {
+    const wrapper = mount(TrendBarChart, {
+      props: {
+        granularity: "monthly",
+        items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }],
+      },
+    });
+
+    try {
+      await wrapper.setProps({
+        granularity: "yearly",
+        items: [{ period: "2025", total_spent: 0, receipt_count: 0 }],
+      });
+
+      expect(wrapper.findAll("svg")).toHaveLength(2);
+      expect(wrapper.text()).toContain("2025");
+      expect(wrapper.text()).not.toContain("Jan 2024");
+      const bar = wrapper.get('[data-testid="trend-chart-bar"]');
+      expect(bar.attributes("height")).toBe("0");
+      await bar.trigger("click");
+      expect(wrapper.emitted("select-period")).toEqual([
+        [{ startDate: "2025-01-01", endDate: "2025-12-31", label: "2025" }],
+      ]);
+
+      await bar.trigger("mouseenter");
+      const { x, y, width } = bar.attributes();
+      expect(wrapper.get('[data-testid="trend-chart-tooltip"]').attributes("transform")).toBe(
+        `translate(${Number(x) + Number(width) / 2}, ${y})`,
+      );
+
+      await wrapper.setProps({ items: [] });
+      expect(wrapper.findAll("svg")).toHaveLength(0);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it.each(["redraw", "unmount"])("clears the pending tooltip timer on %s", async (action) => {
+    const wrapper = mount(TrendBarChart, {
+      props: {
+        granularity: "monthly",
+        items: [{ period: "2024-01", total_spent: 10, receipt_count: 1 }],
+      },
+    });
+    vi.useFakeTimers();
+    let unmounted = false;
+
+    try {
+      const bar = wrapper.get('[data-testid="trend-chart-bar"]');
+      await bar.trigger("mouseenter");
+      await bar.trigger("mouseleave");
+      expect(vi.getTimerCount()).toBe(1);
+
+      if (action === "redraw") {
+        await wrapper.setProps({ items: [] });
+      } else {
+        wrapper.unmount();
+        unmounted = true;
+      }
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      if (!unmounted) wrapper.unmount();
+      vi.useRealTimers();
+    }
+  });
 });
