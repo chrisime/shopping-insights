@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import TrendBarChart from "./TrendBarChart.vue";
+import TrendCharts from "./TrendCharts.vue";
+
 import { euro } from "../utils/format";
-import { buildMonthLabels } from "../utils/period";
 import { t } from "../utils/copy";
 import type { PeriodSelection } from "../types/chart";
 import type { TimeSeriesRow } from "../types/dashboard";
@@ -23,9 +23,6 @@ const groupLabel = computed(() => {
   if (granularity.value === "monthly") return t("dashboard.granularityMonths");
   return t("dashboard.granularityYears");
 });
-const monthLabels = computed(() =>
-  granularity.value === "daily" ? buildMonthLabels(props.items) : [],
-);
 
 const summaryCards = computed(() => {
   if (props.items.length === 0) return [];
@@ -60,12 +57,11 @@ const summaryCards = computed(() => {
 
     <div class="grid gap-2">
       <h3 v-if="items.length > 0" class="text-sm font-semibold text-slate-800">{{ groupLabel }}</h3>
-      <TrendBarChart
-        data-testid="trend-bar-chart"
+      <TrendCharts
         v-if="items.length > 0"
+        data-testid="trend-bar-chart"
         :items="items"
         :granularity="granularity"
-        :month-labels="monthLabels"
         @select-period="emit('select-period', $event)"
       />
     </div>

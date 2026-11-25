@@ -21,8 +21,8 @@
 - Vue dashboard migration is on `main`.
 - Streamlit entrypoint, renderer, and tests were removed.
 - API routes exist for `ui`, `kpis`, `receipts`, `items`, `exports`, and `triggers`.
-- Charts migrated from vue-chartjs (canvas) to D3 (SVG) — `TrendBarChart.vue`.
-- Bar hover → CSS darkening + D3 SVG tooltip (period, total, count, avg, retailers).
+- The dashboard trend chart uses Apache ECharts with SVG rendering in `TrendCharts.vue`.
+- Bar hover shows an ECharts tooltip with period, total, receipt count, average, and retailers.
 - Bar click → ReceiptListModal via `GET /receipts/by-date` API.
 - Monthly x-axis shows "Jan 2024" format.
 - Time-series DTO includes `retailers` field (GROUP_CONCAT in SQL).
@@ -67,9 +67,8 @@
 - Keep empty-database / no-receipts handling in the frontend payload layer.
 - Use `shared.retailer_runtime.get_retailer_runtime()` for receipt JSON path resolution.
 - Expose dashboard errors as structured payloads with `error_code` and `detail`.
-- Migrated from vue-chartjs to D3 for trend chart (SVG over canvas for tooltip/hover control).
+- The ECharts range slider and wheel input control the visible trend periods.
 - Tooltip hides with 200ms delay on mouseleave to prevent flicker.
-- Tooltip SVG group rendered AFTER bars in paint order for correct z-index.
 - Use Vite+ as the single frontend toolchain (`vp dev/build/test/check`); keep `vite`/`vitest` catalog entries in `web/pnpm-workspace.yaml`.
 - TypeScript stays on 6.0.x because `vue-tsc` 3.x requires the upstream `typescript/lib/tsc` entry, which TypeScript 7 (native) no longer exports; `vp check` uses tsrs independently.
 - Frontend components stay presentational: pure logic lives in `web/src/utils/`, shared state in `web/src/composables/`, and API rows are typed in `web/src/types/dashboard.ts` (no `as any` casts in components).
@@ -99,7 +98,7 @@
 - `api/services/dashboard_models.py` — dashboard DTOs
 - `api/services/dashboard_builders.py` — pure dashboard builders
 - `api/services/dashboard_service.py` — thin dashboard service
-- `web/src/components/TrendBarChart.vue` — D3 SVG rendering; chart math lives in `utils/chart.ts`
+- `web/src/components/TrendCharts.vue` — trend chart with `useTrendECharts` and `useTimelineScroll`
 - `web/src/components/TrendChartPanel.vue` — emits `select-period` for bar click
 - `web/src/components/ReceiptViewer.vue` — shared receipt overlay/pager/detail
 - `web/src/components/ReceiptModal.vue` / `ReceiptListModal.vue` — thin wrappers over `ReceiptViewer`
@@ -108,18 +107,18 @@
 - `web/src/api/http.ts` — shared base URL, query params and JSON fetch
 - `web/src/api/dashboard.ts` — `fetchReceiptsByDateRange()`
 - `web/src/utils/period.ts` — `computePeriod`, `periodLabel`, `buildMonthLabels`, `MONTH_NAMES`
-- `web/src/utils/chart.ts` — `yAxisTicks`, `chartWidth`, `xTickLabel`
+- `web/src/utils/chart.ts` — `yAxisTicks`, `xTickLabel`
 - `web/src/utils/format.ts` — `text`, `euro`, `quantity`, `retailerLabel`, `addressText`
 - `web/src/types/dashboard.ts` — typed section rows and receipts
-- `web/package.json` — depends on `d3` + `@types/d3`
+- `web/package.json` — depends on `echarts` and `vue-echarts`
 - `web/vite.config.ts` — Vite+ config (lint/fmt/typecheck, `typecheck` task)
 - `web/pnpm-workspace.yaml` — Vite+ catalog for `vite`, `vitest`, `vite-plus`
 - `web/src/env.d.ts` — `*.vue` module shim for tsgo
 - `pyproject.toml` and `uv.lock`
 - `api/server.py`
-- `web/src/components/__tests__/TrendBarChart.spec.ts` — bar chart + tooltip tests
+- `web/src/components/__tests__/TrendECharts.spec.ts` — SVG trend chart and interaction tests
 - `web/src/components/__tests__/ReceiptListModal.spec.ts`
-- `web/src/components/__tests__/DashboardPanels.spec.ts` — updated for D3 SVG
+- `web/src/components/__tests__/DashboardPanels.spec.ts` — dashboard panel rendering and summary tests
 - `tests/test_api_receipts.py` — by-date endpoint tests
 - `tests/test_kpi_dtos.py` — TimeSeriesRow retailers test
 - `tests/test_kpi_store.py` — GROUP_CONCAT aggregation test

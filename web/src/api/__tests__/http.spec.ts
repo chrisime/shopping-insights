@@ -4,6 +4,7 @@ import { apiUrl, ApiRequestError, getJson } from "../http";
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe("apiUrl", () => {
@@ -13,6 +14,17 @@ describe("apiUrl", () => {
     expect(url.searchParams.get("retailer")).toBeNull();
     expect(url.searchParams.get("search")).toBeNull();
     expect(url.searchParams.get("top_limit")).toBe("5");
+  });
+
+  it("uses the page origin in production and honors an explicit API base URL", () => {
+    vi.stubEnv("PROD", true);
+    vi.stubEnv("VITE_API_BASE_URL", undefined);
+    vi.stubGlobal("window", { location: { origin: "https://dashboard.example" } });
+
+    expect(apiUrl("/ui/dashboard").origin).toBe("https://dashboard.example");
+
+    vi.stubEnv("VITE_API_BASE_URL", "https://api.example");
+    expect(apiUrl("/ui/dashboard").origin).toBe("https://api.example");
   });
 });
 

@@ -54,7 +54,7 @@ describe("DashboardPage", () => {
     const wrapper = mount(DashboardPage, {
       global: {
         plugins: [Oruga],
-        stubs: { ReceiptModal: true, ReceiptListModal: true },
+        stubs: { ReceiptModal: true, ReceiptListModal: true, TrendCharts: true },
       },
     });
     await flushPromises();

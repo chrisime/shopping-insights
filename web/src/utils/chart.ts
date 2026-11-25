@@ -3,18 +3,13 @@ import { MONTH_NAMES } from "./period";
 
 export const CHART_HEIGHT = 500;
 export const Y_AXIS_WIDTH = 64;
+export const TREND_PLOT_TOP = 30;
 
-const BAR_SLOT_WIDTH = 56;
-const RIGHT_MARGIN = 16;
 const STEP_SIZES: Record<string, number> = {
   daily: 10,
   monthly: 50,
   yearly: 500,
 };
-
-export function chartWidth(itemCount: number): number {
-  return itemCount * BAR_SLOT_WIDTH + RIGHT_MARGIN;
-}
 
 /** Round tick values covering the largest spending value for the given granularity. */
 export function yAxisTicks(items: TimeSeriesRow[], granularity: string): number[] {

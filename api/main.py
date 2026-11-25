@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from api.errors import ApiErrorCode, error_code_for_status
+from api.frontend import register_frontend
 from api.routes.exports import router as exports_router
 from api.routes.dashboard import router as dashboard_router
 from api.routes.items import router as items_router
@@ -74,3 +75,4 @@ app.include_router(items_router)
 app.include_router(kpis_router)
 app.include_router(receipts_router)
 app.include_router(triggers_router)
+register_frontend(app)

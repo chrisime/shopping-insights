@@ -40,11 +40,33 @@ pnpm test
 pnpm exec vp test run
 ```
 
-## Build
+### Produktions-Integrationstest
+
+Installiere einmalig Chromium für Playwright und führe den Integrationstest in `web/` aus.
+Der Test baut das Dashboard, startet FastAPI und prüft die komprimierte Auslieferung sowie
+das Laden von ECharts beim Öffnen des Trend-Tabs.
 
 ```bash
-pnpm build
+pnpm exec playwright install --only-shell chromium
+pnpm test:integration
 ```
+
+## Produktionsbuild und Auslieferung
+
+Erzeuge den Produktionsbuild aus dem Projektverzeichnis und starte danach das FastAPI-Backend.
+
+```bash
+(cd web && pnpm install && pnpm build)
+uv run --locked start-backend
+```
+
+Öffne `http://127.0.0.1:8000/`. FastAPI liefert die Vue-Startseite und die Assets aus
+`web/dist/` aus. Ein Vite-Plugin erzeugt beim Build Brotli- und gzip-Dateien für JavaScript und CSS. FastAPI
+wählt anhand von `Accept-Encoding` eine verfügbare Variante. Kopiere beim Deployment
+das gesamte `web/dist/`-Verzeichnis einschließlich der komprimierten Dateien.
+
+Der Produktionsbuild nutzt standardmäßig dieselbe Origin wie das Dashboard für die API.
+Für ein separates Backend kannst du beim Build weiterhin `VITE_API_BASE_URL` setzen.
 
 ## API
 

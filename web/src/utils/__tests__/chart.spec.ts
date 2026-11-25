@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { chartWidth, xTickLabel, yAxisTicks } from "../chart";
-
-describe("chartWidth", () => {
-  it("reserves one slot per bar plus the right margin", () => {
-    expect(chartWidth(0)).toBe(16);
-    expect(chartWidth(2)).toBe(128);
-  });
-});
+import { xTickLabel, yAxisTicks } from "../chart";
 
 describe("yAxisTicks", () => {
   it("rounds up to the monthly step size", () => {

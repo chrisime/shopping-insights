@@ -18,7 +18,9 @@ export class ApiRequestError extends Error {
 }
 
 export function apiUrl(path: string, params: QueryParams = {}): URL {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+  const baseUrl =
+    import.meta.env.VITE_API_BASE_URL ??
+    (import.meta.env.PROD ? window.location.origin : DEFAULT_API_BASE_URL);
   const url = new URL(path, baseUrl);
 
   for (const [key, value] of Object.entries(params)) {

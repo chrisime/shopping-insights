@@ -1,60 +1,58 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it, vi } from "vite-plus/test";
-import { mount } from "@vue/test-utils";
-import type TrendBarChart from "../TrendBarChart.vue";
+import { enableAutoUnmount, flushPromises, mount } from "@vue/test-utils";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
 import TrendChartPanel from "../TrendChartPanel.vue";
 
-vi.mock("../TrendBarChart.vue", () => ({
-  default: {
-    props: ["items", "granularity", "monthLabels"],
-    template: "<div><slot /></div>",
-  },
-}));
+enableAutoUnmount(afterEach);
 
 describe("TrendChartPanel", () => {
-  it("computes monthLabels for daily items grouped by month", () => {
-    const wrapper = mount(TrendChartPanel, {
-      props: {
-        timeGranularity: "daily",
-        items: [
-          { period: "2024-03-01", total_spent: 10, receipt_count: 1 },
-          { period: "2024-03-15", total_spent: 20, receipt_count: 1 },
-          { period: "2024-04-01", total_spent: 30, receipt_count: 1 },
-        ],
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(500);
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
       },
-    });
-
-    const barChart = wrapper.getComponent<typeof TrendBarChart>("[data-testid=trend-bar-chart]");
-    expect(barChart.props("monthLabels")).toEqual([
-      { label: "März 2024", start: 0, end: 1 },
-      { label: "April 2024", start: 2, end: 2 },
-    ]);
+    );
   });
 
-  it("returns empty monthLabels for non-daily granularity", () => {
-    const wrapper = mount(TrendChartPanel, {
-      props: {
-        timeGranularity: "monthly",
-        items: [
-          { period: "2024-03-01", total_spent: 10, receipt_count: 1 },
-          { period: "2024-03-15", total_spent: 20, receipt_count: 1 },
-        ],
-      },
-    });
-
-    const barChart = wrapper.getComponent<typeof TrendBarChart>("[data-testid=trend-bar-chart]");
-    expect(barChart.props("monthLabels")).toEqual([]);
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  it("renders no TrendBarChart for empty items", () => {
-    const wrapper = mount(TrendChartPanel, {
-      props: {
-        timeGranularity: "daily",
-        items: [],
-      },
+  it("renders the default monthly chart and updates the SVG for daily data", async () => {
+    const items = [{ period: "2025-01", total_spent: 10, receipt_count: 1 }];
+    const wrapper = mount(TrendChartPanel, { props: { items } });
+    await vi.dynamicImportSettled();
+    await flushPromises();
+    expect(wrapper.get("h3").text()).toBe("Monate");
+    expect(wrapper.get('[data-testid="trend-bar-chart"] svg').text()).toContain("Jan 2025");
+
+    await wrapper.setProps({
+      timeGranularity: "daily",
+      items: [
+        { ...items[0], period: "2024-12-31" },
+        { ...items[0], period: "2025-01-01" },
+      ],
     });
 
-    expect(wrapper.findComponent("[data-testid=trend-bar-chart]").exists()).toBe(false);
+    expect(wrapper.get("h3").text()).toBe("Tage");
+    const chart = wrapper.get('[data-testid="trend-bar-chart"] svg');
+    expect(chart.text()).toContain("Dezember 2024");
+    expect(chart.text()).toContain("Januar 2025");
+    expect(wrapper.get('[data-testid="trend-year-overlay"]').text()).toBe("20242025");
+  });
+
+  it("renders no chart for empty items", () => {
+    const wrapper = mount(TrendChartPanel, { props: { items: [] } });
+
+    expect(wrapper.find('[data-testid="trend-bar-chart"]').exists()).toBe(false);
+    expect(wrapper.find("h3").exists()).toBe(false);
   });
 });
