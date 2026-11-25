@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import SecretStr
+
+from auth.rossmann_auth import authenticate_rossmann_account
 from workflows.dm_workflow import run_dm_initial
 from workflows.lidl_workflow import run_lidl_initial
 from workflows.rewe_workflow import run_rewe_initial
@@ -36,10 +39,10 @@ def trigger_dm_fetch(
     return {"data": {"retailer": "dm", "started": bool(started), "days_back": days_back}}
 
 
-def trigger_rossmann_fetch(
-    days_back: int = 30,
-    browser: str | None = None,
-    cookies_file: str | None = None,
-) -> dict[str, Any]:
-    started = run_rossmann_initial(browser=browser, cookies_file=cookies_file)
+def trigger_rossmann_fetch(*, email: str, password: SecretStr, days_back: int = 30) -> dict[str, Any]:
+    account = authenticate_rossmann_account(email, password.get_secret_value())
+    started = run_rossmann_initial(
+        account_id=account.account_id,
+        account_hash=account.account_hash,
+    )
     return {"data": {"retailer": "rossmann", "started": bool(started), "days_back": days_back}}
