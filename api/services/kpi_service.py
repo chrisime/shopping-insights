@@ -1,7 +1,5 @@
 """Service functions for KPI endpoints."""
 
-from typing import Any
-
 from storage.kpi_store import MetricsStore
 
 from api.schemas.kpis import KpiBonus, KpiSummary, TimeSeriesRow, TopItemRow, WeekdayRow
@@ -52,7 +50,7 @@ def get_trend(
     start_date: str | None = None,
     end_date: str | None = None,
     granularity: str = "day",
-) -> list[dict[str, Any]]:
+) -> list[TimeSeriesRow]:
     store = MetricsStore()
     if granularity == "month":
         rows = store.spending_by_month(retailer=retailer, start_date=start_date, end_date=end_date)
@@ -60,7 +58,7 @@ def get_trend(
         rows = store.spending_by_year(retailer=retailer, start_date=start_date, end_date=end_date)
     else:
         rows = store.spending_by_day(retailer=retailer, start_date=start_date, end_date=end_date)
-    return [row.__dict__ for row in rows]
+    return [TimeSeriesRow.model_validate(row, from_attributes=True) for row in rows]
 
 
 def get_top_items(
@@ -69,29 +67,29 @@ def get_top_items(
     end_date: str | None = None,
     sort: str = "quantity",
     limit: int = 20,
-) -> list[dict[str, Any]]:
+) -> list[TopItemRow]:
     store = MetricsStore()
     if sort == "spend":
-        rows = store.top_items_by_spend(
+        rows, _ = store.top_items_by_spend(
             retailer=retailer,
             start_date=start_date,
             end_date=end_date,
-            limit=limit,
+            page_size=limit,
         )
     else:
-        rows = store.top_items_by_quantity(
+        rows, _ = store.top_items_by_quantity(
             retailer=retailer,
             start_date=start_date,
             end_date=end_date,
-            limit=limit,
+            page_size=limit,
         )
-    return [row.__dict__ for row in rows]
+    return [TopItemRow.model_validate(row, from_attributes=True) for row in rows]
 
 
 def get_weekday(
     retailer: str | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
-) -> list[dict[str, Any]]:
+) -> list[WeekdayRow]:
     rows = MetricsStore().weekday_analysis(retailer=retailer, start_date=start_date, end_date=end_date)
-    return [row.__dict__ for row in rows]
+    return [WeekdayRow.model_validate(row, from_attributes=True) for row in rows]

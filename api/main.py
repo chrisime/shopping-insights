@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.types import ASGIApp
 
 from api.errors import ApiErrorCode, error_code_for_status
 from api.frontend import register_frontend
@@ -21,8 +22,8 @@ app = FastAPI(title="Shopping Analyzer API")
 
 
 @app.exception_handler(HTTPException)
-async def handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
-    detail = exc.detail
+async def handle_http_exception(_request: Request, exc: HTTPException) -> JSONResponse:
+    detail: object = exc.detail
     error_code = error_code_for_status(exc.status_code)
     if isinstance(detail, dict):
         candidate = detail.get("error_code")
@@ -39,7 +40,7 @@ async def handle_http_exception(request: Request, exc: HTTPException) -> JSONRes
 
 @app.exception_handler(RequestValidationError)
 async def handle_request_validation_error(
-    request: Request, exc: RequestValidationError
+    _request: Request, _exc: RequestValidationError
 ) -> JSONResponse:
     return JSONResponse(
         status_code=422,
@@ -51,7 +52,7 @@ async def handle_request_validation_error(
 
 
 @app.exception_handler(Exception)
-async def handle_unexpected_exception(request: Request, exc: Exception) -> JSONResponse:
+async def handle_unexpected_exception(_request: Request, _exc: Exception) -> JSONResponse:
     return JSONResponse(
         status_code=500,
         content={
@@ -61,13 +62,17 @@ async def handle_unexpected_exception(request: Request, exc: Exception) -> JSONR
     )
 
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def _configure_cors(asgi_app: ASGIApp, /) -> CORSMiddleware:
+    return CORSMiddleware(
+        asgi_app,
+        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
+app.add_middleware(_configure_cors)
 app.include_router(exports_router)
 app.include_router(dashboard_router)
 app.include_router(imports_router)

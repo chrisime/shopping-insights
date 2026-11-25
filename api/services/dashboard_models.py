@@ -62,6 +62,21 @@ class DashboardSection:
         return {"kind": self.kind, "title": self.title, "items": [dict(item) for item in self.items]}
 
 
+def _with_dashboard_metadata(
+    payload: dict[str, Any],
+    min_date: str | None,
+    max_date: str | None,
+    error: DashboardError | None,
+) -> dict[str, Any]:
+    if min_date is not None or error is not None:
+        payload["min_date"] = min_date
+    if max_date is not None or error is not None:
+        payload["max_date"] = max_date
+    if error is not None:
+        payload["error"] = {"error_code": error.error_code, "detail": error.detail}
+    return payload
+
+
 @dataclass(frozen=True)
 class DashboardPageModel:
     title: str
@@ -75,13 +90,7 @@ class DashboardPageModel:
             "title": self.title,
             "sections": [section.to_dict() for section in self.sections],
         }
-        if self.min_date is not None or self.error is not None:
-            payload["min_date"] = self.min_date
-        if self.max_date is not None or self.error is not None:
-            payload["max_date"] = self.max_date
-        if self.error is not None:
-            payload["error"] = {"error_code": self.error.error_code, "detail": self.error.detail}
-        return payload
+        return _with_dashboard_metadata(payload, self.min_date, self.max_date, self.error)
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "DashboardPageModel":
@@ -126,13 +135,7 @@ class VueDashboardPayload:
             "title": self.title,
             "sections": [dict(section) for section in self.sections],
         }
-        if self.min_date is not None or self.error is not None:
-            payload["min_date"] = self.min_date
-        if self.max_date is not None or self.error is not None:
-            payload["max_date"] = self.max_date
-        if self.error is not None:
-            payload["error"] = {"error_code": self.error.error_code, "detail": self.error.detail}
-        return payload
+        return _with_dashboard_metadata(payload, self.min_date, self.max_date, self.error)
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "VueDashboardPayload":

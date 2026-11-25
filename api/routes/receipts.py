@@ -1,8 +1,6 @@
 """Receipt API routes."""
 
-
-
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Query, HTTPException
 
 from api.schemas.common import ItemResponse, ListResponse
 from api.services.receipt_service import get_receipt, get_receipt_items, get_receipt_payments, list_receipts, list_receipts_by_date_range, list_receipts_by_item
@@ -14,8 +12,8 @@ router = APIRouter(prefix="/receipts", tags=["receipts"])
 @router.get("", response_model=ListResponse)
 def read_receipts(
     retailer: str | None = None,
-    page: int = 1,
-    page_size: int = 50,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1),
 ) -> dict:
     return list_receipts(retailer=retailer, page=page, page_size=page_size)
 

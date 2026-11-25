@@ -1,7 +1,5 @@
 """Export API routes."""
 
-
-
 from fastapi import APIRouter
 
 from api.schemas.common import ItemResponse

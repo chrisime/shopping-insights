@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from math import ceil
 from typing import Any
 
+from api.schemas.common import paginate_rows
 from storage.sqlite_receipt_store import SqliteReceiptStore
 
 
@@ -33,16 +33,4 @@ def list_items(
                 }
             )
 
-    total = len(items)
-    page_total = max(1, ceil(total / page_size)) if total else 0
-    start = (page - 1) * page_size
-    end = start + page_size
-    return {
-        "data": items[start:end],
-        "meta": {
-            "total": total,
-            "page_total": page_total,
-            "page": page,
-            "page_size": page_size,
-        },
-    }
+    return paginate_rows(items, page, page_size)

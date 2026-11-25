@@ -1,7 +1,5 @@
 """KPI API routes."""
 
-
-
 from fastapi import APIRouter
 
 from api.schemas.kpis import (

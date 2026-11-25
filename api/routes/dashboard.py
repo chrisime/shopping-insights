@@ -1,7 +1,5 @@
 """Routes for the dashboard payload used by the Vue frontend."""
 
-from __future__ import annotations
-
 from fastapi import APIRouter
 
 from api.services.dashboard_service import DashboardService

@@ -121,8 +121,8 @@ def test_kpi_top_items_uses_requested_sort(monkeypatch):
     called = []
 
     class FakeMetricsStore:
-        def top_items_by_spend(self, retailer=None, start_date=None, end_date=None, limit=20):
-            called.append(("spend", limit))
+        def top_items_by_spend(self, retailer=None, start_date=None, end_date=None, page_size=20):
+            called.append(("spend", page_size))
             return [
                 TopItemRow(
                     name="Apfel",
@@ -131,7 +131,7 @@ def test_kpi_top_items_uses_requested_sort(monkeypatch):
                     purchase_count=1,
                     unit="pc",
                 )
-            ]
+            ], 1
 
     monkeypatch.setattr(kpi_service, "MetricsStore", FakeMetricsStore)
 
@@ -186,3 +186,18 @@ def test_kpi_weekday_returns_weekday_rows(monkeypatch):
             }
         ]
     }
+
+
+def test_kpi_top_items_runs_with_sqlite_store(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from api.main import app
+    from config import storage_config
+
+    monkeypatch.setattr(storage_config, "SQLITE_RECEIPTS_DB_FILE", str(tmp_path / "receipts.sqlite"))
+    client = TestClient(app)
+
+    for sort in ("quantity", "spend"):
+        response = client.get("/kpis/top-items", params={"sort": sort, "limit": 5})
+        assert response.status_code == 200
+        assert response.json() == {"data": []}
