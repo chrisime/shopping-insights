@@ -10,6 +10,7 @@ from the anybill App API v4, and imports them through the shared
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable
 
@@ -21,23 +22,20 @@ from auth.rossmann_auth import (
     RossmannAuthError,
     build_anybill_api_session,
     make_anybill_token_refresher,
-    mint_anybill_token,
     prompt_rossmann_login,
 )
-from auth.rossmann_file_auth import read_rossmann_account
-from auth.session_manager import setup_session
 from client.rossmann_client import (
     collect_rossmann_receipts,
     download_receipt_pdf,
     fetch_receipt_detail,
-    test_rossmann_session,
+    rossmann_purchase_date,
 )
 from config import RossmannConfig
 from config import storage_config
 from shared.receipt_store import ReceiptStore
 from storage import create_receipt_store
 
-from .import_workflow import ImportWorkflow, resolve_auth_method
+from .import_workflow import ImportWorkflow
 from .local_import import import_local_sources
 from .pipeline_types import WorkflowResult
 from .progress_display import ReceiptProgressDisplay
@@ -63,12 +61,8 @@ class _RossmannImportWorkflow(ImportWorkflow):
 
     def __init__(
         self,
-        browser: str | None,
-        cookies_file: str | None,
         account: RossmannAccount | None = None,
     ) -> None:
-        self._browser = browser
-        self._cookies_file = cookies_file
         self._account = account
         self._pending_receipt_ids: set[str] | None = None
         self._existing_receipt_count = 0
@@ -81,10 +75,10 @@ class _RossmannImportWorkflow(ImportWorkflow):
         output_dir: Path,
         store: ReceiptStore,
         progress_listener: Callable[[object], None] | None = None,
+        *,
+        purchased_since: date | None = None,
     ) -> bool:
-        session_payload = _prepare_rossmann_session(
-            self._browser, self._cookies_file, self._account
-        )
+        session_payload = _prepare_rossmann_session(self._account)
         if not session_payload:
             return False
         api_session, token_refresher = session_payload
@@ -93,7 +87,7 @@ class _RossmannImportWorkflow(ImportWorkflow):
         receipts_dir.mkdir(parents=True, exist_ok=True)
 
         print("ℹ Sammle Rossmann-Belege (anybill)...")
-        receipts = collect_rossmann_receipts(api_session, token_refresher=token_refresher)
+        receipts = collect_rossmann_receipts(api_session, token_refresher=token_refresher, purchased_since=purchased_since)
         if receipts is None:
             info = rossmann_initial_error(2406)
             set_last_workflow_error(info)
@@ -104,11 +98,12 @@ class _RossmannImportWorkflow(ImportWorkflow):
 
         existing_ids = store.find_existing_ids(retailer=RETAILER_ROSSMANN)
         self._existing_receipt_count = len(existing_ids)
-        self._pending_receipt_ids = {receipt["id"] for receipt in receipts if receipt.get("id")} - existing_ids
+        pending_receipt_ids = {receipt["id"] for receipt in receipts if receipt.get("id")} - existing_ids
+        self._pending_receipt_ids = pending_receipt_ids
         local_ids = {path.stem for path in receipts_dir.glob("*.json")}
         new_receipts = [
             r for r in receipts
-            if r.get("id") in self._pending_receipt_ids and r.get("id") not in local_ids
+            if r.get("id") in pending_receipt_ids and r.get("id") not in local_ids
         ]
 
         print(f"ℹ Bereits vorhandene Rossmann-Belege: {len(existing_ids)}")
@@ -122,6 +117,7 @@ class _RossmannImportWorkflow(ImportWorkflow):
                 output_dir,
                 token_refresher,
                 progress_listener=progress_listener,
+                purchased_since=purchased_since,
             )
             if not downloaded:
                 set_last_workflow_error(rossmann_initial_error(2408))
@@ -140,6 +136,8 @@ class _RossmannImportWorkflow(ImportWorkflow):
         output_dir: Path,
         store: ReceiptStore,
         progress_listener: Callable[[object], None] | None = None,
+        *,
+        purchased_since: date | None = None,
     ) -> WorkflowResult:
         receipts_dir = self._source_dir(output_dir)
         source_paths = sorted(
@@ -158,6 +156,7 @@ class _RossmannImportWorkflow(ImportWorkflow):
             retailer_display_name="ROSSMANN",
             skipped_report_filename=RossmannConfig.SKIPPED_RECEIPTS_REPORT_FILE,
             progress_listener=progress_listener,
+            purchased_since=purchased_since,
         )
         if not source_paths:
             return replace(result, summary=replace(result.summary, total_receipts=self._existing_receipt_count))
@@ -174,24 +173,26 @@ class _RossmannImportWorkflow(ImportWorkflow):
 
 
 def run_rossmann_initial(
-    browser: str | None = None,
-    cookies_file: str | None = None,
     account_id: str | None = None,
     account_hash: str | None = None,
     output_dir: str = RossmannConfig.DEFAULT_OUTPUT_DIR,
     prompt_login: bool = False,
     progress_listener: Callable[[object], None] | None = None,
+    *,
+    purchased_since: date | None = None,
 ) -> bool:
     """Download new Rossmann receipt JSONs and import them into the DB."""
-    account = _build_account(account_id, account_hash, cookies_file)
+    account = RossmannAccount(account_id=account_id, account_hash=account_hash) if account_id and account_hash else None
     if account is None and prompt_login:
         account = prompt_rossmann_login()
     base_output_dir = Path(output_dir)
     store = create_receipt_store()
-    return _RossmannImportWorkflow(browser, cookies_file, account).run_initial(
+    workflow = _RossmannImportWorkflow(account)
+    return workflow.run_initial(
         base_output_dir,
         store,
         progress_listener=progress_listener,
+        purchased_since=purchased_since,
     )
 
 
@@ -202,66 +203,25 @@ def run_rossmann_update(
     """Re-import all locally downloaded Rossmann receipt JSONs via upsert."""
     base_output_dir = Path(output_dir)
     store = create_receipt_store()
-    return _RossmannImportWorkflow(None, None).run_update(
+    return _RossmannImportWorkflow().run_update(
         base_output_dir,
         store,
         progress_listener=progress_listener,
     )
 
 
-def _build_account(
-    account_id: str | None,
-    account_hash: str | None,
-    cookies_file: str | None,
-) -> RossmannAccount | None:
-    """Resolve the Rossmann account from CLI args or an embedded cookie export."""
-    if account_id and account_hash:
-        return RossmannAccount(account_id=account_id, account_hash=account_hash)
-
-    if cookies_file:
-        try:
-            raw = Path(cookies_file).read_text(encoding="utf-8")
-        except OSError:
-            return None
-        account = read_rossmann_account(raw)
-        if account:
-            return RossmannAccount(
-                account_id=account["accountId"],
-                account_hash=account["accountHash"],
-            )
-
-    return None
-
-
 def _prepare_rossmann_session(
-    browser: str | None,
-    cookies_file: str | None,
     account: RossmannAccount | None,
 ):
     """Mint an anybill token and return an API session plus a token refresher."""
-    if account is not None and browser is None and cookies_file is None:
-        account_session = requests.Session()
-        account_session.headers["User-Agent"] = RossmannConfig.DEFAULT_USER_AGENT
-    else:
-        auth_method = resolve_auth_method(browser, cookies_file, "Rossmann")
-        if not auth_method:
-            set_last_workflow_error(rossmann_initial_error(2401))
-            return None
-
-        account_session = setup_session(RETAILER_ROSSMANN, auth_method, cookies_file)
-        if not account_session:
-            error_code = 2402 if auth_method == "file" else 2403
-            info = rossmann_initial_error(error_code)
-            set_last_workflow_error(info)
-            print(f"\u2717 {info.detail}")
-            return None
-
     if account is None:
         info = rossmann_initial_error(2405)
         set_last_workflow_error(info)
-        print(f"\u2717 {info.detail} (accountId/accountHash erforderlich)")
+        print(f"\u2717 {info.detail} Verwende den Login oder gib accountId und accountHash an.")
         return None
 
+    account_session = requests.Session()
+    account_session.headers["User-Agent"] = RossmannConfig.DEFAULT_USER_AGENT
     try:
         api_session = build_anybill_api_session(account_session, account)
     except RossmannAuthError as exc:
@@ -296,6 +256,8 @@ def _download_rossmann_receipts(
     output_dir: Path,
     token_refresher: Callable[[], str | None],
     progress_listener: Callable[[object], None] | None = None,
+    *,
+    purchased_since: date | None = None,
 ) -> bool:
     """Download Rossmann receipt detail JSONs and PDFs for the list entries."""
     pdf_dir = output_dir / "pdf"
@@ -303,13 +265,8 @@ def _download_rossmann_receipts(
     saved_count = 0
     error_count = 0
 
-    progress = ReceiptProgressDisplay(
-        added_label="Gespeichert",
-        items_label="Artikel",
-        listener=progress_listener,
-    )
     total_receipts = len(new_receipts)
-    progress.render_step(0, total_receipts, 0, 0, 0, "-")
+    progress = ReceiptProgressDisplay.start_download(total_receipts, progress_listener)
 
     for index, entry in enumerate(new_receipts, start=1):
         receipt_id = str(entry.get("id") or "")
@@ -320,7 +277,11 @@ def _download_rossmann_receipts(
         if detail is None:
             error_count += 1
             print(f"\u2717 Rossmann-Detail fehlgeschlagen: {receipt_id}")
-        else:
+        elif (
+            purchased_since is None
+            or (purchase_date := rossmann_purchase_date(detail)) is None
+            or purchase_date >= purchased_since
+        ):
             ebon_path = receipts_dir / f"{receipt_id}.json"
             ebon_path.write_text(
                 simplejson.dumps(detail, ensure_ascii=False, indent=2),

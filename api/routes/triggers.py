@@ -15,17 +15,17 @@ router = APIRouter(prefix="/triggers", tags=["triggers"])
 
 
 @router.post("/fetch/lidl", response_model=ItemResponse)
-def trigger_lidl(days_back: int = 30) -> dict:
+def trigger_lidl(days_back: int = Query(30, ge=0)) -> dict:
     return trigger_lidl_fetch(days_back=days_back)
 
 
 @router.post("/fetch/rewe", response_model=ItemResponse)
-def trigger_rewe(days_back: int = 30) -> dict:
+def trigger_rewe(days_back: int = Query(30, ge=0)) -> dict:
     return trigger_rewe_fetch(days_back=days_back)
 
 
 @router.post("/fetch/dm", response_model=ItemResponse)
-def trigger_dm(days_back: int = 30) -> dict:
+def trigger_dm(days_back: int = Query(30, ge=0)) -> dict:
     return trigger_dm_fetch(days_back=days_back)
 
 

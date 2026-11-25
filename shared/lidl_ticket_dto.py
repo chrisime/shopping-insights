@@ -7,8 +7,11 @@ typed dataclasses so downstream code never touches raw dicts.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import date
 from typing import Any
+
+from shared.receipt_dates import api_purchase_date
 
 
 @dataclass(frozen=True)
@@ -18,9 +21,10 @@ class LidlTicketsPageDTO:
     receipt_ids: list[str]
     page: int
     total_count: int
+    purchase_dates: dict[str, date] = field(default_factory=dict)
 
     @staticmethod
-    def from_api_response(data: dict[str, Any], page: int = 1) -> LidlTicketsPageDTO | None:
+    def from_api_response(data: object, page: int = 1) -> LidlTicketsPageDTO | None:
         """Build a DTO from the raw API response."""
         if not isinstance(data, dict):
             return None
@@ -31,6 +35,7 @@ class LidlTicketsPageDTO:
 
         # Extract receipt IDs from items that have HTML receipts
         ids = []
+        purchase_dates: dict[str, date] = {}
         for item in raw_items:
             # Handle nested 'ticket' key
             if isinstance(item, dict) and "ticket" in item:
@@ -43,11 +48,15 @@ class LidlTicketsPageDTO:
                 has_html = bool(inner_item.get("isHtml", False))
                 if receipt_id and has_html:
                     ids.append(receipt_id)
+                    purchase_date = api_purchase_date(inner_item.get("date"))
+                    if purchase_date is not None:
+                        purchase_dates[receipt_id] = purchase_date
 
         return LidlTicketsPageDTO(
             receipt_ids=ids,
             page=page,
             total_count=data.get("totalCount", len(ids)),
+            purchase_dates=purchase_dates,
         )
 
 
@@ -110,13 +119,13 @@ class LidlTicketDTO:
         as returned by :func:`client.lidl_client.get_lidl_ticket`.
         """
         ticket_id = str(ticket_data.get("id") or receipt_id or "")
-        date = str(ticket_data.get("date") or "")
+        ticket_date = str(ticket_data.get("date") or "")
         html_receipt = str(ticket_data.get("htmlPrintedReceipt") or "")
         store = _extract_store(ticket_data)
 
         return LidlTicketDTO(
             id=ticket_id,
-            date=date,
+            date=ticket_date,
             html_receipt=html_receipt,
             store=store,
         )

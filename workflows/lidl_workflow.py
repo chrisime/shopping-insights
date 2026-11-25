@@ -1,6 +1,7 @@
 """Central LIDL workflow for synchronizing receipt state from the Lidl API."""
 
 import time
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
@@ -53,6 +54,8 @@ class _LidlImportWorkflow(ImportWorkflow):
         output_dir: Path,
         store: ReceiptStore,
         progress_listener: Callable[[object], None] | None = None,
+        *,
+        purchased_since: date | None = None,
     ) -> bool:
         session = _prepare_lidl_session(self._browser, self._cookies_file, self._country)
         if not session:
@@ -61,7 +64,7 @@ class _LidlImportWorkflow(ImportWorkflow):
         tickets_dir = self._source_dir(output_dir)
         tickets_dir.mkdir(parents=True, exist_ok=True)
         print("ℹ Sammle alle LIDL-Kassenbon-IDs mit digitalem Kassenbon über API...")
-        discovered_ids, page_count = collect_lidl_receipt_ids(session)
+        discovered_ids, page_count = collect_lidl_receipt_ids(session, purchased_since=purchased_since)
         self._checked_pages = page_count
 
         print(f"ℹ Gefunden: {len(discovered_ids)} LIDL-Kassenbon-IDs")
@@ -89,6 +92,8 @@ class _LidlImportWorkflow(ImportWorkflow):
         output_dir: Path,
         store: ReceiptStore,
         progress_listener: Callable[[object], None] | None = None,
+        *,
+        purchased_since: date | None = None,
     ) -> WorkflowResult:
         tickets_dir = self._source_dir(output_dir)
         return import_local_sources(
@@ -104,6 +109,7 @@ class _LidlImportWorkflow(ImportWorkflow):
             skipped_report_filename=LidlConfig.SKIPPED_RECEIPTS_REPORT_FILE,
             checked_pages=self._checked_pages,
             progress_listener=progress_listener,
+            purchased_since=purchased_since,
         )
 
     def _import_summary_label(self) -> str:
@@ -124,14 +130,18 @@ def run_lidl_initial(
     country: str | None = None,
     output_dir: str = LidlConfig.DEFAULT_OUTPUT_DIR,
     progress_listener: Callable[[object], None] | None = None,
+    *,
+    purchased_since: date | None = None,
 ) -> bool:
     """Download new Lidl ticket JSONs and import them into the DB."""
     base_output_dir = Path(output_dir)
     store = create_receipt_store()
-    return _LidlImportWorkflow(browser, cookies_file, country).run_initial(
+    workflow = _LidlImportWorkflow(browser, cookies_file, country)
+    return workflow.run_initial(
         base_output_dir,
         store,
         progress_listener=progress_listener,
+        purchased_since=purchased_since,
     )
 
 

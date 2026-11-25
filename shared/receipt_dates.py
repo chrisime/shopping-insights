@@ -36,6 +36,17 @@ def parse_purchase_date(value: Any) -> datetime | None:
     return None
 
 
+def api_purchase_date(value: object) -> date | None:
+    """Read the calendar date from a retailer's timestamp, preserving its offset."""
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.strip()).date()
+        except ValueError:
+            pass
+    parsed = parse_purchase_date(value)
+    return parsed.date() if parsed is not None else None
+
+
 def normalize_purchase_date(value: Any) -> str | None:
     """Normalize supported receipt purchase dates into ISO-8601 date text."""
     if value is None:

@@ -17,13 +17,18 @@ router = APIRouter(prefix="/imports", tags=["imports"])
 @router.post("/start", response_model=ImportStartResponse)
 def start_import(payload: ImportStartRequest) -> ImportStartResponse:
     login = payload.rossmann_login
-    if login is not None and (
-        payload.retailer != "rossmann"
-        or payload.browser is not None
-        or payload.cookies_file is not None
-        or not login.email.strip()
-        or not login.password.get_secret_value()
-    ):
+    if payload.retailer == "rossmann":
+        invalid_login = (
+            login is None
+            or payload.browser is not None
+            or payload.cookies_file is not None
+            or not login.email.strip()
+            or not login.password.get_secret_value()
+        )
+    else:
+        invalid_login = login is not None
+
+    if invalid_login:
         raise HTTPException(
             status_code=422,
             detail={
@@ -44,7 +49,7 @@ def start_import(payload: ImportStartRequest) -> ImportStartResponse:
                 cookies_file=payload.cookies_file,
                 customer_id=payload.customer_id,
             )
-    except RuntimeError as exc:
+    except import_job_service.ConcurrentImportError as exc:
         raise HTTPException(
             status_code=409,
             detail={"error_code": CONCURRENT_IMPORT_ERROR.error_code, "detail": CONCURRENT_IMPORT_ERROR.detail},

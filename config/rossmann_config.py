@@ -11,7 +11,6 @@ class RossmannConfig:
     """Central Rossmann configuration for API access, auth and runtime behavior."""
 
     # File paths
-    COOKIES_JSON_FILE = "rossmann_cookies.json"
     RECEIPTS_JSON_FILE = "rossmann_receipts.json"
     SKIPPED_RECEIPTS_REPORT_FILE = "rossmann_skipped_receipts.json"
     DEFAULT_OUTPUT_DIR = "tmp/rossmann"

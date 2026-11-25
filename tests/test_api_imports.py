@@ -20,7 +20,7 @@ def test_import_start_returns_conflict_when_job_running(monkeypatch):
     from api.main import app
     from api.services import import_job_service
 
-    monkeypatch.setattr(import_job_service, "start_import_job", lambda retailer: (_ for _ in ()).throw(RuntimeError("Import job already running: job-1")))
+    monkeypatch.setattr(import_job_service, "start_import_job", lambda retailer: (_ for _ in ()).throw(import_job_service.ConcurrentImportError("Import job already running: job-1")))
 
     response = TestClient(app).post("/imports/start", json={"retailer": "rewe"})
 
@@ -135,7 +135,7 @@ def test_import_events_streams_structured_error(monkeypatch):
     assert "Nicht autorisiert (401)" in response.text
 
 
-def test_import_start_surfaces_structured_backend_error(monkeypatch):
+def test_import_start_returns_500_for_internal_runtime_error(monkeypatch):
     from api.main import app
     from api.services import import_job_service
 
@@ -145,10 +145,10 @@ def test_import_start_surfaces_structured_backend_error(monkeypatch):
         lambda retailer: (_ for _ in ()).throw(RuntimeError("Import workflow returned False for retailer: lidl")),
     )
 
-    response = TestClient(app).post("/imports/start", json={"retailer": "lidl"})
+    response = TestClient(app, raise_server_exceptions=False).post("/imports/start", json={"retailer": "lidl"})
 
-    assert response.status_code == 409
-    assert response.json() == {"error_code": 4003, "detail": "Import bereits aktiv"}
+    assert response.status_code == 500
+    assert response.json() == {"error_code": 5001, "detail": "Unexpected API error"}
 
 
 def test_invalid_rossmann_credentials_return_structured_error_code():
@@ -316,3 +316,73 @@ def test_rossmann_import_adds_new_receipt_with_items_only_once(monkeypatch, tmp_
     )
     assert discounts["rossmann_discount_amount"] == 1.50
     assert discounts["rossmann_app_coupon_discount_amount"] == 0.60
+
+
+def test_rossmann_fetch_trigger_persists_only_receipts_in_date_range(monkeypatch, tmp_path):
+    from datetime import date, datetime, time, timedelta
+    from functools import partial
+    from unittest.mock import Mock
+    from zoneinfo import ZoneInfo
+
+    from api.main import app
+    from api.services import trigger_service
+    from client import rossmann_client
+    from config import storage_config
+    from storage.sqlite_receipt_store import SqliteReceiptStore
+    from workflows import rossmann_workflow
+
+    cutoff = date.today() - timedelta(days=7)
+    purchases = {
+        "caa469d4-346d-461f-a768-16cb35e9459b": cutoff - timedelta(days=1),
+        "d09097f3-7765-45b4-a0b0-0de38d93842e": cutoff,
+    }
+
+    requested_ids = []
+
+    def fetch_detail(session, receipt_id, *, token_refresher):
+        requested_ids.append(receipt_id)
+        return {
+            "id": receipt_id,
+            "head": {"date": f"{purchases[receipt_id]}T11:00:00Z", "seller": {"name": "Rossmann"}},
+            "data": {
+                "fullAmountInclVat": 4.50,
+                "fullAmountInclVatBeforeDiscounts": 4.50,
+                "lines": [{"type": "Default", "text": "Shampoo", "item": {"quantity": 2, "pricePerUnit": 2.25}}],
+            },
+        }
+
+    monkeypatch.setattr(storage_config, "SQLITE_RECEIPTS_DB_FILE", str(tmp_path / "receipts.sqlite"))
+    monkeypatch.setattr(
+        trigger_service,
+        "run_rossmann_initial",
+        partial(rossmann_workflow.run_rossmann_initial, output_dir=str(tmp_path)),
+    )
+    monkeypatch.setattr(rossmann_workflow, "_prepare_rossmann_session", lambda *args: (object(), None))
+    listing = Mock()
+    listing.json.return_value = [
+        {"id": key, "head": {"date": f"{value}T11:00:00Z"}} for key, value in purchases.items()
+    ]
+    listing.headers = {}
+    request = Mock(return_value=listing)
+    monkeypatch.setattr(rossmann_client, "_request_with_retry", request)
+    monkeypatch.setattr(rossmann_workflow, "fetch_receipt_detail", fetch_detail)
+    monkeypatch.setattr(rossmann_workflow, "download_receipt_pdf", lambda *args, **kwargs: None)
+
+    from auth.rossmann_auth import RossmannAccount
+
+    monkeypatch.setattr(
+        trigger_service, "authenticate_rossmann_account", lambda email, password: RossmannAccount("id", "hash")
+    )
+    response = TestClient(app).post(
+        "/triggers/fetch/rossmann",
+        params={"days_back": 7},
+        json={"email": "user@example.com", "password": "example-password"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["started"] is True
+    receipts = SqliteReceiptStore.list_receipts("rossmann")
+    assert [receipt["id"] for receipt in receipts] == ["d09097f3-7765-45b4-a0b0-0de38d93842e"]
+    assert requested_ids == [receipts[0]["id"]]
+    expected_cutoff = datetime.combine(cutoff, time.min, ZoneInfo("Europe/Berlin"))
+    assert request.call_args.kwargs["params"]["fromDate"] == expected_cutoff.isoformat()

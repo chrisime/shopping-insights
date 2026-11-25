@@ -38,15 +38,14 @@ const loginEmail = ref("");
 const loginPassword = ref("");
 
 function applyRetailerDefaults(retailer: ImportRetailer) {
-  const defaultFiles: Record<ImportRetailer, string> = {
+  const defaultFiles: Record<Exclude<ImportRetailer, "rossmann">, string> = {
     lidl: "lidl_cookies.json",
     rewe: "rewe_cookies.json",
     dm: "dm_cookies.json",
-    rossmann: "rossmann_cookies.json",
   };
 
   browser.value = "firefox";
-  cookiesFile.value = defaultFiles[retailer];
+  cookiesFile.value = retailer === "rossmann" ? "" : defaultFiles[retailer];
   authMode.value = retailer === "rossmann" ? "user-login" : "mfa-login";
   customerId.value = "";
   showCustomerId.value = false;
@@ -123,7 +122,7 @@ function submitImport() {
               <option data-testid="import-option" v-else value="mfa-login">
                 {{ t("import.browserProfile") }}
               </option>
-              <option data-testid="import-option" value="cookies-file">
+              <option v-if="retailer !== 'rossmann'" data-testid="import-option" value="cookies-file">
                 {{ t("import.cookieFile") }}
               </option>
             </OSelect>

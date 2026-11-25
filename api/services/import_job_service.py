@@ -32,6 +32,10 @@ _job_conditions: dict[str, Condition] = {}
 _jobs_lock = Lock()
 
 
+class ConcurrentImportError(RuntimeError):
+    """An import job is already running."""
+
+
 def start_import_job(
     retailer: str,
     browser: str | None = None,
@@ -43,7 +47,7 @@ def start_import_job(
     with _jobs_lock:
         active_job = next((job for job in _jobs.values() if job.status == "running"), None)
         if active_job is not None:
-            raise RuntimeError(f"Import job already running: {active_job.job_id}")
+            raise ConcurrentImportError(f"Import job already running: {active_job.job_id}")
 
         job_id = uuid4().hex
         _jobs[job_id] = ImportJobSnapshot(
@@ -159,8 +163,6 @@ def _run_import_job(
                     raise RuntimeError(info.detail) from None
                 account_args = {"account_id": account.account_id, "account_hash": account.account_hash}
             started = cast(Callable[..., object], trigger_service.run_rossmann_initial)(
-                browser=browser,
-                cookies_file=cookies_file,
                 progress_listener=progress_listener,
                 **account_args,
             )
@@ -173,15 +175,11 @@ def _run_import_job(
         detail = workflow_error.detail if workflow_error is not None else (
             "Rossmann-Import fehlgeschlagen." if rossmann_login is not None else str(exc)
         )
-        _update_job(
-            job_id,
-            status="error",
-            error={
-                "error_code": workflow_error.error_code if workflow_error is not None else _import_error_code_for_exception(exc),
-                "detail": detail,
-            },
-            message=detail,
-        )
+        error: dict[str, object] = {
+            "error_code": workflow_error.error_code if workflow_error is not None else _import_error_code_for_exception(exc),
+            "detail": detail,
+        }
+        _update_job(job_id, status="error", error=error, message=detail)
         clear_last_workflow_error()
     else:
         clear_last_workflow_error()
@@ -214,7 +212,7 @@ def _append_job_event(job_id: str, event_type: str, snapshot: ImportJobSnapshot 
     if condition is None:
         return
 
-    event = {"event": event_type, "data": _snapshot_to_dict(snapshot)}
+    event: dict[str, object] = {"event": event_type, "data": _snapshot_to_dict(snapshot)}
     with condition:
         with _jobs_lock:
             events = _job_events.get(job_id)

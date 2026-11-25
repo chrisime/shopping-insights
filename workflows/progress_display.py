@@ -39,6 +39,16 @@ class ReceiptProgressDisplay:
         self.listener = listener
         self._initialized = False
 
+    @classmethod
+    def start_download(
+        cls,
+        total: int,
+        listener: Callable[[ProgressState], None] | None,
+    ) -> ReceiptProgressDisplay:
+        progress = cls(added_label="Gespeichert", listener=listener)
+        progress.render_step(0, total, 0, 0, 0)
+        return progress
+
     def render(self, state: ProgressState) -> None:
         """Render progress in-place using ANSI cursor control."""
         total = max(state.total, 1)

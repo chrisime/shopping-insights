@@ -6,11 +6,13 @@ variation is supplied as plain parameters (loader callable + config values)
 instead of subclass hooks.
 """
 
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
 from result_types import WorkflowSummary
 from reporting.shared_reporting import write_skipped_receipts_report
+from shared.receipt_dates import parse_purchase_date
 from shared.receipt_dto import receipt_dict_to_dto
 from shared.receipt_store import ReceiptStore
 
@@ -38,6 +40,7 @@ def import_local_sources(
     skipped_report_filename: str = "",
     checked_pages: int | None = None,
     progress_listener: Callable[[object], None] | None = None,
+    purchased_since: date | None = None,
 ) -> WorkflowResult:
     """Parse, validate and persist a set of local receipt source files."""
     active_source_paths = list(source_paths)
@@ -68,8 +71,15 @@ def import_local_sources(
         detail_key=detail_key,
         progress_listener=progress_listener,
     )
+    records = parse_result.records
+    if purchased_since is not None:
+        records = [
+            record for record in records
+            if (purchase_date := parse_purchase_date(record.receipt_data.get("purchase_date"))) is not None
+            and purchase_date.date() >= purchased_since
+        ]
     validation_result = validate_receipts(
-        parse_result.records,
+        records,
         retailer=retailer,
         detail_key=detail_key,
         progress_listener=progress_listener,
@@ -80,7 +90,7 @@ def import_local_sources(
     skipped_issues = [*load_issues, *parse_result.issues, *validation_result.issues]
     skipped_details = [issue.as_detail() for issue in skipped_issues]
     skipped_report_path = _write_skipped_report(
-        source_dir, skipped_details, retailer_display_name, skipped_report_filename
+        source_dir, skipped_details, skipped_report_filename
     )
     _print_skipped_receipts(skipped_details, skipped_report_path, retailer_display_name, detail_key)
 
@@ -103,7 +113,6 @@ def import_local_sources(
 def _write_skipped_report(
     source_dir: Path,
     skipped_details: list[dict[str, str]],
-    retailer_display_name: str,
     skipped_report_filename: str,
 ) -> Path | None:
     """Persist skipped receipts metadata and return the report path."""

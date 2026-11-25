@@ -41,26 +41,6 @@ class RossmannLoadPayloadTests(unittest.TestCase):
                 rossmann_workflow._load_rossmann_receipt_payload(source_path)
 
 
-class BuildAccountTests(unittest.TestCase):
-    def test_from_cli_args(self):
-        account = rossmann_workflow._build_account("acct-1", "hsh-1", None)
-        if account is None:
-            self.fail("expected account")
-        self.assertEqual(account.account_id, "acct-1")
-        self.assertEqual(account.account_hash, "hsh-1")
-
-    def test_from_cookie_file(self):
-        import json
-
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            path = Path(tmp_dir) / "ross.json"
-            path.write_text(json.dumps({"accountId": "acct-2", "accountHash": "hsh-2"}), encoding="utf-8")
-            account = rossmann_workflow._build_account(None, None, str(path))
-        if account is None:
-            self.fail("expected account")
-        self.assertEqual(account.account_id, "acct-2")
-
-
 class RunRossmannInitialTests(unittest.TestCase):
     def _workflow_result(self):
         return WorkflowResult(
@@ -99,7 +79,6 @@ class RunRossmannInitialTests(unittest.TestCase):
             return_value=self._workflow_result(),
         ), patch("sys.stdout", new=stdout):
             success = run_rossmann_initial(
-                cookies_file="dummy.json",
                 account_id="acct-1",
                 account_hash="hsh-1",
                 output_dir=tmp_dir,
@@ -120,7 +99,6 @@ class RunRossmannInitialTests(unittest.TestCase):
             "workflows.rossmann_workflow.create_receipt_store", return_value=Mock(),
         ), patch("sys.stdout", new=stdout):
             success = run_rossmann_initial(
-                cookies_file="dummy.json",
                 account_id="acct-1",
                 account_hash="hsh-1",
                 output_dir=tmp_dir,
@@ -159,7 +137,7 @@ class RunRossmannInitialTests(unittest.TestCase):
         ), patch("sys.stdout", new=stdout):
             success = run_rossmann_initial(output_dir=tmp_dir)
         self.assertFalse(success)
-        self.assertIn("Rossmann benötigt --cookies-file", stdout.getvalue())
+        self.assertIn("Verwende den Login oder gib accountId und accountHash an.", stdout.getvalue())
 
 
 class RunRossmannUpdateTests(unittest.TestCase):

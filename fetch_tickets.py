@@ -23,17 +23,14 @@ Usage:
     python fetch_tickets.py export  --retailer lidl --output-file lidl_receipts.json
     python fetch_tickets.py initial --retailer dm --cookies-file dm_cookies.json
     python fetch_tickets.py check   --retailer dm --cookies-file dm_cookies.json
-python fetch_tickets.py initial --retailer rossmann --cookies-file rossmann_cookies.json
     python fetch_tickets.py initial --retailer rossmann --login
-    python fetch_tickets.py check   --retailer rossmann --cookies-file rossmann_cookies.json
 
 dm requires a cookies-file export that includes the signin.dm.de session
 cookies (and optionally the *.services.dmtech.com cookies) so the OAuth flow
 can mint a short-lived access token.
 
 Rossmann serves digital receipts through anybill. It needs the Rossmann ``accountId``/
-``accountHash`` (as ``--account-id``/``--account-hash``, embedded in the
-cookies file, or obtained interactively via ``--login``) to mint the anybill token.
+``accountHash`` (as ``--account-id``/``--account-hash``, or obtained interactively via ``--login``) to mint the anybill token.
 """
 
 from __future__ import annotations
@@ -69,7 +66,7 @@ def create_parser() -> argparse.ArgumentParser:
             "--browser",
             choices=["firefox", "librewolf", "chrome", "chromium"],
             help="Browser to extract cookies from (non-interactive mode). "
-                 "LIDL/REWE/dm/Rossmann: firefox/librewolf/chrome/chromium.",
+                 "LIDL/REWE/dm: firefox/librewolf/chrome/chromium.",
         )
         group.add_argument(
             "--cookies-file",
@@ -94,13 +91,13 @@ def create_parser() -> argparse.ArgumentParser:
             "--account-id",
             metavar="ID",
             help="[Rossmann only] Rossmann accountId used by the receipt-auth "
-                 "token mint (optional if embedded in the cookies file)",
+                 "token mint",
         )
         subparser.add_argument(
             "--account-hash",
             metavar="HASH",
             help="[Rossmann only] Rossmann accountHash used by the receipt-auth "
-                 "token mint (optional if embedded in the cookies file)",
+                 "token mint",
         )
         subparser.add_argument(
             "--login",
@@ -183,11 +180,6 @@ def _dispatch_check(args: argparse.Namespace) -> bool:
 
         return diagnose_dm_cookie_file(args.cookies_file)
 
-    if args.retailer == "rossmann":
-        from auth.rossmann_file_auth import diagnose_rossmann_cookie_file
-
-        return diagnose_rossmann_cookie_file(args.cookies_file)
-
     print(f"✗ Unbekannter Händler: {args.retailer}", file=sys.stderr)
     return False
 
@@ -234,9 +226,10 @@ def _dispatch_workflow(args: argparse.Namespace, mode: str) -> bool:
     if args.retailer == "rossmann":
         output_dir = args.output_dir or RossmannConfig.DEFAULT_OUTPUT_DIR
         if mode == "initial":
+            if args.browser is not None or args.cookies_file is not None:
+                print("✗ Rossmann benötigt --login oder --account-id und --account-hash.", file=sys.stderr)
+                return False
             return run_rossmann_initial(
-                browser=args.browser,
-                cookies_file=args.cookies_file,
                 account_id=args.account_id,
                 account_hash=args.account_hash,
                 output_dir=output_dir,

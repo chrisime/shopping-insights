@@ -1,6 +1,7 @@
 """Lidl API client for fetching receipt data."""
 
 import time
+from datetime import date
 
 
 import requests
@@ -13,11 +14,12 @@ from shared.lidl_ticket_dto import LidlTicketDTO, LidlTicketsPageDTO
 def _request_with_retry(
     session: requests.Session,
     url: str,
-    **kwargs: object,
+    *,
+    timeout: float = LidlConfig.DEFAULT_TIMEOUT,
 ) -> requests.Response | None:
     for attempt in range(1, LidlConfig.MAX_RETRIES + 1):
         try:
-            response = session.get(url, **kwargs)
+            response = session.get(url, timeout=timeout)
 
             if response.ok:
                 return response
@@ -108,7 +110,10 @@ def get_lidl_ticket(
 
 
 def collect_lidl_receipt_ids(
-    session: requests.Session, max_pages: int | None = None
+    session: requests.Session,
+    max_pages: int | None = None,
+    *,
+    purchased_since: date | None = None,
 ) -> tuple[list[str], int]:
     """Collect LIDL receipt ids from all pages or only a limited number."""
     all_receipt_ids: list[str] = []
@@ -120,7 +125,11 @@ def collect_lidl_receipt_ids(
         if not tickets_page or not tickets_page.receipt_ids:
             break
 
-        all_receipt_ids.extend(tickets_page.receipt_ids)
+        all_receipt_ids.extend(
+            receipt_id for receipt_id in tickets_page.receipt_ids
+            if purchased_since is None
+            or tickets_page.purchase_dates.get(receipt_id, purchased_since) >= purchased_since
+        )
         processed_pages = current_page
         current_page += 1
 

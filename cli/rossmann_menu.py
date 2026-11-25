@@ -1,6 +1,6 @@
 """Interactive menu for Rossmann workflows."""
 
-from .auth_prompts import prompt_auth_source, prompt_cookies_file
+from .auth_prompts import prompt_cookies_file
 from .common_prompts import (
     print_cancelled,
     print_invalid_choice,
@@ -8,28 +8,22 @@ from .common_prompts import (
     prompt_with_default,
     run_retailer_export_json,
 )
-from auth.rossmann_file_auth import diagnose_rossmann_cookie_file
 from config import RossmannConfig
 from workflows.rossmann_workflow import run_rossmann_initial, run_rossmann_update
 
 
 def _run_rossmann_initial() -> None:
     """Interactive wrapper around the central Rossmann initial workflow."""
-    auth_kwargs = prompt_auth_source(
-        "ROSSMANN",
-        "Cookie-Datei",
-        "rossmann_cookies.json",
-    )
     output_dir = prompt_with_default(
         "Ausgabeverzeichnis für Belege",
         "tmp/rossmann",
     )
-    account_id = prompt_optional_value("Optionale Rossmann accountId (leer = aus Cookie-Datei)")
-    account_hash = prompt_optional_value("Optionale Rossmann accountHash (leer = aus Cookie-Datei)")
+    account_id = prompt_optional_value("Optionale Rossmann accountId (leer = Login)")
+    account_hash = prompt_optional_value("Optionale Rossmann accountHash (leer = Login)")
     prompt_login = False
-    if not account_id and not account_hash:
+    if not (account_id and account_hash):
         login_answer = input(
-            "Keine Rossmann accountId/accountHash angegeben. "
+            "Rossmann accountId/accountHash fehlen oder sind unvollständig. "
             "Stattdessen interaktiv mit E-Mail/Passwort einloggen? (j/N): "
         ).strip().lower()
         prompt_login = login_answer in ("j", "ja", "y", "yes", "1")
@@ -37,8 +31,6 @@ def _run_rossmann_initial() -> None:
     print("\nStarte Rossmann Beleg-Import...")
     success = run_rossmann_initial(
         output_dir=output_dir,
-        browser=auth_kwargs.get("browser"),
-        cookies_file=auth_kwargs.get("cookies_file"),
         account_id=account_id,
         account_hash=account_hash,
         prompt_login=prompt_login,
@@ -69,23 +61,13 @@ def _run_rossmann_export_json() -> None:
     run_retailer_export_json("rossmann", RossmannConfig.RECEIPTS_JSON_FILE)
 
 
-def _run_rossmann_check() -> None:
-    """Diagnose a Rossmann cookie/request file."""
-    path = _prompt_rossmann_cookies_file()
-    success = diagnose_rossmann_cookie_file(path)
-    if success:
-        print("✓ Rossmann-Cookie-Datei sieht grundsätzlich brauchbar aus!")
-    else:
-        print("✗ Rossmann-Cookie-Datei hat Probleme oder ist unvollständig!")
-
-
 def show_rossmann_menu() -> None:
     """Render the Rossmann submenu and dispatch workflow actions."""
     while True:
         _print_rossmann_menu()
 
         try:
-            choice = input("\nWähle eine Option (1-5): ").strip()
+            choice = input("\nWähle eine Option (1-4): ").strip()
             if not _dispatch_rossmann_menu_choice(choice):
                 return
 
@@ -100,8 +82,7 @@ def _print_rossmann_menu() -> None:
     print("1. Initial Setup (Belege + PDFs + DB-Import)")
     print("2. Update (aus vorhandenen Beleg-JSONs nur neue importieren)")
     print("3. JSON aus aktuellem DB-Stand erzeugen")
-    print("4. Cookie-Datei prüfen (Diagnose)")
-    print("5. Zurück")
+    print("4. Zurück")
 
 
 def _dispatch_rossmann_menu_choice(choice: str) -> bool:
@@ -119,18 +100,7 @@ def _dispatch_rossmann_menu_choice(choice: str) -> bool:
         _run_rossmann_export_json()
         return False
     if choice == "4":
-        _run_rossmann_check()
-        return False
-    if choice == "5":
         return False
 
-    print_invalid_choice("1, 2, 3, 4 oder 5")
+    print_invalid_choice("1, 2, 3 oder 4")
     return True
-
-
-def _prompt_rossmann_cookies_file() -> str:
-    """Prompt for the path to a Rossmann cookies/request file."""
-    return prompt_cookies_file(
-        "Pfad zur Rossmann-Cookie-/Request-Datei",
-        "rossmann_cookies.json",
-    )

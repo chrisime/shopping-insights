@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, SecretStr
+from pydantic import AliasChoices, BaseModel, Field, SecretStr
 
 
 class RossmannLogin(BaseModel):
@@ -17,7 +17,9 @@ class ImportStartRequest(BaseModel):
     browser: str | None = None
     cookies_file: str | None = None
     customer_id: str | None = None
-    rossmann_login: RossmannLogin | None = None
+    rossmann_login: RossmannLogin | None = Field(
+        default=None, validation_alias=AliasChoices("rossmann_login", "user_login")
+    )
 
 
 class ImportStartResponse(BaseModel):

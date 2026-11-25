@@ -6,15 +6,16 @@ minted via :mod:`auth.rossmann_auth`. On 401 the client re-mints a token via
 the provided refresher and retries once.
 """
 
-from __future__ import annotations
-
 import time
+from datetime import date, datetime, time as midnight_time
 from pathlib import Path
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 import requests
 
 from config import RossmannConfig
+from shared.receipt_dates import api_purchase_date
 
 
 def _request_with_retry(
@@ -74,6 +75,8 @@ def fetch_receipts(
     take: int = RossmannConfig.DEFAULT_PAGE_SIZE,
     continuation_token: str | None = None,
     token_refresher: Callable[[], str | None] | None = None,
+    *,
+    purchased_since: date | None = None,
 ) -> tuple[list[dict] | None, str | None]:
     """Fetch one page of anybill receipts.
 
@@ -81,6 +84,9 @@ def fetch_receipts(
     when the end of pagination is reached.
     """
     params: dict[str, Any] = {"take": take, "orderBy": "Date", "orderByDirection": "Descending"}
+    if purchased_since is not None:
+        cutoff = datetime.combine(purchased_since, midnight_time.min, ZoneInfo("Europe/Berlin"))
+        params["fromDate"] = cutoff.isoformat()
     if continuation_token:
         params["continuationToken"] = continuation_token
 
@@ -105,9 +111,16 @@ def fetch_receipts(
     return receipts, _parse_continuation_token(response)
 
 
+def rossmann_purchase_date(receipt: dict) -> date | None:
+    head = receipt.get("head")
+    return api_purchase_date(head.get("date")) if isinstance(head, dict) else None
+
+
 def collect_rossmann_receipts(
     session: requests.Session,
     token_refresher: Callable[[], str | None] | None = None,
+    *,
+    purchased_since: date | None = None,
 ) -> list[dict] | None:
     """Fetch all pages of anybill receipts until the continuation token ends."""
     receipts: list[dict] = []
@@ -120,10 +133,14 @@ def collect_rossmann_receipts(
             take=100,
             continuation_token=continuation_token,
             token_refresher=token_refresher,
+            purchased_since=purchased_since,
         )
         if page is None:
             return None
-        receipts.extend(page)
+        for receipt in page:
+            purchase_date = rossmann_purchase_date(receipt)
+            if purchased_since is None or purchase_date is None or purchase_date >= purchased_since:
+                receipts.append(receipt)
         if not continuation_token:
             break
         if continuation_token in seen_tokens:

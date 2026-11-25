@@ -9,12 +9,14 @@ re-mints a token via the provided refresher and retries once.
 from __future__ import annotations
 
 import time
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable
 
 import requests
 
 from config import DmConfig
+from shared.receipt_dates import api_purchase_date
 
 
 def _request_with_retry(
@@ -100,8 +102,10 @@ def fetch_purchase_history(
 def collect_dm_purchases(
     session: requests.Session,
     token_refresher: Callable[[], str | None] | None = None,
+    *,
+    purchased_since: date | None = None,
 ) -> list[dict]:
-    """Fetch all pages of dm purchase history until ``hasMoreElements`` is false."""
+    """Collect eligible purchases from newest-to-oldest history pages."""
     purchases: list[dict] = []
     until_date_time_placed: str | None = None
 
@@ -115,13 +119,22 @@ def collect_dm_purchases(
             break
 
         items = data.get("purchaseHistoryItems") or []
-        purchases.extend(item for item in items if isinstance(item, dict))
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            purchase_date = api_purchase_date(item.get("dateTimePlaced"))
+            if purchased_since is None or purchase_date is None or purchase_date >= purchased_since:
+                purchases.append(item)
 
         if not data.get("hasMoreElements") or not items:
             break
 
         last_item = items[-1]
         raw_cursor = last_item.get("dateTimePlaced") if isinstance(last_item, dict) else None
+        cursor_date = api_purchase_date(raw_cursor)
+        if purchased_since is not None and cursor_date is not None and cursor_date < purchased_since:
+            break
+
         until_date_time_placed = str(raw_cursor) if raw_cursor else None
         if not until_date_time_placed:
             break

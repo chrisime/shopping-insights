@@ -1,6 +1,7 @@
 """Central REWE workflows for eBon download, PDF import and diagnostics."""
 
 import logging
+from datetime import date
 from pathlib import Path
 from typing import Callable
 import zipfile
@@ -48,6 +49,8 @@ class _ReweImportWorkflow(ImportWorkflow):
         output_dir: Path,
         store: ReceiptStore,
         progress_listener: Callable[[object], None] | None = None,
+        *,
+        purchased_since: date | None = None,
     ) -> bool:
         session_and_customer_id = _prepare_rewe_session(self._customer_id, self._browser, self._cookies_file, output_dir)
         if not session_and_customer_id:
@@ -66,8 +69,13 @@ class _ReweImportWorkflow(ImportWorkflow):
         output_dir: Path,
         store: ReceiptStore,
         progress_listener: Callable[[object], None] | None = None,
+        *,
+        purchased_since: date | None = None,
     ) -> WorkflowResult:
-        return _run_rewe_pdf_import_pipeline(self._source_dir(output_dir), store, progress_listener=progress_listener)
+        return _run_rewe_pdf_import_pipeline(
+            self._source_dir(output_dir), store, progress_listener=progress_listener,
+            purchased_since=purchased_since,
+        )
 
     def _import_summary_label(self) -> str:
         return "REWE-eBons importiert"
@@ -93,14 +101,18 @@ def run_rewe_initial(
         cookies_file: str | None = None,
         output_dir: str = ReweConfig.REWE_DEFAULT_OUTPUT_DIR,
         progress_listener: Callable[[object], None] | None = None,
+    *,
+    purchased_since: date | None = None,
 ) -> bool:
     """Run the full REWE eBon workflow: download ZIP, extract PDFs, import into DB."""
     base_output_dir = Path(output_dir)
     store = create_receipt_store()
-    return _ReweImportWorkflow(customer_id, browser, cookies_file).run_initial(
+    workflow = _ReweImportWorkflow(customer_id, browser, cookies_file)
+    return workflow.run_initial(
         base_output_dir,
         store,
         progress_listener=progress_listener,
+        purchased_since=purchased_since,
     )
 
 
@@ -121,6 +133,8 @@ def _run_rewe_pdf_import_pipeline(
     pdf_dir: Path,
     store: ReceiptStore,
     progress_listener: Callable[[object], None] | None = None,
+    *,
+    purchased_since: date | None = None,
 ) -> WorkflowResult:
     """Parse, validate and persist extracted REWE PDFs and return a normalized workflow result."""
     active_pdf_paths = sorted(pdf_dir.glob("*.pdf"))
@@ -136,6 +150,7 @@ def _run_rewe_pdf_import_pipeline(
         retailer_display_name="REWE",
         skipped_report_filename=ReweConfig.SKIPPED_RECEIPTS_REPORT_FILE,
         progress_listener=progress_listener,
+        purchased_since=purchased_since,
     )
 
 

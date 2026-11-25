@@ -13,7 +13,6 @@ from auth.rossmann_auth import (
     mint_anybill_token,
     prompt_rossmann_login,
 )
-from auth.rossmann_file_auth import read_rossmann_account
 from config import RossmannConfig
 
 
@@ -23,19 +22,6 @@ def _json_response(payload, status_code=200):
     response.ok = status_code < 400
     response.json.return_value = payload
     return response
-
-
-class ReadRossmannAccountTests(unittest.TestCase):
-    def test_reads_account_from_json_export(self):
-        import json
-
-        account = read_rossmann_account(
-            json.dumps({"accountId": "acct-1", "accountHash": "hsh-1"})
-        )
-        self.assertEqual(account, {"accountId": "acct-1", "accountHash": "hsh-1"})
-
-    def test_returns_none_for_plain_cookies(self):
-        self.assertIsNone(read_rossmann_account('[{"name":"x","value":"1"}]'))
 
 
 class LoginRossmannAccountTests(unittest.TestCase):

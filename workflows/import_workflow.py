@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import date
 from pathlib import Path
 from typing import Callable
 
@@ -34,6 +35,8 @@ class ImportWorkflow(ABC):
         output_dir: Path,
         store: ReceiptStore,
         progress_listener: Callable[[object], None] | None = None,
+        *,
+        purchased_since: date | None = None,
     ) -> bool:
         """Prepare session and download raw source files.
 
@@ -48,6 +51,8 @@ class ImportWorkflow(ABC):
         output_dir: Path,
         store: ReceiptStore,
         progress_listener: Callable[[object], None] | None = None,
+        *,
+        purchased_since: date | None = None,
     ) -> WorkflowResult:
         """Parse, validate and persist all local source files."""
 
@@ -79,11 +84,23 @@ class ImportWorkflow(ABC):
         output_dir: Path,
         store: ReceiptStore,
         progress_listener: Callable[[object], None] | None = None,
+        *,
+        purchased_since: date | None = None,
     ) -> bool:
         """Template: download sources → local import → summary → post-import hook."""
-        if not self._download_sources(output_dir, store, progress_listener=progress_listener):
+        if not self._download_sources(
+            output_dir,
+            store,
+            progress_listener=progress_listener,
+            purchased_since=purchased_since,
+        ):
             return False
-        result = self._run_local_import(output_dir, store, progress_listener=progress_listener)
+        result = self._run_local_import(
+            output_dir,
+            store,
+            progress_listener=progress_listener,
+            purchased_since=purchased_since,
+        )
         self._print_import_summary(result)
         self._post_import(result, output_dir)
         return result.success

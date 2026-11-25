@@ -9,6 +9,7 @@ path. Online orders are recognized and counted but not persisted.
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable
 
@@ -30,6 +31,7 @@ from config import DmConfig
 from config import storage_config
 from parsing.dm_ebons_parser import enrich_dm_item_names
 from parsing.dm_pdf_items_extractor import extract_dm_pdf_items
+from shared.receipt_dates import api_purchase_date
 from shared.receipt_store import ReceiptStore
 from storage import create_receipt_store
 
@@ -81,6 +83,8 @@ class _DmImportWorkflow(ImportWorkflow):
         output_dir: Path,
         store: ReceiptStore,
         progress_listener: Callable[[object], None] | None = None,
+        *,
+        purchased_since: date | None = None,
     ) -> bool:
         session_payload = _prepare_dm_session(self._browser, self._cookies_file)
         if not session_payload:
@@ -91,7 +95,7 @@ class _DmImportWorkflow(ImportWorkflow):
         ebons_dir.mkdir(parents=True, exist_ok=True)
 
         print("ℹ Sammle dm-Kaufhistorie...")
-        purchases = collect_dm_purchases(api_session, token_refresher=token_refresher)
+        purchases = collect_dm_purchases(api_session, token_refresher=token_refresher, purchased_since=purchased_since)
         if not purchases:
             print("ℹ Keine dm-Kaufhistorie-Einträge gefunden.")
             return True
@@ -119,6 +123,7 @@ class _DmImportWorkflow(ImportWorkflow):
                 output_dir,
                 token_refresher,
                 progress_listener=progress_listener,
+                purchased_since=purchased_since,
             )
         return True
 
@@ -134,6 +139,8 @@ class _DmImportWorkflow(ImportWorkflow):
         output_dir: Path,
         store: ReceiptStore,
         progress_listener: Callable[[object], None] | None = None,
+        *,
+        purchased_since: date | None = None,
     ) -> WorkflowResult:
         ebons_dir = self._source_dir(output_dir)
         return import_local_sources(
@@ -148,6 +155,7 @@ class _DmImportWorkflow(ImportWorkflow):
             retailer_display_name="dm",
             skipped_report_filename=DmConfig.SKIPPED_RECEIPTS_REPORT_FILE,
             progress_listener=progress_listener,
+            purchased_since=purchased_since,
         )
 
     def _import_summary_label(self) -> str:
@@ -167,14 +175,18 @@ def run_dm_initial(
     cookies_file: str | None = None,
     output_dir: str = DmConfig.DEFAULT_OUTPUT_DIR,
     progress_listener: Callable[[object], None] | None = None,
+    *,
+    purchased_since: date | None = None,
 ) -> bool:
     """Download new dm eBon JSONs and import them into the DB."""
     base_output_dir = Path(output_dir)
     store = create_receipt_store()
-    return _DmImportWorkflow(browser, cookies_file).run_initial(
+    workflow = _DmImportWorkflow(browser, cookies_file)
+    return workflow.run_initial(
         base_output_dir,
         store,
         progress_listener=progress_listener,
+        purchased_since=purchased_since,
     )
 
 
@@ -240,6 +252,8 @@ def _download_dm_ebons(
     output_dir: Path,
     token_refresher: Callable[[], str | None],
     progress_listener: Callable[[object], None] | None = None,
+    *,
+    purchased_since: date | None = None,
 ) -> None:
     """Download dm eBon detail JSONs and PDFs for the given purchases."""
     pdf_dir = output_dir / "pdf"
@@ -247,13 +261,8 @@ def _download_dm_ebons(
     saved_count = 0
     error_count = 0
 
-    progress = ReceiptProgressDisplay(
-        added_label="Gespeichert",
-        items_label="Artikel",
-        listener=progress_listener,
-    )
     total_receipts = len(new_ebons)
-    progress.render_step(0, total_receipts, 0, 0, 0, "-")
+    progress = ReceiptProgressDisplay.start_download(total_receipts, progress_listener)
 
     for index, purchase in enumerate(new_ebons, start=1):
         ebon_id = str(purchase.get("id") or "")
@@ -264,7 +273,11 @@ def _download_dm_ebons(
         if detail is None:
             error_count += 1
             print(f"\u2717 dm-eBon-Detail fehlgeschlagen: {ebon_id}")
-        else:
+        elif (
+            purchased_since is None
+            or (purchase_date := api_purchase_date(detail.get("date"))) is None
+            or purchase_date >= purchased_since
+        ):
             if detail.get("hasDownloadableReceipt"):
                 pdf_path = pdf_dir / f"{ebon_id}.pdf"
                 if download_ebon_pdf(

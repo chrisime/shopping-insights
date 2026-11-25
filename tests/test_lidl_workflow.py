@@ -204,7 +204,7 @@ class LidlWorkflowTests(unittest.TestCase):
             success = run_lidl_initial(cookies_file="dummy.json")
 
         self.assertTrue(success)
-        collect_receipt_ids.assert_called_once_with(session)
+        collect_receipt_ids.assert_called_once_with(session, purchased_since=None)
         download_tickets.assert_called_once_with(
             session,
             ["new-receipt"],

@@ -22,7 +22,6 @@ Zusätzlich gibt es für alle Händler einen Diagnosepfad für Cookie-/Request-D
 uv run --locked python fetch_tickets.py check --retailer lidl --cookies-file lidl_cookies.json
 uv run --locked python fetch_tickets.py check --retailer rewe --cookies-file rewe_cookies.json
 uv run --locked python fetch_tickets.py check --retailer dm --cookies-file dm_cookies.json
-uv run --locked python fetch_tickets.py check --retailer rossmann --cookies-file rossmann_cookies.json
 ```
 
 ## Voraussetzungen

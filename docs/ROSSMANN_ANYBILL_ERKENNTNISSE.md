@@ -10,7 +10,7 @@ Stand 22. November 2026. Die Bedienung von Dashboard und CLI steht in der [Rossm
 
 Der Login antwortete im Vergleichstest ohne Plattformangaben mit einem leeren HTTP 400. App-Version, Build-Nummer und Korrelations-ID allein änderten das Ergebnis nicht. Nach Ergänzung von `Platform`, `Platform-Version` und `Build-Serial` lieferte Rossmann HTTP 200. Welches der drei Felder allein erforderlich ist, wurde nicht isoliert. Der Client sendet die im Live-Test bestätigte Kombination beim Login und bei der Token-Ausstellung, mit einer neuen Korrelations-ID pro Anfrage. Header und Versionswerte sind im [Auth-Modul](../auth/rossmann_auth.py) und in der [Rossmann-Konfiguration](../config/rossmann_config.py) hinterlegt.
 
-Die früheren Versuche mit einem Webshop-Cookie-Export lieferten eine gültige Webshop-Sitzung, aber keine App-Kontoidentität. Der erprobte SSO-Aufruf endete mit HTTP 400 beziehungsweise einer Weiterleitung zur Loginseite. Die optionale Cookie-Datei kann eine bereits vorhandene App-Kontoidentität in den Feldern `accountId` und `accountHash` enthalten. Die Cookie-Diagnose prüft lokal Format und Cookies.
+Die früheren Versuche mit einem Webshop-Cookie-Export lieferten eine gültige Webshop-Sitzung, aber keine App-Kontoidentität. Der erprobte SSO-Aufruf endete mit HTTP 400 beziehungsweise einer Weiterleitung zur Loginseite. Der heutige Abruf verwendet den App-Login oder direkt übergebene App-Kontodaten.
 
 ## Belegabruf und Speicherung
 
